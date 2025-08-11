@@ -153,14 +153,14 @@ def write_segment_properties(
 
 
 def convert_compressed_annotations_to_precomputed(
-    annotation_data, output_location, scale=(10, 10, 10), chunk_size=(256, 256, 64)
+    annotation_data, output_location, scale=(.01, .01, .01), chunk_size=(256, 256, 64)
 ):
     """Convert compressed annotation data to precomputed format.
 
     Args:
         annotation_data (numpy.ndarray): In-memory annotation data array
         output_location (str): Output location for precomputed file
-        scale (int): Resolution scale in micrometers per voxel (default: (10, 10, 10))
+        scale (int): Resolution scale in millimeters per voxel (default: (.01, .01, .01))
         chunk_size (tuple): Chunk size for precomputed format (default: (256, 256, 64))
     """
     logging.info("Converting compressed annotations to precomputed format")
@@ -184,9 +184,9 @@ def convert_compressed_annotations_to_precomputed(
             "compressed_segmentation_block_size": [8, 8, 8],
             "chunk_size": chunk_size,
             "resolution": [
-                scale[0] * 1000,
-                scale[1] * 1000,
-                scale[2] * 1000,
+                scale[0] * 1e6,
+                scale[1] * 1e6,
+                scale[2] * 1e6,
             ],  # must convert to nanometers
         },
         "schema": {

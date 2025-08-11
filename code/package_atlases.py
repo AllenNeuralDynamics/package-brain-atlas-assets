@@ -10,6 +10,7 @@ import CCFv3
 import CCFv2020
 import devmouse
 import SmartSPIM
+import idisco
 from atlas_assets import AssetLibrary
 
 
@@ -65,6 +66,9 @@ def main():
     # Package CCF 3 legacy annotations and templates
     CCFv3.package_ccf(ccf3_dir, results_dir, library, scales=scales)
 
+    # Package iDISCO template
+    idisco.package_idisco_template(results_dir)
+
     # Package CCF 2020 annotations
     CCFv2020.package_ccf2020(abc_dir, results_dir, library, scales=(10,))
 
@@ -72,6 +76,8 @@ def main():
     SmartSPIM.package_smartspim_template(
         smartspim_dir, results_dir, library, scales=scales
     )
+
+    
 
     for a in library.anatomical_spaces:
         a.create_manifest(results_dir)

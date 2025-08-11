@@ -68,12 +68,16 @@ class AnatomicalAnnotationSet(AtlasAsset):
             f"Creating precomputed annotation file using highest resolution scale: {highest_res_scale}μm"
         )
 
-        high_res_data, _ = compressed_results[highest_res_scale]
+        high_res_data, high_res_affine = compressed_results[highest_res_scale]
+        scale_vec, rotation_mat, translation_vec = decompose_affine(high_res_affine)  # Ensure affine is decomposed correctly
+        logging.info(
+            f"Decomposed affine for highest resolution: scale={scale_vec}, translation={translation_vec}, rotation=\n{rotation_mat}"
+        )
         precomputed_output = str(output_dir / "annotations.precomputed")
         convert_compressed_annotations_to_precomputed(
             high_res_data,
             precomputed_output,
-            scale=(highest_res_scale, highest_res_scale, highest_res_scale),
+            scale=scale_vec,
         )
 
         # Write segment properties (without meshes) from terminology

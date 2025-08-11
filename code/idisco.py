@@ -10,6 +10,7 @@ from ome_zarr.writer import write_image, write_multiscale
 from ome_zarr.io import parse_url
 from ome_zarr.format import CurrentFormat
 from atlas_assets.anatomical_template import AnatomicalTemplate
+from utils import decompose_affine
 
 # Directory containing the multiresolution, multichannel NIfTI files
 IDISCO_DATA_DIR = Path("/root/capsule/data/idisco_template_multichannel_multiresolution")
@@ -46,24 +47,48 @@ def load_nifti_channels(res_dir):
 def package_idisco_template(output_dir):
     """Package iDISCO multichannel template as OME-Zarr multiscale pyramid (OME standard)."""
     output_dir = Path(output_dir)
+    # Use AnatomicalTemplate location for output_dir
+    template = AnatomicalTemplate(
+        name="allen-adult-mouse-spim-idisco-template",
+        version="2025-05",
+        scales=tuple(RESOLUTIONS),
+    )
+    output_dir = template.location(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
-    zarr_path = output_dir / "idisco_template.ome.zarr"
+    zarr_path = output_dir / "anatomical_template.ome.zarr"
     group = zarr_lib.open(str(zarr_path), mode="w")
+
 
     arrays = []
     all_channel_names = None
+    coordinate_transformations = []
     for res in RESOLUTIONS:
         res_dir = IDISCO_DATA_DIR / str(res)
         if not res_dir.exists():
             logging.warning(f"Resolution dir {res_dir} missing, skipping.")
             continue
+        niftis = sorted(res_dir.glob("*.nii*"))
+        if not niftis:
+            logging.warning(f"No NIfTI files found in {res_dir}, skipping.")
+            continue
+        # Load first file to get affine and spacing
+        img = nib.load(str(niftis[0]))
+        spacing = img.header.get_zooms()[:3]
+        origin = img.affine[:3, 3]
+        scale_vec, rotation_mat, translation_vec = decompose_affine(img.affine)
+        logging.info(
+            f"Scale {res}: spacing {spacing}, origin {origin}, affine:\n{img.affine}\n"
+            f"Decomposed: scale={scale_vec}, translation={translation_vec}, rotation=\n{rotation_mat}"
+        )
         arr, channel_names = load_nifti_channels(res_dir)
         arrays.append(arr)
         if all_channel_names is None:
             all_channel_names = channel_names
         elif channel_names != all_channel_names:
             logging.warning(f"Channel names at {res}um do not match previous scales!")
-        logging.info(f"Prepared scale {res}um: shape {arr.shape}")
+        coordinate_transformations.append([
+            {"type": "scale", "scale": [1.0] + scale_vec.tolist()}
+        ])
 
     if not arrays:
         raise RuntimeError("No valid scales found to write OME-Zarr multiscale.")
@@ -79,19 +104,14 @@ def package_idisco_template(output_dir):
         arrays,
         group,
         axes=axes,
-        coordinate_transformations=None,
-        chunks=(1, 64, 128, 128),
+        coordinate_transformations=coordinate_transformations,
+        chunks=(1, 128, 128, 128),
         compressor=compressor,
         channel_names=all_channel_names,
     )
     logging.info(f"iDISCO OME-Zarr multiscale pyramid written to {zarr_path}")
 
     # Create and register AnatomicalTemplate asset
-    template = AnatomicalTemplate(
-        name="allen-adult-mouse-idisco-template",
-        version="2025",
-        scales=tuple(RESOLUTIONS),
-    )
     template.create_manifest(output_dir)
     logging.info(f"Created AnatomicalTemplate manifest at {template.location(output_dir)}")
 

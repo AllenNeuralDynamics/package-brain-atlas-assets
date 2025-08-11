@@ -19,11 +19,12 @@ from aind_data_schema.core.data_description import DataDescription, Funding
 from aind_data_schema_models.data_name_patterns import build_data_name
 from aind_data_schema_models.modalities import Modality
 from aind_data_schema_models.organizations import Organization
+from aind_data_schema.components.identifiers import Person
 
 
 # Placeholder creation times to be replaced later (distinct per template)
-CCF2_TEMPLATE_CREATION_TIME = datetime.datetime(2000, 1, 1, tzinfo=datetime.timezone.utc)
-CCF3_TEMPLATE_CREATION_TIME = datetime.datetime(2000, 1, 2, tzinfo=datetime.timezone.utc)
+CCF2_TEMPLATE_CREATION_TIME = datetime.datetime(2012, 11, 27, tzinfo=datetime.timezone.utc)
+CCF3_TEMPLATE_CREATION_TIME = datetime.datetime(2015, 4, 17, tzinfo=datetime.timezone.utc)
 
 CCF2_TEMPLATE_SUMMARY = """
 This template is based upon the Allen Reference Atlas (ARA) specimen (Dong, 2008) in which a 3D volume was
@@ -58,7 +59,7 @@ At 10 μm voxel resolution, the average template contains ~506 million voxels. I
 """
 
 
-def _write_template_data_description(output_dir: Path, name: str, summary: str, modalities, creation_time):
+def _write_template_data_description(output_dir: Path, name: str, version: str, summary: str, modalities, creation_time):
     """Create and write a data_description.json for a template using AIND schema.
 
     Args:
@@ -71,14 +72,14 @@ def _write_template_data_description(output_dir: Path, name: str, summary: str, 
     output_dir.mkdir(parents=True, exist_ok=True)
 
     dd = DataDescription(
-        name=build_data_name(name.replace(".", "-"), t),
+        name=build_data_name(name.replace(".", "-"), creation_time),
         data_summary=summary.strip(),
-        subject_id="PopulationAverage",
+        subject_id="adult-mouse-population-average",
         modalities=modalities,
-        institution=Organization.AIND,
         data_level="derived",
         creation_time=creation_time,
-        investigators=[],
+        institution=Organization.AIND,
+        investigators=[Person(name="Lydia Ng", registry_identifier="0000-0002-7499-3514")], 
         funding_source=[Funding(funder=Organization.AI)],
         project_name="Allen Mouse Brain Common Coordinate Framework",
     )
@@ -121,8 +122,9 @@ def create_all_ccf_anatomical_templates(
     _write_template_data_description(
         output_dir=template.location(results_dir),
         name=template.name,
+        version=template.version,
         summary=CCF3_TEMPLATE_SUMMARY,
-        modalities=["STPT"],
+        modalities=[Modality.STPT],
         creation_time=CCF3_TEMPLATE_CREATION_TIME,
     )
 
@@ -139,8 +141,9 @@ def create_all_ccf_anatomical_templates(
     _write_template_data_description(
         output_dir=template.location(results_dir),
         name=template.name,
+        version=template.version,
         summary=CCF2_TEMPLATE_SUMMARY,
-        modalities=["brightfield"],
+        modalities=[Modality.BRIGHTFIELD],
         creation_time=CCF2_TEMPLATE_CREATION_TIME,
     )
 
