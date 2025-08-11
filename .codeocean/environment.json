@@ -9,31 +9,40 @@
 		"pip": {
 			"packages": [
 				{
-					"name": "aind-data-schema"
+					"name": "aind-data-schema",
+					"version": "2.0.0"
 				},
 				{
-					"name": "awscli"
+					"name": "awscli",
+					"version": "1.42.6"
 				},
 				{
-					"name": "cloud-volume"
+					"name": "cloud-volume",
+					"version": "12.4.1"
 				},
 				{
-					"name": "nibabel"
+					"name": "nibabel",
+					"version": "5.3.2"
 				},
 				{
-					"name": "ome-zarr"
+					"name": "ome-zarr",
+					"version": "0.11.1"
 				},
 				{
-					"name": "pandas"
+					"name": "pandas",
+					"version": "2.3.1"
 				},
 				{
-					"name": "pyarrow"
+					"name": "pyarrow",
+					"version": "21.0.0"
 				},
 				{
-					"name": "simpleitk"
+					"name": "simpleitk",
+					"version": "2.5.2"
 				},
 				{
-					"name": "tensorstore"
+					"name": "tensorstore",
+					"version": "0.1.76"
 				}
 			],
 			"options": {},

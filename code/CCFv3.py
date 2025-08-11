@@ -7,11 +7,11 @@ from pathlib import Path
 
 import pandas as pd
 
-from allen_atlas_assets import (AnatomicalAnnotationSet, AnatomicalSpace,
-                                AnatomicalTemplate, ParcellationAtlas,
-                                ParcellationTerminology)
-from allen_atlas_assets.mesh import Mesh
-from allen_atlas_assets.precomputed import append_meshes_to_precomputed
+from atlas_assets import (AnatomicalAnnotationSet, AnatomicalSpace,
+                          AnatomicalTemplate, ParcellationAtlas,
+                          ParcellationTerminology)
+from atlas_assets.mesh import Mesh
+from atlas_assets.precomputed import append_meshes_to_precomputed
 
 
 def load_ccf3_meshes(mesh_dir):
@@ -59,19 +59,48 @@ def create_all_ccf_annotation_sets(
     logging.info("Creating all CCF anatomical annotation sets...")
 
     # Get templates and terminology from library
-    template_2p = library.get_anatomical_template("allen-adult-mouse-2p-template", "2015")
-    template_nissl = library.get_anatomical_template("allen-adult-mouse-nissl-template", "2011")
+    template_2p = library.get_anatomical_template(
+        "allen-adult-mouse-2p-template", "2015"
+    )
+    template_nissl = library.get_anatomical_template(
+        "allen-adult-mouse-nissl-template", "2011"
+    )
     terminology = library.get_parcellation_terminology(
         "allen-adult-mouse-terminology", "2017"
     )
 
     # Define annotation configurations for different CCF versions
     annotations = [
-        {"directory": "ccf_2015", "template": template_2p, "version": "2015", "name": "allen-adult-mouse-annotation"},
-        {"directory": "ccf_2016", "template": template_2p, "version": "2016", "name": "allen-adult-mouse-annotation"},
-        {"directory": "ccf_2017", "template": template_2p, "version": "2017", "name": "allen-adult-mouse-annotation"},
-        {"directory": "devmouse_2012", "template": template_nissl, "version": "2012", "name": "allen-dev-mouse-p56-annotation"},
-        {"directory": "mouse_2011", "template": template_nissl, "version": "2011", "name": "allen-adult-mouse-annotation"},
+        {
+            "directory": "ccf_2015",
+            "template": template_2p,
+            "version": "2015",
+            "name": "allen-adult-mouse-annotation",
+        },
+        {
+            "directory": "ccf_2016",
+            "template": template_2p,
+            "version": "2016",
+            "name": "allen-adult-mouse-annotation",
+        },
+        {
+            "directory": "ccf_2017",
+            "template": template_2p,
+            "version": "2017",
+            "name": "allen-adult-mouse-annotation",
+        },
+        {
+            "directory": "devmouse_2012",
+            "template": template_nissl,
+            "version": "2012",
+            "name": "allen-dev-mouse-p56-annotation",
+        },
+        {
+            "directory": "mouse_2011",
+            "template": template_nissl,
+            "version": "2011",
+            "name": "allen-adult-mouse-annotation",
+        },
     ]
 
     for annotation in annotations:
@@ -116,21 +145,27 @@ def create_ccf3_parcellation_terminology(input_dir, output_dir, library):
 
     # Create DataFrame with required columns for ParcellationTerminology
     # For CCF3, use structure IDs as both file_id and identifier
-    filtered_df = pd.DataFrame({
-        "identifier": df["id"].map(lambda x: f"MBA:{int(x)}"),
-        "annotation_value": df["id"].astype(int),
-        "parent_identifier": df["parent_structure_id"].map(lambda x: f"MBA:{int(x)}" if not pd.isna(x) else ""),
-        "name": df["name"],
-        "abbreviation": df["acronym"],
-        "color_hex_triplet": df["color_hex_triplet"].map(lambda x: f"#{x}"),
-    })
+    filtered_df = pd.DataFrame(
+        {
+            "identifier": df["id"].map(lambda x: f"MBA:{int(x)}"),
+            "annotation_value": df["id"].astype(int),
+            "parent_identifier": df["parent_structure_id"].map(
+                lambda x: f"MBA:{int(x)}" if not pd.isna(x) else ""
+            ),
+            "name": df["name"],
+            "abbreviation": df["acronym"],
+            "color_hex_triplet": df["color_hex_triplet"].map(lambda x: f"#{x}"),
+        }
+    )
 
     terminology = ParcellationTerminology(
         name="allen-adult-mouse-terminology", version="2017", df=filtered_df
     )
 
     # Build identifier -> annotation_value lookup since identifiers are prefixed
-    id_to_ann = dict(zip(terminology.df["identifier"], terminology.df["annotation_value"]))
+    id_to_ann = dict(
+        zip(terminology.df["identifier"], terminology.df["annotation_value"])
+    )
     terminology.set_descendant_annotation_values(
         lambda row: [id_to_ann[i] for i in row["descendants"] if i in id_to_ann]
     )
@@ -138,7 +173,7 @@ def create_ccf3_parcellation_terminology(input_dir, output_dir, library):
     parcellation_legacy_dir = terminology.location(output_dir) / "legacy_files"
     parcellation_legacy_dir.mkdir(parents=True, exist_ok=True)
     shutil.copy2(input_path, parcellation_legacy_dir / input_path.name)
-    
+
     terminology.write_terminology(output_dir)
     terminology.create_manifest(output_dir)
     library.add(terminology)

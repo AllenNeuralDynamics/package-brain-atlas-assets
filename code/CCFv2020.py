@@ -5,29 +5,29 @@ import shutil
 from pathlib import Path
 
 import pandas as pd
+from CCFv3 import load_ccf3_meshes
 
-from allen_atlas_assets import (AnatomicalAnnotationSet, AnatomicalSpace,
-                                AnatomicalTemplate, ParcellationAtlas,
-                                ParcellationTerminology)
-from allen_atlas_assets.precomputed import append_meshes_to_precomputed
-from ccf3 import load_ccf3_meshes
+from atlas_assets import (AnatomicalAnnotationSet, AnatomicalSpace,
+                          AnatomicalTemplate, ParcellationAtlas,
+                          ParcellationTerminology)
+from atlas_assets.precomputed import append_meshes_to_precomputed
 
 
 def create_ccf2020_anatomical_template(input_dir, results_dir, library, scales=(10,)):
     """Create CCF 2020 anatomical template from ABC Atlas data."""
     logging.info("Creating CCF 2020 anatomical template...")
-    
+
     # Create anatomical template from the ABC Atlas average template
     template_dir = input_dir / "image_volumes" / "Allen-CCF-2020" / "20230630"
     template = AnatomicalTemplate(
         name="allen-adult-mouse-2p-template", version="2020", scales=scales
     )
-    
+
     # Use the average template from ABC Atlas
     template.create(template_dir / "average_template", results_dir)
     library.add(template)
     logging.info(f"Created CCF 2020 template: {template.name} {template.version}")
-    
+
     return template
 
 
@@ -90,9 +90,8 @@ def create_ccf2020_parcellation_terminology(input_dir, output_dir, library):
     rep = nonnull.groupby("identifier", as_index=False).first()
 
     # Flatten, deduplicate, sort annotation values per identifier
-    agg_ann = (
-        nonnull.groupby("identifier", as_index=False)["annotation_value"]
-        .agg(lambda s: sorted({x for lst in s if isinstance(lst, list) for x in lst}))
+    agg_ann = nonnull.groupby("identifier", as_index=False)["annotation_value"].agg(
+        lambda s: sorted({x for lst in s if isinstance(lst, list) for x in lst})
     )
 
     if "annotation_value" in rep.columns:
@@ -113,28 +112,34 @@ def create_ccf2020_parcellation_terminology(input_dir, output_dir, library):
         if isinstance(v, list):
             all_existing.extend(v)
     # include membership indices as well
-    all_existing.extend(int(x) for x in pptm_df["parcellation_index"].unique() if pd.notna(x))
+    all_existing.extend(
+        int(x) for x in pptm_df["parcellation_index"].unique() if pd.notna(x)
+    )
     max_existing = max(all_existing) if all_existing else 0
     next_new_id = max_existing + 1
 
     # Assign new IDs to rows with missing/empty annotation_value
-    need_ids_mask = combined["annotation_value"].isna() | combined["annotation_value"].apply(
-        lambda v: isinstance(v, list) and len(v) == 0
-    )
+    need_ids_mask = combined["annotation_value"].isna() | combined[
+        "annotation_value"
+    ].apply(lambda v: isinstance(v, list) and len(v) == 0)
     for i in combined[need_ids_mask].index:
         combined.at[i, "annotation_value"] = [next_new_id]
         next_new_id += 1
 
     # Build DataFrame expected by ParcellationTerminology (include term_set_name)
-    filtered_df = pd.DataFrame({
-        "identifier": combined["identifier"],  # preserve NaN
-        "parent_identifier": combined["parent_identifier"].map(lambda x: str(x) if not pd.isna(x) else ""),
-        "name": combined["name"],
-        "color_hex_triplet": combined["color_hex_triplet"],
-        "abbreviation": combined["acronym"],
-        "term_set_name": combined["term_set_name"],
-        "annotation_value": combined["annotation_value"],
-    })
+    filtered_df = pd.DataFrame(
+        {
+            "identifier": combined["identifier"],  # preserve NaN
+            "parent_identifier": combined["parent_identifier"].map(
+                lambda x: str(x) if not pd.isna(x) else ""
+            ),
+            "name": combined["name"],
+            "color_hex_triplet": combined["color_hex_triplet"],
+            "abbreviation": combined["acronym"],
+            "term_set_name": combined["term_set_name"],
+            "annotation_value": combined["annotation_value"],
+        }
+    )
 
     pt = ParcellationTerminology(
         df=filtered_df,
@@ -225,13 +230,13 @@ def package_ccf2020(input_dir, output_dir, library, scales=(10,)):
     """Complete packaging workflow for CCF 2020 atlas data."""
     # Create and register anatomical template
     create_ccf2020_anatomical_template(input_dir, output_dir, library, scales)
-    
+
     # Create and register terminology
     create_ccf2020_parcellation_terminology(input_dir, output_dir, library)
 
     # Create and register annotation set
     create_ccf2020_annotation_set(input_dir, output_dir, library, scales)
-    
+
     # Create and register anatomical space
     template = library.get_anatomical_template("allen-adult-mouse-2p-template", "2020")
     anatomical_space = AnatomicalSpace(

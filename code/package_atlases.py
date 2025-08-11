@@ -8,9 +8,9 @@ from pathlib import Path
 
 import CCFv3
 import CCFv2020
-import SmartSPIM
 import devmouse
-from allen_atlas_assets import AssetLibrary
+import SmartSPIM
+from atlas_assets import AssetLibrary
 
 
 def clear_directory(path):
@@ -65,11 +65,13 @@ def main():
     # Package CCF 3 legacy annotations and templates
     CCFv3.package_ccf(ccf3_dir, results_dir, library, scales=scales)
 
-    # Package CCF 2020 annotations 
+    # Package CCF 2020 annotations
     CCFv2020.package_ccf2020(abc_dir, results_dir, library, scales=(10,))
 
     # Package SmartSPIM template (uses library for assets)
-    SmartSPIM.package_smartspim_template(smartspim_dir, results_dir, library, scales=scales)
+    SmartSPIM.package_smartspim_template(
+        smartspim_dir, results_dir, library, scales=scales
+    )
 
     for a in library.anatomical_spaces:
         a.create_manifest(results_dir)

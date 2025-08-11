@@ -2,8 +2,8 @@
 
 from dataclasses import dataclass
 
-from allen_atlas_assets.anatomical_template import AnatomicalTemplate
-from allen_atlas_assets.atlas_asset import AtlasAsset
+from atlas_assets.anatomical_template import AnatomicalTemplate
+from atlas_assets.atlas_asset import AtlasAsset
 
 
 @dataclass

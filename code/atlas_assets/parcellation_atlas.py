@@ -2,11 +2,10 @@
 
 from dataclasses import dataclass
 
-from allen_atlas_assets.anatomical_annotation_set import \
-    AnatomicalAnnotationSet
-from allen_atlas_assets.anatomical_space import AnatomicalSpace
-from allen_atlas_assets.atlas_asset import AtlasAsset
-from allen_atlas_assets.parcellation_terminology import ParcellationTerminology
+from atlas_assets.anatomical_annotation_set import AnatomicalAnnotationSet
+from atlas_assets.anatomical_space import AnatomicalSpace
+from atlas_assets.atlas_asset import AtlasAsset
+from atlas_assets.parcellation_terminology import ParcellationTerminology
 
 
 @dataclass

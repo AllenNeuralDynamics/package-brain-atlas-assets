@@ -5,7 +5,7 @@ from dataclasses import dataclass
 
 import pandas as pd
 
-from allen_atlas_assets.atlas_asset import AtlasAsset
+from atlas_assets.atlas_asset import AtlasAsset
 
 
 @dataclass
@@ -134,7 +134,7 @@ class ParcellationTerminology(AtlasAsset):
         self._set_column_values("term_set_name", values)
 
     def write_terminology(self, output_root):
-        output_dir = self.location(output_root) 
+        output_dir = self.location(output_root)
         output_dir.mkdir(parents=True, exist_ok=True)
         csv_output_path = output_dir / "parcellation_terminology.csv"
         parquet_output_path = output_dir / "parcellation_terminology.parquet"

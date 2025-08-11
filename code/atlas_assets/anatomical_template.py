@@ -10,7 +10,7 @@ import numpy as np
 import zarr
 from ome_zarr.writer import write_multiscale
 
-from allen_atlas_assets.atlas_asset import AtlasAsset
+from atlas_assets.atlas_asset import AtlasAsset
 from utils import decompose_affine
 
 

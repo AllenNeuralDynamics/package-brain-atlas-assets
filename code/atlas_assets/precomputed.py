@@ -1,4 +1,3 @@
-import glob
 import json
 import logging
 from pathlib import Path
@@ -6,8 +5,6 @@ from pathlib import Path
 import cloudvolume
 import numpy as np
 import tensorstore as ts
-
-from .mesh import Mesh
 
 
 def append_mesh_to_precomputed(mesh, scale, precomputed_file, identifier):
@@ -105,7 +102,9 @@ def write_segment_properties(
             name = row.get("name", "")
             abbrev_labels.append(f"{abbr}: {name}".strip(": "))
             if has_term_set:
-                term_set_values.append(row.get("term_set_name") if row.get("term_set_name") else None)
+                term_set_values.append(
+                    row.get("term_set_name") if row.get("term_set_name") else None
+                )
 
     properties = [
         {
@@ -154,7 +153,7 @@ def write_segment_properties(
 
 
 def convert_compressed_annotations_to_precomputed(
-    annotation_data, output_location, scale=(10,10,10), chunk_size=(256, 256, 64)
+    annotation_data, output_location, scale=(10, 10, 10), chunk_size=(256, 256, 64)
 ):
     """Convert compressed annotation data to precomputed format.
 
@@ -169,7 +168,7 @@ def convert_compressed_annotations_to_precomputed(
     logging.info(f"Output location: {output_location}")
 
     # zyx -> xyz
-    annotation_data = annotation_data.T  
+    annotation_data = annotation_data.T
     scale = scale[::-1]
 
     spec = {

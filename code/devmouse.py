@@ -11,19 +11,14 @@ import logging
 import os
 import shutil
 import traceback
-import numpy as np
 from pathlib import Path
 
 import pandas as pd
 import SimpleITK as sitk
 
-from allen_atlas_assets import (AnatomicalAnnotationSet, AnatomicalSpace,
-                                AnatomicalTemplate, AssetLibrary,
-                                ParcellationAtlas, ParcellationTerminology)
-from allen_atlas_assets.anatomical_annotation_set import (
-    convert_compressed_annotations_to_zarr, load_compressed_annotations)
-from allen_atlas_assets.precomputed import \
-    convert_compressed_annotations_to_precomputed
+from atlas_assets import (AnatomicalAnnotationSet, AnatomicalSpace,
+                          AnatomicalTemplate, ParcellationAtlas,
+                          ParcellationTerminology)
 
 
 def read_mhd_metadata(mhd_path):
@@ -54,7 +49,7 @@ def read_mhd_metadata(mhd_path):
 def convert_mhd_to_nifti(mhd_path, output_path):
     """
     Convert an MHD file to NIfTI format.
-    
+
     Converts units from microns (MHD) to millimeters (NIfTI standard).
 
     Parameters
@@ -66,12 +61,12 @@ def convert_mhd_to_nifti(mhd_path, output_path):
     """
     # Read the MHD file
     image = sitk.ReadImage(str(mhd_path))
-    
+
     # Convert spacing from microns to millimeters (divide by 1000)
     spacing_microns = image.GetSpacing()
     spacing_mm = tuple(s / 1000.0 for s in spacing_microns)
     image.SetSpacing(spacing_mm)
-    
+
     # Convert origin from microns to millimeters (divide by 1000)
     origin_microns = image.GetOrigin()
     origin_mm = tuple(o / 1000.0 for o in origin_microns)
@@ -93,19 +88,25 @@ def create_devmouse_terminology(output_dir, library):
     library : AssetLibrary
         Asset library to add the terminology to
     """
-    structures_path = Path("/root/capsule/data/devmouse-atlas-assets/devmouse_structures.csv")
+    structures_path = Path(
+        "/root/capsule/data/devmouse-atlas-assets/devmouse_structures.csv"
+    )
 
     df = pd.read_csv(structures_path)
 
     # Create DataFrame with required columns for ParcellationTerminology
-    structures_df = pd.DataFrame({
-        "identifier": df["id"].map(lambda x: f"DMBA:{int(x)}"),
-        "annotation_value": df["id"].astype(int),
-        "parent_identifier": df["parent_structure_id"].map(lambda x: f"DMBA:{int(x)}" if not pd.isna(x) else ""),
-        "name": df["name"],
-        "abbreviation": df["acronym"],
-        "color_hex_triplet": df["color_hex_triplet"].map(lambda x: f"#{x}"),
-    })
+    structures_df = pd.DataFrame(
+        {
+            "identifier": df["id"].map(lambda x: f"DMBA:{int(x)}"),
+            "annotation_value": df["id"].astype(int),
+            "parent_identifier": df["parent_structure_id"].map(
+                lambda x: f"DMBA:{int(x)}" if not pd.isna(x) else ""
+            ),
+            "name": df["name"],
+            "abbreviation": df["acronym"],
+            "color_hex_triplet": df["color_hex_triplet"].map(lambda x: f"#{x}"),
+        }
+    )
 
     # Create the terminology
     terminology = ParcellationTerminology(
@@ -113,7 +114,9 @@ def create_devmouse_terminology(output_dir, library):
     )
 
     # Descendant annotation values require lookup since identifiers are prefixed
-    id_to_ann = dict(zip(terminology.df["identifier"], terminology.df["annotation_value"]))
+    id_to_ann = dict(
+        zip(terminology.df["identifier"], terminology.df["annotation_value"])
+    )
     terminology.set_descendant_annotation_values(
         lambda row: [id_to_ann[i] for i in row["descendants"] if i in id_to_ann]
     )
@@ -122,7 +125,7 @@ def create_devmouse_terminology(output_dir, library):
     parcellation_legacy_dir = terminology.location(output_dir) / "legacy_files"
     parcellation_legacy_dir.mkdir(parents=True, exist_ok=True)
     shutil.copy2(structures_path, parcellation_legacy_dir / structures_path.name)
-    
+
     terminology.write_terminology(output_dir)
     terminology.create_manifest(output_dir)
     library.add(terminology)
@@ -263,17 +266,14 @@ def package_age_group(age, base_dir, results_dir, asset_library, terminology):
 def package_devmouse(base_dir, results_dir, library):
     """Package all devmouse assets using the provided library and directories."""
     logging.info("Starting DevMouse atlas packaging...")
-    
+
     # Create terminology
     logging.info("Creating parcellation terminology...")
     terminology = create_devmouse_terminology(results_dir, library)
-    
+
     # Define age groups to process (excluding gridAnnotation and P56_Mouse files)
-    age_groups = [
-        'E11pt5', 'E13pt5', 'E15pt5', 'E16pt5', 'E18pt5',
-        'P4', 'P14', 'P28'
-    ]
-    
+    age_groups = ["E11pt5", "E13pt5", "E15pt5", "E16pt5", "E18pt5", "P4", "P14", "P28"]
+
     # Process each age group (creates templates, annotations, spaces, and atlases)
     for age in age_groups:
         try:
@@ -282,13 +282,20 @@ def package_devmouse(base_dir, results_dir, library):
             logging.error(f"Error processing DevMouse age {age}: {e}")
             traceback.print_exc()
             continue
-    
-    logging.info("DevMouse atlas packaging complete!")
-    
-    # Log summary
-    logging.info(f"DevMouse Summary:")
-    logging.info(f"  Templates: {len([t for t in library.anatomical_templates if 'dev-mouse' in t.name])}")
-    logging.info(f"  Annotation sets: {len([a for a in library.anatomical_annotation_sets if 'dev-mouse' in a.name])}")
-    logging.info(f"  Anatomical spaces: {len([s for s in library.anatomical_spaces if 'dev-mouse' in s.name])}")
-    logging.info(f"  Parcellation atlases: {len([p for p in library.parcellation_atlases if 'dev-mouse' in p.name])}")
 
+    logging.info("DevMouse atlas packaging complete!")
+
+    # Log summary
+    logging.info("DevMouse Summary:")
+    logging.info(
+        f"  Templates: {len([t for t in library.anatomical_templates if 'dev-mouse' in t.name])}"
+    )
+    logging.info(
+        f"  Annotation sets: {len([a for a in library.anatomical_annotation_sets if 'dev-mouse' in a.name])}"
+    )
+    logging.info(
+        f"  Anatomical spaces: {len([s for s in library.anatomical_spaces if 'dev-mouse' in s.name])}"
+    )
+    logging.info(
+        f"  Parcellation atlases: {len([p for p in library.parcellation_atlases if 'dev-mouse' in p.name])}"
+    )

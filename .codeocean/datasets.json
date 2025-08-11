@@ -1,0 +1,33 @@
+{
+	"version": 1,
+	"attached_datasets": [
+		{
+			"id": "30bf0bcc-6467-4b49-a177-a1a1424ff1f6",
+			"mount": "smartspim_lca_template"
+		},
+		{
+			"id": "673fe731-3a2b-42eb-b8f7-bde82d79e371",
+			"mount": "ccf_meshes"
+		},
+		{
+			"id": "79bf9032-5cff-4038-b2b8-8a24fa098e3b",
+			"mount": "allen_mouse_ccf"
+		},
+		{
+			"id": "9be4e3ac-adfb-4335-824c-bd99364a2c0f",
+			"mount": "lightsheet_template_ccf_registration"
+		},
+		{
+			"id": "b32539d4-9d96-4259-8102-d990cefc7d5e",
+			"mount": "smartspim_lca_template_opendata"
+		},
+		{
+			"id": "b76f5c2c-d94b-426b-b861-699ea0a63889",
+			"mount": "abc_atlas"
+		},
+		{
+			"id": "c25f797d-01f4-4d28-ba27-2fcbe24cb307",
+			"mount": "devmouse-atlas-assets"
+		}
+	]
+}

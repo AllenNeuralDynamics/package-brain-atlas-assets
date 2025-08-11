@@ -12,8 +12,8 @@ from aind_data_schema_models.data_name_patterns import build_data_name
 from aind_data_schema_models.modalities import Modality
 from aind_data_schema_models.organizations import Organization
 
-from allen_atlas_assets import (AnatomicalAnnotationSet, AnatomicalTemplate,
-                                CoordinateTransformation)
+from atlas_assets import (AnatomicalAnnotationSet, AnatomicalTemplate,
+                          CoordinateTransformation)
 
 
 def create_smartspim_annotation_set(input_dir, results_dir, library):
@@ -25,7 +25,9 @@ def create_smartspim_annotation_set(input_dir, results_dir, library):
         library (AssetLibrary): Asset library to get template and terminology from
     """
     # Get required assets from library
-    template = library.get_anatomical_template("allen-adult-mouse-spim-lca-template", "2024-05")
+    template = library.get_anatomical_template(
+        "allen-adult-mouse-spim-lca-template", "2024-05"
+    )
     terminology = library.get_parcellation_terminology(
         "allen-adult-mouse-terminology", "2017"
     )
@@ -52,8 +54,12 @@ def create_smartspim_annotation_set(input_dir, results_dir, library):
 def create_smartspim_coordinate_transformations(input_dir, results_dir, library):
     """Create coordinate transformation assets for SmartSPIM to CCF registration."""
     # Get required assets from library
-    template = library.get_anatomical_template("allen-adult-mouse-spim-lca-template", "2024-05")
-    ccf_template = library.get_anatomical_template("allen-adult-mouse-2p-template", "2015")
+    template = library.get_anatomical_template(
+        "allen-adult-mouse-spim-lca-template", "2024-05"
+    )
+    ccf_template = library.get_anatomical_template(
+        "allen-adult-mouse-2p-template", "2015"
+    )
 
     # Create coordinate transform from SmartSPIM template to CCF 3.1
     cs = CoordinateTransformation.init(

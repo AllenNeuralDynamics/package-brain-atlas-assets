@@ -2,15 +2,13 @@
 
 from typing import Dict, List, Tuple
 
-from allen_atlas_assets.anatomical_annotation_set import \
-    AnatomicalAnnotationSet
-from allen_atlas_assets.anatomical_space import AnatomicalSpace
-from allen_atlas_assets.anatomical_template import AnatomicalTemplate
-from allen_atlas_assets.atlas_asset import AtlasAsset
-from allen_atlas_assets.coordinate_transformation import \
-    CoordinateTransformation
-from allen_atlas_assets.parcellation_atlas import ParcellationAtlas
-from allen_atlas_assets.parcellation_terminology import ParcellationTerminology
+from atlas_assets.anatomical_annotation_set import AnatomicalAnnotationSet
+from atlas_assets.anatomical_space import AnatomicalSpace
+from atlas_assets.anatomical_template import AnatomicalTemplate
+from atlas_assets.atlas_asset import AtlasAsset
+from atlas_assets.coordinate_transformation import CoordinateTransformation
+from atlas_assets.parcellation_atlas import ParcellationAtlas
+from atlas_assets.parcellation_terminology import ParcellationTerminology
 
 
 class AssetLibrary:

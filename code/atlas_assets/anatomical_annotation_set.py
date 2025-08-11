@@ -11,15 +11,14 @@ import pandas as pd
 import tensorstore as ts
 import zarr
 from ome_zarr.writer import write_multiscale, write_multiscales_metadata
+import SimpleITK as sitk
 
-from allen_atlas_assets.anatomical_template import AnatomicalTemplate
-from allen_atlas_assets.atlas_asset import AtlasAsset
-from allen_atlas_assets.parcellation_terminology import ParcellationTerminology
+from atlas_assets.anatomical_template import AnatomicalTemplate
+from atlas_assets.atlas_asset import AtlasAsset
+from atlas_assets.parcellation_terminology import ParcellationTerminology
+from atlas_assets.precomputed import (convert_compressed_annotations_to_precomputed,
+                                      write_segment_properties)
 from utils import decompose_affine
-
-# Import from precomputed module
-from .precomputed import convert_compressed_annotations_to_precomputed, write_segment_properties
-
 
 @dataclass
 class AnatomicalAnnotationSet(AtlasAsset):
@@ -47,7 +46,7 @@ class AnatomicalAnnotationSet(AtlasAsset):
 
     def create(self, compressed_results, output_root):
         """Create annotation set from compressed annotation data at multiple scales.
-        
+
         Args:
             compressed_results: Dictionary mapping scale to (compressed_data, affine) tuples
             output_root: Root directory where the annotation set will be created
@@ -72,7 +71,9 @@ class AnatomicalAnnotationSet(AtlasAsset):
         high_res_data, _ = compressed_results[highest_res_scale]
         precomputed_output = str(output_dir / "annotations.precomputed")
         convert_compressed_annotations_to_precomputed(
-            high_res_data, precomputed_output, scale=(highest_res_scale, highest_res_scale, highest_res_scale)
+            high_res_data,
+            precomputed_output,
+            scale=(highest_res_scale, highest_res_scale, highest_res_scale),
         )
 
         # Write segment properties (without meshes) from terminology
@@ -84,18 +85,22 @@ class AnatomicalAnnotationSet(AtlasAsset):
 
         # Compute voxel counts for all terms using highest resolution data
         logging.info("Computing voxel counts for all terms at highest resolution...")
-        voxel_counts_df = self.count_voxels_for_all_terms(high_res_data, highest_res_scale)
-        
+        voxel_counts_df = self.count_voxels_for_all_terms(
+            high_res_data, highest_res_scale
+        )
+
         # Save voxel counts to a CSV file for reference
-        voxel_counts_file = output_dir / f"parcellation_volumes.csv"
+        voxel_counts_file = output_dir / "parcellation_volumes.csv"
         voxel_counts_df.to_csv(voxel_counts_file, index=False)
-        logging.info(f"Saved voxel counts for {len(voxel_counts_df)} terms to {voxel_counts_file}")
+        logging.info(
+            f"Saved voxel counts for {len(voxel_counts_df)} terms to {voxel_counts_file}"
+        )
 
         logging.info(f"Created annotation set at {output_dir}")
 
     def create_from_nifti(self, input_prefix, output_root):
         """Create annotation set from NIfTI source files with standardized naming convention.
-        
+
         Args:
             input_prefix: Prefix for input NIfTI files (files named {input_prefix}_{scale}.nii.gz)
             output_root: Root directory where the annotation set will be created
@@ -123,7 +128,6 @@ class AnatomicalAnnotationSet(AtlasAsset):
             mhd_paths: Dictionary mapping scale to MHD file paths, or single MHD path for single scale
             output_root: Root directory where the annotation set will be created
         """
-        import SimpleITK as sitk
         
         output_dir = self.location(output_root)
         output_dir.mkdir(parents=True, exist_ok=True)
@@ -181,21 +185,26 @@ class AnatomicalAnnotationSet(AtlasAsset):
 
     def count_voxels_for_all_terms(self, compressed_annotation_data, spacing):
         """Count voxels for all terms in the terminology and return results as a DataFrame.
-        
+
         Args:
             compressed_annotation_data: Pre-loaded compressed annotation data as numpy array
             spacing: N-dimensional spacing (voxel size) in micrometers, either a scalar or array-like
-            
+
         Returns:
             pd.DataFrame: DataFrame with columns 'identifier', 'voxel_count', and 'volume_mm3'
-            
+
         Raises:
             ValueError: If terminology doesn't have descendant_annotation_values column
         """
-        if "descendant_annotation_values" not in self.parcellation_terminology.df.columns:
-            raise ValueError("Terminology does not have 'descendant_annotation_values' column. "
-                           "Please ensure set_descendant_annotation_values() has been called.")
-        
+        if (
+            "descendant_annotation_values"
+            not in self.parcellation_terminology.df.columns
+        ):
+            raise ValueError(
+                "Terminology does not have 'descendant_annotation_values' column. "
+                "Please ensure set_descendant_annotation_values() has been called."
+            )
+
         # Convert spacing from micrometers to millimeters and compute voxel volume
         spacing_array = np.asarray(spacing) / 1000.0  # Convert μm to mm
         if spacing_array.ndim == 0:
@@ -204,97 +213,110 @@ class AnatomicalAnnotationSet(AtlasAsset):
         else:
             # Array spacing - compute product
             voxel_volume = np.prod(spacing_array)
-        
-        logging.info(f"Counting voxels for all {len(self.parcellation_terminology.df)} terms in terminology")
-        logging.info(f"Voxel spacing: {spacing_array} mm, voxel volume: {voxel_volume} mm³")
-        
+
+        logging.info(
+            f"Counting voxels for all {len(self.parcellation_terminology.df)} terms in terminology"
+        )
+        logging.info(
+            f"Voxel spacing: {spacing_array} mm, voxel volume: {voxel_volume} mm³"
+        )
+
         # Create a mapping from annotation value to list of term identifiers that should include it
         value_to_terms = {}
         term_to_identifier = {}
-        
+
         for _, row in self.parcellation_terminology.df.iterrows():
             term_identifier = row["identifier"]
             descendant_values = row["descendant_annotation_values"]
             term_to_identifier[term_identifier] = term_identifier
-            
+
             if descendant_values:
                 for value in descendant_values:
                     if value not in value_to_terms:
                         value_to_terms[value] = []
                     value_to_terms[value].append(term_identifier)
-        
+
         # Initialize voxel counts for all terms
         voxel_counts = {term_id: 0 for term_id in term_to_identifier.keys()}
-        
+
         # Get unique values in the annotation data (excluding background 0)
-        unique_values, counts = np.unique(compressed_annotation_data, return_counts=True)
-        
-        logging.info(f"Found {len(unique_values)} unique annotation values, processing voxel counts...")
-        
+        unique_values, counts = np.unique(
+            compressed_annotation_data, return_counts=True
+        )
+
+        logging.info(
+            f"Found {len(unique_values)} unique annotation values, processing voxel counts..."
+        )
+
         # For each unique annotation value, add its count to all terms that include it
         for annotation_value, count in zip(unique_values, counts):
             if annotation_value == 0:  # Skip background
                 continue
-                
+
             if annotation_value in value_to_terms:
                 for term_identifier in value_to_terms[annotation_value]:
                     voxel_counts[term_identifier] += count
-        
+
         # Create results DataFrame
         results = []
         for term_identifier, voxel_count in voxel_counts.items():
             volume_mm3 = voxel_count * voxel_volume
-            results.append({
-                "identifier": term_identifier, 
-                "voxel_count": voxel_count,
-                "volume_mm3": volume_mm3
-            })
-        
+            results.append(
+                {
+                    "identifier": term_identifier,
+                    "voxel_count": voxel_count,
+                    "volume_mm3": volume_mm3,
+                }
+            )
+
         df = pd.DataFrame(results)
-        
+
         # Log summary statistics
-        total_voxels = df['voxel_count'].sum()
-        total_volume = df['volume_mm3'].sum()
-        non_zero_counts = (df['voxel_count'] > 0).sum()
-        logging.info(f"Voxel count summary: {total_voxels} total voxels, {total_volume:.2f} mm³ total volume across {non_zero_counts} terms with non-zero counts")
-        
-        logging.info(f"Completed voxel counting for all terms")
+        total_voxels = df["voxel_count"].sum()
+        total_volume = df["volume_mm3"].sum()
+        non_zero_counts = (df["voxel_count"] > 0).sum()
+        logging.info(
+            f"Voxel count summary: {total_voxels} total voxels, {total_volume:.2f} mm³ total volume across {non_zero_counts} terms with non-zero counts"
+        )
+
+        logging.info("Completed voxel counting for all terms")
         return df
 
 
 def compute_term_mask(descendant_values, compressed_annotation_data):
     """Compute a boolean mask for voxels that match any of the given annotation values.
-    
+
     Args:
         descendant_values: List of annotation values to match
         compressed_annotation_data: Compressed annotation data as numpy array
-        
+
     Returns:
         numpy.ndarray: Boolean mask where True indicates voxels matching any of the values
     """
     if descendant_values is None or len(descendant_values) == 0:
         return np.zeros_like(compressed_annotation_data, dtype=bool)
-    
+
     # Create a boolean mask for all descendant values
     mask = np.zeros_like(compressed_annotation_data, dtype=bool)
     for value in descendant_values:
-        mask |= (compressed_annotation_data == value)
-    
+        mask |= compressed_annotation_data == value
+
     return mask
 
 
 def count_voxels_for_values(descendant_values, compressed_annotation_data):
     """Count voxels that match any of the given annotation values.
-    
+
     Args:
         descendant_values: List of annotation values to count
         compressed_annotation_data: Compressed annotation data as numpy array
-        
+
     Returns:
         int: Total number of voxels matching any of the values
     """
     mask = compute_term_mask(descendant_values, compressed_annotation_data)
     return int(np.sum(mask))
+
 
 def uncompress_single_scale(
     compressed_data,
@@ -308,30 +330,38 @@ def uncompress_single_scale(
     """Decompress compressed annotation data into hierarchical annotations for a single scale."""
     # Check if terminology has descendant_annotation_values column
     if "descendant_annotation_values" not in terminology.df.columns:
-        raise ValueError("Terminology does not have 'descendant_annotation_values' column. "
-                       "Please ensure set_descendant_annotation_values() has been called.")
-    
+        raise ValueError(
+            "Terminology does not have 'descendant_annotation_values' column. "
+            "Please ensure set_descendant_annotation_values() has been called."
+        )
+
     # Get unique annotation values present in the data (excluding 0 which is background)
     data_annotation_values = set(np.unique(compressed_data))
     data_annotation_values.discard(0)  # Remove background
 
-    logging.info(f"Found {len(data_annotation_values)} unique annotation values in data")
+    logging.info(
+        f"Found {len(data_annotation_values)} unique annotation values in data"
+    )
 
     # Process all identifiers in the terminology
     identifiers_with_data = []
     for _, row in terminology.df.iterrows():
         identifier = row["identifier"]
         descendant_values = row["descendant_annotation_values"]
-        
+
         # Check which descendant values are present in the data
         if descendant_values:
-            present_descendants = [val for val in descendant_values if val in data_annotation_values]
+            present_descendants = [
+                val for val in descendant_values if val in data_annotation_values
+            ]
         else:
             present_descendants = []
         # Include all identifiers for consistent dimensions (will be all zeros if no descendants present)
         identifiers_with_data.append((identifier, present_descendants))
 
-    logging.info(f"Processing {len(identifiers_with_data)} identifiers from terminology")
+    logging.info(
+        f"Processing {len(identifiers_with_data)} identifiers from terminology"
+    )
 
     # Create uncompressed array: (identifiers, z, y, x)
     identifiers = [s[0] for s in identifiers_with_data]
@@ -549,7 +579,7 @@ def uncompress_annotations_to_zarr(
 
         zarr_array, new_affine, identifiers = result
         zarr_arrays.append(zarr_array)
-        
+
         # Set terminology_ids from the first scale processed (all scales have same identifiers)
         if terminology_ids is None:
             terminology_ids = identifiers
