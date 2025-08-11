@@ -1,3 +1,8 @@
-# aind-capsule-template
+# Package SmartSPIM and CCF Atlas Assets
 
-Basic structure of a capsule to be customized as needed.
+Reorganize CCFv3, ABC atlas CCFv2020, SmartSPIM, and Developing Mouse atlas assets into a standardized convention.
+
+## TODO
+
+- generate neuroglancer links
+- load devmouse meshes
