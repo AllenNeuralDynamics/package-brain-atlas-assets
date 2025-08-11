@@ -4,5 +4,6 @@ Reorganize CCFv3, ABC atlas CCFv2020, SmartSPIM, and Developing Mouse atlas asse
 
 ## TODO
 
+- more data descriptions
 - generate neuroglancer links
 - load devmouse meshes
