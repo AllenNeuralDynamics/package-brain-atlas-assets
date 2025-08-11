@@ -1,0 +1,43 @@
+{
+	"version": 1,
+	"base_image": "codeocean/code-server-python-extensions-pack:code-server4.101.2python3.12.4aind-metadata-mcp0.4.2",
+	"options": {
+		"registry_host_arg": true,
+		"git_ask_pass": true
+	},
+	"installers": {
+		"pip": {
+			"packages": [
+				{
+					"name": "aind-data-schema"
+				},
+				{
+					"name": "awscli"
+				},
+				{
+					"name": "cloud-volume"
+				},
+				{
+					"name": "nibabel"
+				},
+				{
+					"name": "ome-zarr"
+				},
+				{
+					"name": "pandas"
+				},
+				{
+					"name": "pyarrow"
+				},
+				{
+					"name": "simpleitk"
+				},
+				{
+					"name": "tensorstore"
+				}
+			],
+			"options": {},
+			"pre_install_options": {}
+		}
+	}
+}
