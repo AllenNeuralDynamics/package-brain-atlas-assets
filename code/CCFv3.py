@@ -13,6 +13,81 @@ from atlas_assets import (AnatomicalAnnotationSet, AnatomicalSpace,
 from atlas_assets.mesh import Mesh
 from atlas_assets.precomputed import append_meshes_to_precomputed
 
+# Added imports for data description generation
+import datetime
+from aind_data_schema.core.data_description import DataDescription, Funding
+from aind_data_schema_models.data_name_patterns import build_data_name
+from aind_data_schema_models.modalities import Modality
+from aind_data_schema_models.organizations import Organization
+
+
+# Placeholder creation times to be replaced later (distinct per template)
+CCF2_TEMPLATE_CREATION_TIME = datetime.datetime(2000, 1, 1, tzinfo=datetime.timezone.utc)
+CCF3_TEMPLATE_CREATION_TIME = datetime.datetime(2000, 1, 2, tzinfo=datetime.timezone.utc)
+
+CCF2_TEMPLATE_SUMMARY = """
+This template is based upon the Allen Reference Atlas (ARA) specimen (Dong, 2008) in which a 3D volume was
+reconstructed using 528 Nissl sections of a near complete mouse brain. Approximately 200 structures were extracted
+from the 2-D atlas drawings to create 3-D annotations. This version (2011) supported the scientific objectives
+of the Allen Mouse Brain Connectivity Atlas (Oh et al., 2014) where a double-sided and more deeply
+annotated framework was needed. During the development, flaws in the 3D reconstructions were
+corrected and the volume was mirrored across the mid-line to create a symmetric space.
+"""
+
+CCF3_TEMPLATE_SUMMARY = """
+This is a 3D spatial template constructed as a population average of 1,675 young adult mouse brains imaged using
+serial two photon tomography for the Allen Mouse Brain Connectivity Atlas (Kuan et al., 2015, Oh et al., 2014,
+Ragan et al., 2012). The average was created from tissue autofluorescence detected in the red channel. To maximize
+input data and create a symmetrical atlas, each hemisphere was reflected across the midline, for a total of 3,350
+image series (= 2 × 1,675 brains). Images were acquired at high resolution (x, y = 0.35 μm/pixel) every 100 μm
+through the anterior-posterior axis of the brain, then downsampled to 50, 25, and 10 μm in x-y axes. Slight offsets
+in the position where imaging starts for each brain provide sufficient coverage to allow interpolation along the z axis
+to obtain isotropic voxel resolution to 10 μm. Assuming uniform sampling along the z axis, each 10 μm is spanned by data
+from 335 hemispheres, a number comparable to Fonov et al. (2011). We started with a previous template (Kuan et al., 2015,
+Oh et al., 2014), adding more registered brains to create the new CCFv3 initial template. An iterative process (1)
+deformably registered each specimen to the template and averaged all specimens, and (2) computed the average deformation
+field over all specimens, then inverted and applied it to the average image created in (1). This resulted in a volume
+with an average unbiased shape and intensity used as the template in the next iteration. The algorithm continued until
+the difference between the mean magnitude of the average deformation field between iterations fell below a certain
+threshold and stabilized. Figure 1A illustrates the convergence to a sharp average image with evident anatomical details.
+The average template was matched in size and anterior-posterior extent to the Allen Reference Atlas Nissl-stained specimen 
+(allen-adult-mouse-nissl-tempalte) to retain integrity with the original coordinates and dependent informatic tools.
+The most rostral part of the main olfactory bulb and the most caudal parts of the medulla and cerebellum are excluded.
+At 10 μm voxel resolution, the average template contains ~506 million voxels. Its dimensions are 1,320 (anterior to posterior,
+13.2 mm) × 1,140 (left to right, 11.4 mm) × 800 voxels (dorsal to ventral, 8.0 mm).
+"""
+
+
+def _write_template_data_description(output_dir: Path, name: str, summary: str, modalities, creation_time):
+    """Create and write a data_description.json for a template using AIND schema.
+
+    Args:
+        output_dir: Directory of the anatomical template where JSON will be written.
+        name: Asset name (e.g., "allen-adult-mouse-2p-template").
+        summary: Long-form data summary text.
+        modalities: List of Modality enums describing the imaging modalities.
+        creation_time: Datetime for creation_time (required).
+    """
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    dd = DataDescription(
+        name=build_data_name(name.replace(".", "-"), t),
+        data_summary=summary.strip(),
+        subject_id="PopulationAverage",
+        modalities=modalities,
+        institution=Organization.AIND,
+        data_level="derived",
+        creation_time=creation_time,
+        investigators=[],
+        funding_source=[Funding(funder=Organization.AI)],
+        project_name="Allen Mouse Brain Common Coordinate Framework",
+    )
+
+    with open(output_dir / "data_description.json", "w") as f:
+        f.write(dd.model_dump_json(indent=3))
+
+    logging.info(f"Wrote data_description.json for {name} to {output_dir}")
+
 
 def load_ccf3_meshes(mesh_dir):
     """Load CCF 3 meshes from a directory.
@@ -42,6 +117,15 @@ def create_all_ccf_anatomical_templates(
     library.add(template)
     logging.info(f"Created average_template: {template.name} {template.version}")
 
+    # Write data description for the CCFv3 two-photon average template
+    _write_template_data_description(
+        output_dir=template.location(results_dir),
+        name=template.name,
+        summary=CCF3_TEMPLATE_SUMMARY,
+        modalities=["STPT"],
+        creation_time=CCF3_TEMPLATE_CREATION_TIME,
+    )
+
     # Create Nissl reference template
     ara_nissl_prefix = input_dir / "ara_nissl" / "ara_nissl"
     template = AnatomicalTemplate(
@@ -50,6 +134,15 @@ def create_all_ccf_anatomical_templates(
     template.create(ara_nissl_prefix, results_dir)
     library.add(template)
     logging.info(f"Created ara_nissl: {template.name} {template.version}")
+
+    # Write data description for the ARA Nissl (2011) template
+    _write_template_data_description(
+        output_dir=template.location(results_dir),
+        name=template.name,
+        summary=CCF2_TEMPLATE_SUMMARY,
+        modalities=["brightfield"],
+        creation_time=CCF2_TEMPLATE_CREATION_TIME,
+    )
 
 
 def create_all_ccf_annotation_sets(

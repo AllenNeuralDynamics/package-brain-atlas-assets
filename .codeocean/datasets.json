@@ -28,6 +28,10 @@
 		{
 			"id": "c25f797d-01f4-4d28-ba27-2fcbe24cb307",
 			"mount": "devmouse-atlas-assets"
+		},
+		{
+			"id": "fbbd6907-696e-43e5-9cb9-a3542fe3ecfb",
+			"mount": "idisco_template_multichannel_multiresolution"
 		}
 	]
 }

@@ -1,6 +1,11 @@
 {
 	"version": 1,
 	"base_image": "codeocean/code-server-python-extensions-pack:code-server4.101.2python3.12.4aind-metadata-mcp0.4.2",
+	"args": [
+		"AWS_ACCESS_KEY_ID",
+		"AWS_DEFAULT_REGION",
+		"AWS_SECRET_ACCESS_KEY"
+	],
 	"options": {
 		"registry_host_arg": true,
 		"git_ask_pass": true
