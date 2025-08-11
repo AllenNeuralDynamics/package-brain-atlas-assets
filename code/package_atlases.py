@@ -6,9 +6,9 @@ import logging
 import shutil
 from pathlib import Path
 
-import ccf3
-import ccf2020
-import smartspim
+import CCFv3
+import CCFv2020
+import SmartSPIM
 import devmouse
 from allen_atlas_assets import AssetLibrary
 
@@ -63,13 +63,13 @@ def main():
     devmouse.package_devmouse(devmouse_dir, results_dir, library)
 
     # Package CCF 3 legacy annotations and templates
-    ccf3.package_ccf(ccf3_dir, results_dir, library, scales=scales)
+    CCFv3.package_ccf(ccf3_dir, results_dir, library, scales=scales)
 
     # Package CCF 2020 annotations 
-    ccf2020.package_ccf2020(abc_dir, results_dir, library, scales=(10,))
+    CCFv2020.package_ccf2020(abc_dir, results_dir, library, scales=(10,))
 
     # Package SmartSPIM template (uses library for assets)
-    smartspim.package_smartspim_template(smartspim_dir, results_dir, library, scales=scales)
+    SmartSPIM.package_smartspim_template(smartspim_dir, results_dir, library, scales=scales)
 
     for a in library.anatomical_spaces:
         a.create_manifest(results_dir)
