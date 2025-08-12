@@ -30,6 +30,10 @@
 			"mount": "devmouse-atlas-assets"
 		},
 		{
+			"id": "c540aef9-d6f7-4b05-8706-b034f61544b0",
+			"mount": "brain_explorer"
+		},
+		{
 			"id": "fbbd6907-696e-43e5-9cb9-a3542fe3ecfb",
 			"mount": "idisco_template_multichannel_multiresolution"
 		}

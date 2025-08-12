@@ -44,16 +44,16 @@ def load_nifti_channels(res_dir):
     return arr, channel_names
 
 
-def package_idisco_template(output_dir):
+def package_idisco_template(results_dir):
     """Package iDISCO multichannel template as OME-Zarr multiscale pyramid (OME standard)."""
-    output_dir = Path(output_dir)
+    results_dir = Path(results_dir)
     # Use AnatomicalTemplate location for output_dir
     template = AnatomicalTemplate(
         name="allen-adult-mouse-spim-idisco-template",
         version="2025-05",
         scales=tuple(RESOLUTIONS),
     )
-    output_dir = template.location(output_dir)
+    output_dir = template.location(results_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
     zarr_path = output_dir / "anatomical_template.ome.zarr"
     group = zarr_lib.open(str(zarr_path), mode="w")
@@ -112,8 +112,8 @@ def package_idisco_template(output_dir):
     logging.info(f"iDISCO OME-Zarr multiscale pyramid written to {zarr_path}")
 
     # Create and register AnatomicalTemplate asset
-    template.create_manifest(output_dir)
-    logging.info(f"Created AnatomicalTemplate manifest at {template.location(output_dir)}")
+    template.create_manifest(results_dir)
+    logging.info(f"Created AnatomicalTemplate manifest at {template.location(results_dir)}")
 
 
 if __name__ == "__main__":
