@@ -105,7 +105,6 @@ def copy_transform_files(input_dir, output_dir):
 def copy_data_description(input_dir, output_dir, name):
     """Copy and validate data description metadata for SmartSPIM template."""
     input_json_path = input_dir / "data_description.json"
-    output_json_path = output_dir / "data_description.json"
     output_dir.mkdir(parents=True, exist_ok=True)
 
     with open(input_json_path, "r") as f:
@@ -131,9 +130,7 @@ def copy_data_description(input_dir, output_dir, name):
         project_name="MSMA Platform Development",
     )
 
-    # Serialize back to JSON
-    with open(output_json_path, "w") as f:
-        f.write(data_description.model_dump_json(indent=3))
+    data_description.write_standard_file(output_directory=output_dir)
 
     logging.info(f"Validated and copied data_description.json to {output_json_path}")
 
@@ -141,7 +138,6 @@ def copy_data_description(input_dir, output_dir, name):
 def copy_processing(input_dir, output_dir):
     """Copy and validate processing metadata for SmartSPIM template."""
     input_json_path = input_dir / "processing.json"
-    output_json_path = output_dir / "processing.json"
 
     with open(input_json_path, "r") as f:
         data = json.load(f)
@@ -175,8 +171,7 @@ def copy_processing(input_dir, output_dir):
     )
 
     # Serialize back to JSON
-    with open(output_json_path, "w") as f:
-        f.write(processing.model_dump_json(indent=3))
+    processing.write_standard_file(output_directory=output_dir)
 
     logging.info(f"Validated and copied processing.json to {output_json_path}")
 

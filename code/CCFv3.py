@@ -25,39 +25,17 @@ from aind_data_schema.components.identifiers import Person
 # Placeholder creation times to be replaced later (distinct per template)
 CCF2_TEMPLATE_CREATION_TIME = datetime.datetime(2012, 11, 27, tzinfo=datetime.timezone.utc)
 CCF3_TEMPLATE_CREATION_TIME = datetime.datetime(2015, 4, 17, tzinfo=datetime.timezone.utc)
+# Added creation times for annotation releases
+CCF3_2015_ANNOTATION_CREATION_TIME = datetime.datetime(2015, 4, 17, tzinfo=datetime.timezone.utc)
+CCF3_2016_ANNOTATION_CREATION_TIME = datetime.datetime(2016, 4, 17, tzinfo=datetime.timezone.utc)
+CCF3_2017_ANNOTATION_CREATION_TIME = datetime.datetime(2017, 4, 17, tzinfo=datetime.timezone.utc)
 
-CCF2_TEMPLATE_SUMMARY = """
-This template is based upon the Allen Reference Atlas (ARA) specimen (Dong, 2008) in which a 3D volume was
-reconstructed using 528 Nissl sections of a near complete mouse brain. Approximately 200 structures were extracted
-from the 2-D atlas drawings to create 3-D annotations. This version (2011) supported the scientific objectives
-of the Allen Mouse Brain Connectivity Atlas (Oh et al., 2014) where a double-sided and more deeply
-annotated framework was needed. During the development, flaws in the 3D reconstructions were
-corrected and the volume was mirrored across the mid-line to create a symmetric space.
-"""
-
-CCF3_TEMPLATE_SUMMARY = """
-This is a 3D spatial template constructed as a population average of 1,675 young adult mouse brains imaged using
-serial two photon tomography for the Allen Mouse Brain Connectivity Atlas (Kuan et al., 2015, Oh et al., 2014,
-Ragan et al., 2012). The average was created from tissue autofluorescence detected in the red channel. To maximize
-input data and create a symmetrical atlas, each hemisphere was reflected across the midline, for a total of 3,350
-image series (= 2 × 1,675 brains). Images were acquired at high resolution (x, y = 0.35 μm/pixel) every 100 μm
-through the anterior-posterior axis of the brain, then downsampled to 50, 25, and 10 μm in x-y axes. Slight offsets
-in the position where imaging starts for each brain provide sufficient coverage to allow interpolation along the z axis
-to obtain isotropic voxel resolution to 10 μm. Assuming uniform sampling along the z axis, each 10 μm is spanned by data
-from 335 hemispheres, a number comparable to Fonov et al. (2011). We started with a previous template (Kuan et al., 2015,
-Oh et al., 2014), adding more registered brains to create the new CCFv3 initial template. An iterative process (1)
-deformably registered each specimen to the template and averaged all specimens, and (2) computed the average deformation
-field over all specimens, then inverted and applied it to the average image created in (1). This resulted in a volume
-with an average unbiased shape and intensity used as the template in the next iteration. The algorithm continued until
-the difference between the mean magnitude of the average deformation field between iterations fell below a certain
-threshold and stabilized. Figure 1A illustrates the convergence to a sharp average image with evident anatomical details.
-The average template was matched in size and anterior-posterior extent to the Allen Reference Atlas Nissl-stained specimen 
-(allen-adult-mouse-nissl-tempalte) to retain integrity with the original coordinates and dependent informatic tools.
-The most rostral part of the main olfactory bulb and the most caudal parts of the medulla and cerebellum are excluded.
-At 10 μm voxel resolution, the average template contains ~506 million voxels. Its dimensions are 1,320 (anterior to posterior,
-13.2 mm) × 1,140 (left to right, 11.4 mm) × 800 voxels (dorsal to ventral, 8.0 mm).
-"""
-
+CCF2_TEMPLATE_SUMMARY = "This template is based upon the Allen Reference Atlas (ARA) specimen (Dong, 2008) in which a 3D volume was reconstructed using 528 Nissl sections of a near complete mouse brain. Approximately 200 structures were extracted from the 2-D atlas drawings to create 3-D annotations. This version (2011) supported the scientific objectives of the Allen Mouse Brain Connectivity Atlas (Oh et al., 2014) where a double-sided and more deeply annotated framework was needed. During the development, flaws in the 3D reconstructions were corrected and the volume was mirrored across the mid-line to create a symmetric space."
+CCF3_TEMPLATE_SUMMARY = "The 2015 and initial release of the Allen Mouse Common Coordinate Framework, Coordinate System. The reference space or brain template was constructed as a population average of 1,675 young adult C57BL/6J mice brains imaged using serial two photon tomography (STPT) for the Allen Mouse Brain Connectivity Atlas (Oh et. al, 2014, Kuan et al, 2015). The average template was created from tissue autofluorescence detected in the red channel. To maximize input data and create a symmetrical atlas, each dataset was reflected across the midline, for a total of 3,350 (2 x 1,675) hemisphere datasets. Creation of the template followed a two-step iterative process: (1) We deformably registered each specimen to the current iteration of the template and computed an intensity average. (2) We then computed the average deformation field, inverted it, and applied it to the intensity average created in (1). This resulted in a volume with an average unbiased shape and intensity to be used as the template in the next iteration until convergence. In 10 µm resolution, the average template contains 506 million voxels with dimensions are 1,320 (X axis, anterior to posterior, 13.2 mm) x 1,140 (Y axis, left to right, 11.4 mm) x 800 (Z axis, dorsal to ventral, 8.0 mm). The origin of the coordinates is located at the the most anterior, left and dorsal corner of the volume. Due to constraint of the original data, the most rostral part of the main olfactory bulb and the most caudal parts of the medulla and cerebellum are excluded in the template."
+CCF3_2015_ANNOTATION_DESCRIPTION = "The 2015 and initial release of the Allen Mouse Common Coordinate Framework, Annotation The process of parcellating the average template of the CCF is detailed in Wang et al, 2020. For any given structure, the process starts with a review of previously published atlases and literature and visual analyses of the average template and multimodal reference datasets. Data types include (1) transgenic expression data imaged with two-photon serial tomography, (2) axonal projection data from the Allen Mouse Connectivity Atlas, (3) immunohistochemical and (4) cytoarchitectural stains, including antibodies against NeuN, NF-160, SMI-32, parvalbumin, SMI-99, and calbindin, as well as stains for DAPI, Nissl, and AChE; and (5) in situ hybridization (ISH) gene expression data from the Allen Mouse Brain Atlas. Specific datasets used for the delineation of brain structures are listed in supplementary table Table S3 of Wang et. al., 2020. The format of the annotation is a 10 µm resolution image volume of the same size and orientation as the average brain template. Each voxel in the brain is labeled with a structure from the Allen Mouse Reference Atlas, Ontology. Voxels are annotated with the label for the most specific (finest) structure that it is a part of. It is inferred the voxel is also a part of any enclosing/parent structures as defined in the hierarchical tree of the ontology. The 2015 release includes 185 regions that were annotated directly in 3D using multimodal reference data. These newly drawn structures spanned 50% of the brain. To obtain full brain coverage, remaining areas were filled with annotations imported from the Allen Mouse Reference Atlas, creating a hybrid parcellation scheme. The interface between the old and new structures were manually adjusted to have smooth transitions."
+CCF3_2016_ANNOTATION_DESCRIPTION = "The 2016 release of the Allen Mouse Common Coordinate Framework, Annotation The process of parcellating the average template of the CCF is detailed in Wang et al, 2020. For any given structure, the process starts with a review of previously published atlases and literature and visual analyses of the average template and multimodal reference datasets. Data types include (1) transgenic expression data imaged with two-photon serial tomography, (2) axonal projection data from the Allen Mouse Connectivity Atlas, (3) immunohistochemical and (4) cytoarchitectural stains, including antibodies against NeuN, NF-160, SMI-32, parvalbumin, SMI-99, and calbindin, as well as stains for DAPI, Nissl, and AChE; and (5) in situ hybridization (ISH) gene expression data from the Allen Mouse Brain Atlas. Specific datasets used for the delineation of brain structures are listed in supplementary table Table S3 of Wang et. al., 2020. The format of the annotation is a 10 µm resolution image volume of the same size and orientation as the average brain template. Each voxel in the brain is labeled with a structure from the Allen Mouse Reference Atlas, Ontology. Voxels are annotated with the label for the most specific (finest) structure that it is a part of. It is inferred the voxel is also a part of any enclosing/parent structures as defined in the hierarchical tree of the ontology. The 2016 update includes the complete 3D annotation of the isocortex, delineating 43 regions and 6 layers using gene expression and projection data and a novel curved cortical coordinates approach."
+CCF3_2017_ANNOTATION_DESCRIPTION = "The 2017 release of the Allen Mouse Common Coordinate Framework, Annotation The process of parcellating the average template of the CCF is detailed in Wang et al, 2020. For any given structure, the process starts with a review of previously published atlases and literature and visual analyses of the average template and multimodal reference datasets. Data types include (1) transgenic expression data imaged with two-photon serial tomography, (2) axonal projection data from the Allen Mouse Connectivity Atlas, (3) immunohistochemical and (4) cytoarchitectural stains, including antibodies against NeuN, NF-160, SMI-32, parvalbumin, SMI-99, and calbindin, as well as stains for DAPI, Nissl, and AChE; and (5) in situ hybridization (ISH) gene expression data from the Allen Mouse Brain Atlas. Specific datasets used for the delineation of brain structures are listed in supplementary table Table S3 of Wang et. al., 2020. The format of the annotation is a 10 µm resolution image volume of the same size and orientation as the average brain template. Each voxel in the brain is labeled with a structure from the Allen Mouse Reference Atlas, Ontology. Voxels are annotated with the label for the most specific (finest) structure that it is a part of. It is inferred the voxel is also a part of any enclosing/parent structures as defined in the hierarchical tree of the ontology. In the 2017 release, the parcellation spanned 43 isocortical areas and their layers, 329 subcortical gray matter structures, 81 fiber tracts, and 8 ventricular structures."
+CCF3_ONTOLOGY_DESCRIPTION = "The 2017 release of the Allen Mouse Reference Atlas Ontology. The Allen Mouse Reference Atlas, Ontology defines a hierarchical partonomy of the anatomical structures of the adult mouse brain. At the top level, the brain is divided into gray matter, fiber tracts and ventricular systems. Gray matter is subdivided into three large regions (cerebrum, brain stem, and cerebellum), which are themselves organized into subregions in a hierarchical tree. The Allen Mouse Reference Atlas, Ontology was developed for the Allen Reference Atlas (Dong, 2008) and follows terminology from “Brain Maps: Structure for the Rat Brain” (Swanson, 2004, 2018). The ontology has been subsequently extended and revised to also serve as the structure ontology for the Allen Mouse Common Coordinate Framework (Wang et al, 2020). This 2017 release of the Allen Mouse Reference Atlas, Ontology is in support of the 2017 Release of the Allen Mouse Common Framework."
 
 def _write_template_data_description(output_dir: Path, name: str, version: str, summary: str, modalities, creation_time):
     """Create and write a data_description.json for a template using AIND schema.
@@ -84,10 +62,38 @@ def _write_template_data_description(output_dir: Path, name: str, version: str, 
         project_name="Allen Mouse Brain Common Coordinate Framework",
     )
 
-    with open(output_dir / "data_description.json", "w") as f:
-        f.write(dd.model_dump_json(indent=3))
+    dd.write_standard_file(output_directory=output_dir)
 
     logging.info(f"Wrote data_description.json for {name} to {output_dir}")
+
+
+def _write_annotation_data_description(output_dir: Path, name: str, version: str, summary: str, creation_time):
+    """Create and write a data_description.json for an anatomical annotation set.
+
+    Args:
+        output_dir: Directory of the annotation set where JSON will be written.
+        name: Asset name (e.g., "allen-adult-mouse-annotation").
+        version: Version string (e.g., "2017").
+        summary: Long-form data summary text for the annotation release.
+        creation_time: Datetime for creation_time (required).
+    """
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    dd = DataDescription(
+        name=build_data_name(f"{name.replace('.', '-')}-{version}", creation_time),
+        data_summary=summary.strip(),
+        subject_id="adult-mouse-population-average",
+        modalities=[Modality.STPT],  # Derived from STPT population template
+        data_level="derived",
+        creation_time=creation_time,
+        institution=Organization.AIND,
+        investigators=[Person(name="Lydia Ng", registry_identifier="0000-0002-7499-3514")],
+        funding_source=[Funding(funder=Organization.AI)],
+        project_name="Allen Mouse Brain Common Coordinate Framework",
+    )
+
+    dd.write_standard_file(output_directory=output_dir)
+    logging.info(f"Wrote data_description.json for annotation set {name} {version} to {output_dir}")
 
 
 def load_ccf3_meshes(mesh_dir):
@@ -172,30 +178,42 @@ def create_all_ccf_annotation_sets(
             "template": template_2p,
             "version": "2015",
             "name": "allen-adult-mouse-annotation",
+            "summary": CCF3_2015_ANNOTATION_DESCRIPTION,
+            "creation_time": CCF3_2015_ANNOTATION_CREATION_TIME,
         },
         {
             "directory": "ccf_2016",
             "template": template_2p,
             "version": "2016",
             "name": "allen-adult-mouse-annotation",
+            "summary": CCF3_2016_ANNOTATION_DESCRIPTION,
+            "creation_time": CCF3_2016_ANNOTATION_CREATION_TIME,
         },
         {
             "directory": "ccf_2017",
             "template": template_2p,
             "version": "2017",
             "name": "allen-adult-mouse-annotation",
+            "summary": CCF3_2017_ANNOTATION_DESCRIPTION,
+            "creation_time": CCF3_2017_ANNOTATION_CREATION_TIME,
         },
         {
             "directory": "devmouse_2012",
             "template": template_nissl,
             "version": "2012",
             "name": "allen-dev-mouse-p56-annotation",
+            # No data description requested for devmouse in this change
+            "summary": None,
+            "creation_time": None,
         },
         {
             "directory": "mouse_2011",
             "template": template_nissl,
             "version": "2011",
             "name": "allen-adult-mouse-annotation",
+            # No data description requested for 2011 in this change
+            "summary": None,
+            "creation_time": None,
         },
     ]
 
@@ -213,6 +231,16 @@ def create_all_ccf_annotation_sets(
             input_prefix=annotation_dir / "annotation",
             output_root=results_dir,
         )
+
+        # Write data description only for specified CCF 2015-2017 annotation sets
+        if annotation["summary"] is not None and annotation["creation_time"] is not None:
+            _write_annotation_data_description(
+                output_dir=annotation_set.location(results_dir),
+                name=annotation_set.name,
+                version=annotation_set.version,
+                summary=annotation["summary"],
+                creation_time=annotation["creation_time"],
+            )
 
         annotation_set.create_manifest(results_dir)
         library.add(annotation_set)

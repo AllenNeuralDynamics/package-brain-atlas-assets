@@ -19,6 +19,99 @@ import SimpleITK as sitk
 from atlas_assets import (AnatomicalAnnotationSet, AnatomicalSpace,
                           AnatomicalTemplate, ParcellationAtlas,
                           ParcellationTerminology)
+import datetime
+from aind_data_schema.core.data_description import DataDescription, Funding
+from aind_data_schema_models.data_name_patterns import build_data_name
+from aind_data_schema_models.modalities import Modality
+from aind_data_schema_models.organizations import Organization
+from aind_data_schema.components.identifiers import Person
+
+
+DEVMOUSE_ONTOLOGY_DESCRIPTION = "The Allen Developing Mouse Brain Atlas ontology, authored by Professor Luis Puelles, M.D., Ph.D., organizes mouse brain structures developmentally from the earliest embryonic stage to adulthood using a topological rather than fixed-coordinate approach, enabling applicability to both developing and mature forms. Beginning at Level 00 with the unpatterned neural plate, it progresses through 13 hierarchical levels defined by permanent early boundaries, internal landmarks, and gene expression patterns. Early levels (01–05) capture broad divisions—forebrain, midbrain, hindbrain, spinal cord—followed by neuromeric and dorsoventral partitioning. Intermediate levels (06–08) refine subdivisions, especially in the telencephalon, while Levels 09–10 address radial layering of the neural wall. The final stages (11–13) classify nuclei and subnuclei, largely following The Mouse Brain in Stereotaxic Coordinates by Franklin and Paxinos (2008), with refinements from the ontology’s planar framework. This developmental, topology-based classification facilitates consistent mapping across stages and species, linking embryonic and adult brain data."
+DEVMOUSE_TEMPLATE_DESCRIPTION = "For this developmental atlas (Age: {Age (days)}, Theiler stage: {Theiler stage}, Gender: {Gender}), a reference set of tissue preparations was generated in the {Plane} plane with a histological stain ({Stain}) to aid identification of anatomical structures for atlas drawing. The specimen used was a {Specimen}, sectioned at {Section width} thickness. Annotation was performed on the {Annotated hemisphere} hemisphere, with {# Annotated images} images annotated. Embryonic (E) specimen age is provided relative to days after conception, with birth expected at approximately 19 days post-conception. Postnatal (P) specimen age is given relative to birth (P0). Theiler stages were determined on the basis of external features identified during dissection and embedding (Theiler, 1989). HP Yellow, a nuclear stain, was used for whole embryo reference sets to allow visualization of all tissues and cells; this stain is also used as a counterstain for the ISH in the Allen Developing Mouse Brain Atlas. Nissl stains were used for all dissected brains to provide additional morphological information of maturing neurons. To make a coherent 3D volume, section images were coregistered to each other."
+DEVMOUSE_TEMPLATE_DATA = [
+    {"Age (days)": "E11.5", "Theiler stage": "TS19", "Gender": "N.D.", "Plane": "sagittal",
+     "Stain": "HP Yellow", "Specimen": "Whole embryo", "Section width": "20 µm",
+     "Annotated hemisphere": "Right", "# Annotated images": 28},
+    {"Age (days)": "E13.5", "Theiler stage": "TS21", "Gender": "N.D.", "Plane": "sagittal",
+     "Stain": "HP Yellow", "Specimen": "Whole embryo", "Section width": "20 µm",
+     "Annotated hemisphere": "Right", "# Annotated images": 15},
+    {"Age (days)": "E15.5", "Theiler stage": "TS24", "Gender": "male", "Plane": "sagittal",
+     "Stain": "HP Yellow", "Specimen": "Whole embryo", "Section width": "20 µm",
+     "Annotated hemisphere": "Right", "# Annotated images": 16},
+    {"Age (days)": "E18.5", "Theiler stage": "TS26", "Gender": "male", "Plane": "sagittal",
+     "Stain": "Nissl (cresyl violet)", "Specimen": "Dissected brain", "Section width": "20 µm",
+     "Annotated hemisphere": "Left", "# Annotated images": 19},
+    {"Age (days)": "P4", "Theiler stage": "-", "Gender": "male", "Plane": "sagittal",
+     "Stain": "Nissl (cresyl violet)", "Specimen": "Dissected brain", "Section width": "20 µm",
+     "Annotated hemisphere": "Left", "# Annotated images": 23},
+    {"Age (days)": "P14", "Theiler stage": "-", "Gender": "male", "Plane": "sagittal",
+     "Stain": "Nissl (thionin)", "Specimen": "Dissected brain", "Section width": "25 µm",
+     "Annotated hemisphere": "Left", "# Annotated images": 39},
+    {"Age (days)": "P56", "Theiler stage": "-", "Gender": "male", "Plane": "sagittal",
+     "Stain": "Nissl (thionin)", "Specimen": "Dissected brain", "Section width": "25 µm",
+     "Annotated hemisphere": "Left", "# Annotated images": 21},
+]
+
+# Creation time constants
+DEVMOUSE_ONTOLOGY_CREATION_TIME = datetime.datetime(2012, 1, 1, tzinfo=datetime.timezone.utc)
+DEVMOUSE_TEMPLATE_CREATION_TIME = datetime.datetime(2012, 1, 1, tzinfo=datetime.timezone.utc)
+
+
+def _write_devmouse_ontology_data_description(output_dir: Path):
+    """Write data_description.json for the developmental mouse ontology."""
+    output_dir.mkdir(parents=True, exist_ok=True)
+    dd = DataDescription(
+        name=build_data_name("allen-dev-mouse-terminology", DEVMOUSE_ONTOLOGY_CREATION_TIME),
+        data_summary=DEVMOUSE_ONTOLOGY_DESCRIPTION.strip(),
+        subject_id="developing-mouse",
+        modalities=[Modality.BRIGHTFIELD],  # Source modalities (histological stains)
+        data_level="derived",
+        creation_time=DEVMOUSE_ONTOLOGY_CREATION_TIME,
+        institution=Organization.AIND,
+        investigators=[Person(name="Lydia Ng", registry_identifier="0000-0002-7499-3514")],
+        funding_source=[Funding(funder=Organization.AI)],
+        project_name="Allen Developing Mouse Brain Atlas",
+    )
+    dd.write_standard_file(output_directory=output_dir)
+    logging.info(f"Wrote ontology data_description.json to {output_dir}")
+
+
+def _lookup_template_row(age_token: str):
+    """Return row dict from DEVMOUSE_TEMPLATE_DATA matching age token like 'E11pt5'."""
+    age_display = age_token.replace("pt", ".")  # Convert E11pt5 -> E11.5
+    for row in DEVMOUSE_TEMPLATE_DATA:
+        if row.get("Age (days)") == age_display:
+            return row
+    return None
+
+
+def _write_devmouse_template_data_description(output_dir: Path, age_token: str):
+    """Write data_description.json for a developmental mouse template for a specific age."""
+    row = _lookup_template_row(age_token)
+    if row is None:
+        logging.warning(f"No template metadata row found for age {age_token}; skipping data description")
+        return
+    summary = DEVMOUSE_TEMPLATE_DESCRIPTION.format(**row)
+    subject_id = f"dev-mouse-{age_token.lower()}"
+    stain = row.get("Stain", "").lower()
+    # Map stain to modality (both HP Yellow and Nissl are brightfield histology)
+    modalities = [Modality.BRIGHTFIELD]
+    dd = DataDescription(
+        name=build_data_name(f"allen-dev-mouse-{age_token.lower()}-template", DEVMOUSE_TEMPLATE_CREATION_TIME),
+        data_summary=summary.strip(),
+        subject_id=subject_id,
+        modalities=modalities,
+        data_level="derived",
+        creation_time=DEVMOUSE_TEMPLATE_CREATION_TIME,
+        institution=Organization.AIND,
+        investigators=[Person(name="Lydia Ng", registry_identifier="0000-0002-7499-3514")],
+        funding_source=[Funding(funder=Organization.AI)],
+        project_name="Allen Developing Mouse Brain Atlas",
+    )
+    output_dir.mkdir(parents=True, exist_ok=True)
+    dd.write_standard_file(output_directory=output_dir)
+    logging.info(f"Wrote template data_description.json for age {age_token} to {output_dir}")
 
 
 def read_mhd_metadata(mhd_path):
@@ -130,6 +223,9 @@ def create_devmouse_terminology(output_dir, library):
     terminology.create_manifest(output_dir)
     library.add(terminology)
 
+    # Write ontology data description
+    _write_devmouse_ontology_data_description(terminology.location(output_dir))
+
     return terminology
 
 
@@ -222,6 +318,9 @@ def package_age_group(age, base_dir, results_dir, asset_library, terminology):
     template.create_manifest(results_dir)
     asset_library.add(template)
     print(f"  Added template: {template_name}")
+
+    # Write template data description
+    _write_devmouse_template_data_description(template.location(results_dir), age)
 
     # Create annotation set
     annotation_name = f"allen-dev-mouse-{age.lower()}-annotation"
