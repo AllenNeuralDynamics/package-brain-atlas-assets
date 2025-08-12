@@ -1,14 +1,14 @@
-"""Asset library for managing and retrieving atlas data assets."""
+"""Asset library for managing and retrieving atlas data assets (moved from atlas_assets)."""
 
 from typing import Dict, List, Tuple
 
-from atlas_assets.anatomical_annotation_set import AnatomicalAnnotationSet
-from atlas_assets.anatomical_space import AnatomicalSpace
-from atlas_assets.anatomical_template import AnatomicalTemplate
-from atlas_assets.atlas_asset import AtlasAsset
-from atlas_assets.coordinate_transformation import CoordinateTransformation
-from atlas_assets.parcellation_atlas import ParcellationAtlas
-from atlas_assets.parcellation_terminology import ParcellationTerminology
+from atlas_builder.anatomical_annotation_set import AnatomicalAnnotationSet
+from atlas_builder.anatomical_space import AnatomicalSpace
+from atlas_builder.anatomical_template import AnatomicalTemplate
+from atlas_builder.atlas_asset import AtlasAsset
+from atlas_builder.coordinate_transformation import CoordinateTransformation
+from atlas_builder.parcellation_atlas import ParcellationAtlas
+from atlas_builder.parcellation_terminology import ParcellationTerminology
 
 
 class AssetLibrary:

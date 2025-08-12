@@ -9,7 +9,7 @@ import re
 from ome_zarr.writer import write_image, write_multiscale
 from ome_zarr.io import parse_url
 from ome_zarr.format import CurrentFormat
-from atlas_assets.anatomical_template import AnatomicalTemplate
+from atlas_builder.anatomical_template import AnatomicalTemplate
 from utils import decompose_affine
 
 # Directory containing the multiresolution, multichannel NIfTI files

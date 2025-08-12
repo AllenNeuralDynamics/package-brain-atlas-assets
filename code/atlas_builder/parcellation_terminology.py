@@ -1,11 +1,11 @@
-"""Brain structure hierarchy and terminology management."""
+"""Brain structure hierarchy and terminology management (moved)."""
 
 import logging
 from dataclasses import dataclass
 
 import pandas as pd
 
-from atlas_assets.atlas_asset import AtlasAsset
+from atlas_builder.atlas_asset import AtlasAsset
 
 
 @dataclass

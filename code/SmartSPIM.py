@@ -12,8 +12,11 @@ from aind_data_schema_models.data_name_patterns import build_data_name
 from aind_data_schema_models.modalities import Modality
 from aind_data_schema_models.organizations import Organization
 
-from atlas_assets import (AnatomicalAnnotationSet, AnatomicalTemplate,
-                          CoordinateTransformation)
+from atlas_builder import (
+    AnatomicalAnnotationSet,
+    AnatomicalTemplate,
+    CoordinateTransformation,
+)
 
 
 def create_smartspim_annotation_set(input_dir, results_dir, library):
@@ -58,7 +61,7 @@ def create_smartspim_coordinate_transformations(input_dir, results_dir, library)
         "allen-adult-mouse-spim-lca-template", "2024-05"
     )
     ccf_template = library.get_anatomical_template(
-        "allen-adult-mouse-2p-template", "2015"
+        "allen-adult-mouse-stpt-template", "2015"
     )
 
     # Create coordinate transform from SmartSPIM template to CCF 3.1
@@ -132,7 +135,7 @@ def copy_data_description(input_dir, output_dir, name):
 
     data_description.write_standard_file(output_directory=output_dir)
 
-    logging.info(f"Validated and copied data_description.json to {output_json_path}")
+    logging.info(f"Validated and copied data_description.json to {output_dir}")
 
 
 def copy_processing(input_dir, output_dir):
@@ -173,7 +176,7 @@ def copy_processing(input_dir, output_dir):
     # Serialize back to JSON
     processing.write_standard_file(output_directory=output_dir)
 
-    logging.info(f"Validated and copied processing.json to {output_json_path}")
+    logging.info(f"Validated and copied processing.json to {output_dir}")
 
 
 def package_smartspim_template(input_dir, results_dir, library, scales):

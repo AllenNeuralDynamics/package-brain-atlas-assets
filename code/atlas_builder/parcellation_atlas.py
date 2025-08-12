@@ -1,11 +1,11 @@
-"""Complete parcellation atlas combining anatomical space, annotations, and terminology."""
+"""Complete parcellation atlas combining anatomical space, annotations, and terminology (moved)."""
 
 from dataclasses import dataclass
 
-from atlas_assets.anatomical_annotation_set import AnatomicalAnnotationSet
-from atlas_assets.anatomical_space import AnatomicalSpace
-from atlas_assets.atlas_asset import AtlasAsset
-from atlas_assets.parcellation_terminology import ParcellationTerminology
+from atlas_builder.anatomical_annotation_set import AnatomicalAnnotationSet
+from atlas_builder.anatomical_space import AnatomicalSpace
+from atlas_builder.atlas_asset import AtlasAsset
+from atlas_builder.parcellation_terminology import ParcellationTerminology
 
 
 @dataclass

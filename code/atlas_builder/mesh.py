@@ -49,17 +49,7 @@ class Mesh:
 
     @classmethod
     def from_msh(cls, path: str):
-        """Load mesh from a binary .msh file produced by Allen tools.
-
-        Format based on C++ headers (little-endian in our assets):
-        - uint32 LE: num_points
-        - Point3d[num_points] where Point3d = { float32 normal[3]; float32 coord[3]; }
-        - uint32 LE: num_triangle_strips
-          For each strip:
-            - uint16 LE: num_indices
-            - uint32 LE indices[num_indices]
-        Triangle strips are converted to triangles with alternating winding.
-        """
+        """Load mesh from a binary .msh file produced by Allen tools (moved)."""
         def read_exact(f, n):
             data = f.read(n)
             if len(data) != n:

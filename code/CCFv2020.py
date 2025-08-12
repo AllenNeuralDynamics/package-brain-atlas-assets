@@ -7,10 +7,10 @@ from pathlib import Path
 import pandas as pd
 from CCFv3 import load_ccf3_meshes
 
-from atlas_assets import (AnatomicalAnnotationSet, AnatomicalSpace,
+from atlas_builder import (AnatomicalAnnotationSet, AnatomicalSpace,
                           AnatomicalTemplate, ParcellationAtlas,
                           ParcellationTerminology)
-from atlas_assets.precomputed import append_meshes_to_precomputed
+from atlas_builder.precomputed import append_meshes_to_precomputed
 import datetime
 from aind_data_schema.core.data_description import DataDescription, Funding
 from aind_data_schema_models.data_name_patterns import build_data_name
@@ -18,11 +18,14 @@ from aind_data_schema_models.modalities import Modality
 from aind_data_schema_models.organizations import Organization
 from aind_data_schema.components.identifiers import Person
 
-CCF3_2020_ANNOTATION_DESCRIPTION = "The 2020 release of the Allen Mouse Common Coordinate Framework, Annotation The process of parcellating the average template of the CCF is detailed in Wang et al, 2020. For any given structure, the process starts with a review of previously published atlases and literature and visual analyses of the average template and multimodal reference datasets. Data types include (1) transgenic expression data imaged with two-photon serial tomography, (2) axonal projection data from the Allen Mouse Connectivity Atlas, (3) immunohistochemical and (4) cytoarchitectural stains, including antibodies against NeuN, NF-160, SMI-32, parvalbumin, SMI-99, and calbindin, as well as stains for DAPI, Nissl, and AChE; and (5) in situ hybridization (ISH) gene expression data from the Allen Mouse Brain Atlas. Specific datasets used for the delineation of brain structures are listed in supplementary table Table S3 of Wang et. al., 2020. The format of the annotation is a 10 µm resolution image volume of the same size and orientation as the average brain template. Each voxel in the brain is labeled with a structure from the Allen Mouse Reference Atlas, Ontology. Voxels are annotated with the label for the most specific (finest) structure that it is a part of. It is inferred the voxel is also a part of any enclosing/parent structures as defined in the hierarchical tree of the ontology. The 2020 release adds new annotations for layers of the Ammon’s horn (CA), main olfactory bulb (MOB) and minor modification of surrounding fiber tracts."
-CCF3_2020_ANNOTATION_CREATION_TIME = datetime.datetime(2020, 4, 17, tzinfo=datetime.timezone.utc)
-CCF3_2020_TERMINOLOGY_DESCRIPTION = "The 2020 release of the Allen Mouse Reference Atlas, Ontology. The Allen Mouse Reference Atlas, Ontology defines a hierarchical partonomy of the anatomical structures of the adult mouse brain. At the top level, the brain is divided into gray matter, fiber tracts and ventricular systems. Gray matter is subdivided into three large regions (cerebrum, brain stem, and cerebellum), which are themselves organized into subregions in a hierarchical tree. The Allen Mouse Reference Atlas, Ontology was developed for the Allen Reference Atlas (Dong, 2008) and follows terminology from “Brain Maps: Structure for the Rat Brain” (Swanson, 2004, 2018). The ontology has been subsequently extended and revised to also serve as the structure ontology for the Allen Mouse Common Coordinate Framework (Wang et al, 2020). The 2020 release introduces a new concept of a 'term set', which is a collection of parcellation terms that share a common set of properties, in this case organizing the ontology in 'organ', 'category', 'division', 'structure', and 'substructure' levels. This release also changed the identifier scheme of the ontology, separating the annotation index from a new string-based label, to allow for more compact data types to be used for annotation. The 2020 onotology was produced to support the relesae of the Allen Brain Cell Atlas."
-# Creation time for terminology (use same date as annotation release unless specified otherwise)
-CCF3_2020_TERMINOLOGY_CREATION_TIME = datetime.datetime(2020, 4, 17, tzinfo=datetime.timezone.utc)
+CCF2020_TERMINOLOGY_CREATION_TIME = datetime.datetime(2020, 4, 17, tzinfo=datetime.timezone.utc)
+CCF2020_ANNOTATION_CREATION_TIME = datetime.datetime(2020, 4, 17, tzinfo=datetime.timezone.utc)
+CCF2020_TEMPLATE_CREATION_TIME = datetime.datetime(2020, 4, 17, tzinfo=datetime.timezone.utc)
+
+CCF2020_ANNOTATION_DESCRIPTION = "The 2020 release of the Allen Mouse Common Coordinate Framework, Annotation The process of parcellating the average template of the CCF is detailed in Wang et al, 2020. For any given structure, the process starts with a review of previously published atlases and literature and visual analyses of the average template and multimodal reference datasets. Data types include (1) transgenic expression data imaged with two-photon serial tomography, (2) axonal projection data from the Allen Mouse Connectivity Atlas, (3) immunohistochemical and (4) cytoarchitectural stains, including antibodies against NeuN, NF-160, SMI-32, parvalbumin, SMI-99, and calbindin, as well as stains for DAPI, Nissl, and AChE; and (5) in situ hybridization (ISH) gene expression data from the Allen Mouse Brain Atlas. Specific datasets used for the delineation of brain structures are listed in supplementary table Table S3 of Wang et. al., 2020. The format of the annotation is a 10 µm resolution image volume of the same size and orientation as the average brain template. Each voxel in the brain is labeled with a structure from the Allen Mouse Reference Atlas, Ontology. Voxels are annotated with the label for the most specific (finest) structure that it is a part of. It is inferred the voxel is also a part of any enclosing/parent structures as defined in the hierarchical tree of the ontology. The 2020 release adds new annotations for layers of the Ammon’s horn (CA), main olfactory bulb (MOB) and minor modification of surrounding fiber tracts."
+CCF2020_TERMINOLOGY_DESCRIPTION = "The 2020 release of the Allen Mouse Reference Atlas, Ontology. The Allen Mouse Reference Atlas, Ontology defines a hierarchical partonomy of the anatomical structures of the adult mouse brain. At the top level, the brain is divided into gray matter, fiber tracts and ventricular systems. Gray matter is subdivided into three large regions (cerebrum, brain stem, and cerebellum), which are themselves organized into subregions in a hierarchical tree. The Allen Mouse Reference Atlas, Ontology was developed for the Allen Reference Atlas (Dong, 2008) and follows terminology from “Brain Maps: Structure for the Rat Brain” (Swanson, 2004, 2018). The ontology has been subsequently extended and revised to also serve as the structure ontology for the Allen Mouse Common Coordinate Framework (Wang et al, 2020). The 2020 release introduces a new concept of a 'term set', which is a collection of parcellation terms that share a common set of properties, in this case organizing the ontology in 'organ', 'category', 'division', 'structure', and 'substructure' levels. This release also changed the identifier scheme of the ontology, separating the annotation index from a new string-based label, to allow for more compact data types to be used for annotation. The 2020 onotology was produced to support the relesae of the Allen Brain Cell Atlas."
+CCF2020_TEMPLATE_DESCRIPTION = "The 2020 release of the anatomical template is the same as the 2017 Allen adult mouse template, however the coordinate system moved. The origin of the space this template defines is now located near the anterior commissure."
+
 
 def create_ccf2020_anatomical_template(input_dir, results_dir, library, scales=(10,)):
     """Create CCF 2020 anatomical template from ABC Atlas data."""
@@ -31,12 +34,14 @@ def create_ccf2020_anatomical_template(input_dir, results_dir, library, scales=(
     # Create anatomical template from the ABC Atlas average template
     template_dir = input_dir / "image_volumes" / "Allen-CCF-2020" / "20230630"
     template = AnatomicalTemplate(
-        name="allen-adult-mouse-2p-template", version="2020", scales=scales
+        name="allen-adult-mouse-stpt-template", version="2020", scales=scales
     )
 
     # Use the average template from ABC Atlas
     template.create(template_dir / "average_template", results_dir)
     library.add(template)
+    # Write data description for template
+    _write_ccf2020_template_data_description(template.location(results_dir))
     logging.info(f"Created CCF 2020 template: {template.name} {template.version}")
 
     return template
@@ -189,14 +194,14 @@ def _write_ccf2020_annotation_data_description(output_dir: Path):
     """Write data_description.json for the 2020 stereotaxic annotation set."""
     output_dir.mkdir(parents=True, exist_ok=True)
     dd = DataDescription(
-        name=build_data_name("allen-adult-mouse-stereotaxic-annotation-2020", CCF3_2020_ANNOTATION_CREATION_TIME),
-        data_summary=CCF3_2020_ANNOTATION_DESCRIPTION.strip(),
+        name=build_data_name("allen-adult-mouse-stereotaxic-annotation-2020", CCF2020_ANNOTATION_CREATION_TIME),
+        data_summary=CCF2020_ANNOTATION_DESCRIPTION.strip(),
         subject_id="adult-mouse-population-average",
         modalities=[Modality.STPT],
         data_level="derived",
-        creation_time=CCF3_2020_ANNOTATION_CREATION_TIME,
-        institution=Organization.AIND,
-        investigators=[Person(name="Lydia Ng", registry_identifier="0000-0002-7499-3514")],
+        creation_time=CCF2020_ANNOTATION_CREATION_TIME,
+        institution=Organization.AIBS,
+        investigators=[Person(name="Quanxin Wang", registry_identifier="0000-0002-0007-7935")],
         funding_source=[Funding(funder=Organization.AI)],
         project_name="Allen Mouse Brain Common Coordinate Framework",
     )
@@ -208,14 +213,14 @@ def _write_ccf2020_terminology_data_description(output_dir: Path):
     """Write data_description.json for the 2020 terminology (ontology)."""
     output_dir.mkdir(parents=True, exist_ok=True)
     dd = DataDescription(
-        name=build_data_name("allen-adult-mouse-terminology-2020", CCF3_2020_TERMINOLOGY_CREATION_TIME),
-        data_summary=CCF3_2020_TERMINOLOGY_DESCRIPTION.strip(),
+        name=build_data_name("allen-adult-mouse-terminology-2020", CCF2020_TERMINOLOGY_CREATION_TIME),
+        data_summary=CCF2020_TERMINOLOGY_DESCRIPTION.strip(),
         subject_id="adult-mouse-population-average",
         modalities=[Modality.STPT],  # Derived from STPT population data & multimodal sources
         data_level="derived",
-        creation_time=CCF3_2020_TERMINOLOGY_CREATION_TIME,
-        institution=Organization.AIND,
-        investigators=[Person(name="Lydia Ng", registry_identifier="0000-0002-7499-3514")],
+        creation_time=CCF2020_TERMINOLOGY_CREATION_TIME,
+        institution=Organization.AIBS,
+        investigators=[Person(name="Quanxin Wang", registry_identifier="0000-0002-0007-7935")],
         funding_source=[Funding(funder=Organization.AI)],
         project_name="Allen Mouse Brain Common Coordinate Framework",
     )
@@ -223,12 +228,31 @@ def _write_ccf2020_terminology_data_description(output_dir: Path):
     logging.info(f"Wrote data_description.json for 2020 terminology to {output_dir}")
 
 
+def _write_ccf2020_template_data_description(output_dir: Path):
+    """Write data_description.json for the 2020 anatomical template."""
+    output_dir.mkdir(parents=True, exist_ok=True)
+    dd = DataDescription(
+        name=build_data_name("allen-adult-mouse-stpt-template-2020", CCF2020_TEMPLATE_CREATION_TIME),
+        data_summary=CCF2020_TEMPLATE_DESCRIPTION.strip(),
+        subject_id="adult-mouse-population-average",
+        modalities=[Modality.STPT],  # Derived from STPT imaging
+        data_level="derived",
+        creation_time=CCF2020_TEMPLATE_CREATION_TIME,
+        institution=Organization.AIBS,
+        investigators=[Person(name="Lydia Ng", registry_identifier="0000-0002-7499-3514")],
+        funding_source=[Funding(funder=Organization.AI)],
+        project_name="Allen Mouse Brain Common Coordinate Framework",
+    )
+    dd.write_standard_file(output_directory=output_dir)
+    logging.info(f"Wrote data_description.json for 2020 template to {output_dir}")
+
+
 def create_ccf2020_annotation_set(input_dir, results_dir, library, scales=(10,)):
     """Create CCF 2020 anatomical annotation set with updated brain region labels."""
     logging.info("Creating CCF 2020 anatomical annotation set...")
 
     # Get required assets from library
-    template = library.get_anatomical_template("allen-adult-mouse-2p-template", "2020")
+    template = library.get_anatomical_template("allen-adult-mouse-stpt-template", "2020")
     terminology = library.get_parcellation_terminology(
         "allen-adult-mouse-terminology", "2020"
     )
@@ -293,7 +317,7 @@ def package_ccf2020(input_dir, output_dir, library, scales=(10,)):
     create_ccf2020_annotation_set(input_dir, output_dir, library, scales)
 
     # Create and register anatomical space
-    template = library.get_anatomical_template("allen-adult-mouse-2p-template", "2020")
+    template = library.get_anatomical_template("allen-adult-mouse-stpt-template", "2020")
     anatomical_space = AnatomicalSpace(
         name="allen-adult-mouse-ccf-stereotaxic-space",
         version="2020",

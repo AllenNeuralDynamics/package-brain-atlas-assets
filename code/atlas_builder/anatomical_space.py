@@ -1,9 +1,9 @@
-"""Anatomical coordinate space definition with associated template."""
+"""Anatomical coordinate space definition with associated template (moved)."""
 
 from dataclasses import dataclass
 
-from atlas_assets.anatomical_template import AnatomicalTemplate
-from atlas_assets.atlas_asset import AtlasAsset
+from atlas_builder.anatomical_template import AnatomicalTemplate
+from atlas_builder.atlas_asset import AtlasAsset
 
 
 @dataclass

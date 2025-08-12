@@ -1,4 +1,4 @@
-"""Brain structure annotation management with multiscale OME-Zarr support."""
+"""Brain structure annotation management with multiscale OME-Zarr support (moved)."""
 
 import logging
 import shutil
@@ -13,10 +13,10 @@ import zarr
 from ome_zarr.writer import write_multiscale, write_multiscales_metadata
 import SimpleITK as sitk
 
-from atlas_assets.anatomical_template import AnatomicalTemplate
-from atlas_assets.atlas_asset import AtlasAsset
-from atlas_assets.parcellation_terminology import ParcellationTerminology
-from atlas_assets.precomputed import (convert_compressed_annotations_to_precomputed,
+from atlas_builder.anatomical_template import AnatomicalTemplate
+from atlas_builder.atlas_asset import AtlasAsset
+from atlas_builder.parcellation_terminology import ParcellationTerminology
+from atlas_builder.precomputed import (convert_compressed_annotations_to_precomputed,
                                       write_segment_properties)
 from utils import decompose_affine
 

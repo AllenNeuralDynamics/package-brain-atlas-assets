@@ -1,4 +1,4 @@
-"""Base class for atlas assets with location and manifest management."""
+"""Base class for atlas assets with location and manifest management (moved from atlas_assets)."""
 
 import json
 import logging

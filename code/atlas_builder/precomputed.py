@@ -31,15 +31,7 @@ def append_mesh_to_precomputed(mesh, scale, precomputed_file, identifier):
 def append_meshes_to_precomputed(
     meshes, precomputed_file, scale, map_annotation_value=None, mesh_dir="mesh"
 ):
-    """Append meshes to an existing precomputed dataset and update info.
-
-    Args:
-        meshes: Iterable of (Mesh, annotation_value) where annotation_value can be mapped.
-        precomputed_file: Path to precomputed root.
-        scale: Numeric scale factor in nanometers per voxel for mesh coordinates.
-        map_annotation_value: Optional mapping function to map provided values to IDs.
-        mesh_dir: Directory name for meshes under precomputed root.
-    """
+    """Append meshes to an existing precomputed dataset and update info (moved)."""
     map_annotation_value = map_annotation_value or (lambda x: x)
 
     for mesh, annotation_value in meshes:
@@ -65,18 +57,7 @@ def write_segment_properties(
     map_annotation_value=None,
     segment_properties_dir="segment_properties",
 ):
-    """Write neuroglancer segment properties based on a terminology DataFrame.
-
-    - Supports list-valued 'annotation_value' by creating a separate segment property
-      entry for each annotation value, using the row's abbreviation/name/tags.
-
-    Args:
-        precomputed_file: Path to precomputed root containing an 'info' file.
-        terms: pandas DataFrame with columns including 'annotation_value', 'abbreviation', 'name',
-               and optionally 'term_set_name'. Values in 'annotation_value' can be int or list[int].
-        map_annotation_value: Optional mapping function to map values to the final ID strings.
-        segment_properties_dir: Directory name where segment properties will be written.
-    """
+    """Write neuroglancer segment properties based on a terminology DataFrame (moved)."""
     map_annotation_value = map_annotation_value or (lambda x: x)
 
     # Create separate entries for each annotation value
@@ -155,14 +136,7 @@ def write_segment_properties(
 def convert_compressed_annotations_to_precomputed(
     annotation_data, output_location, scale=(.01, .01, .01), chunk_size=(256, 256, 64)
 ):
-    """Convert compressed annotation data to precomputed format.
-
-    Args:
-        annotation_data (numpy.ndarray): In-memory annotation data array
-        output_location (str): Output location for precomputed file
-        scale (int): Resolution scale in millimeters per voxel (default: (.01, .01, .01))
-        chunk_size (tuple): Chunk size for precomputed format (default: (256, 256, 64))
-    """
+    """Convert compressed annotation data to precomputed format (moved)."""
     logging.info("Converting compressed annotations to precomputed format")
     logging.info(f"Data shape: {annotation_data.shape}, dtype: {annotation_data.dtype}")
     logging.info(f"Output location: {output_location}")

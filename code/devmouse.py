@@ -16,9 +16,13 @@ from pathlib import Path
 import pandas as pd
 import SimpleITK as sitk
 
-from atlas_assets import (AnatomicalAnnotationSet, AnatomicalSpace,
-                          AnatomicalTemplate, ParcellationAtlas,
-                          ParcellationTerminology)
+from atlas_builder import (
+    AnatomicalAnnotationSet,
+    AnatomicalSpace,
+    AnatomicalTemplate,
+    ParcellationAtlas,
+    ParcellationTerminology,
+)
 import datetime
 from aind_data_schema.core.data_description import DataDescription, Funding
 from aind_data_schema_models.data_name_patterns import build_data_name
@@ -68,7 +72,7 @@ def _write_devmouse_ontology_data_description(output_dir: Path):
         modalities=[Modality.BRIGHTFIELD],  # Source modalities (histological stains)
         data_level="derived",
         creation_time=DEVMOUSE_ONTOLOGY_CREATION_TIME,
-        institution=Organization.AIND,
+        institution=Organization.AIBS,
         investigators=[Person(name="Lydia Ng", registry_identifier="0000-0002-7499-3514")],
         funding_source=[Funding(funder=Organization.AI)],
         project_name="Allen Developing Mouse Brain Atlas",
@@ -94,17 +98,14 @@ def _write_devmouse_template_data_description(output_dir: Path, age_token: str):
         return
     summary = DEVMOUSE_TEMPLATE_DESCRIPTION.format(**row)
     subject_id = f"dev-mouse-{age_token.lower()}"
-    stain = row.get("Stain", "").lower()
-    # Map stain to modality (both HP Yellow and Nissl are brightfield histology)
-    modalities = [Modality.BRIGHTFIELD]
     dd = DataDescription(
         name=build_data_name(f"allen-dev-mouse-{age_token.lower()}-template", DEVMOUSE_TEMPLATE_CREATION_TIME),
         data_summary=summary.strip(),
         subject_id=subject_id,
-        modalities=modalities,
+        modalities=[Modality.BRIGHTFIELD],
         data_level="derived",
         creation_time=DEVMOUSE_TEMPLATE_CREATION_TIME,
-        institution=Organization.AIND,
+        institution=Organization.AIBS,
         investigators=[Person(name="Lydia Ng", registry_identifier="0000-0002-7499-3514")],
         funding_source=[Funding(funder=Organization.AI)],
         project_name="Allen Developing Mouse Brain Atlas",
