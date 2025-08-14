@@ -33,8 +33,10 @@ class AnatomicalTemplate(AtlasAsset):
 
         for scale in self.scales:
             src = f"{prefix}_{scale}.nii.gz"
+            logging.info(f"Source file: {src}")
             dst_fname = f"anatomical_template_{scale}.nii.gz"
             dst = template_dir / dst_fname
+            logging.info(f"Destination file: {dst}")
             if not dst.exists():
                 shutil.copy2(src, dst)
                 logging.info(f"Copied {src} to {dst} with new name")
