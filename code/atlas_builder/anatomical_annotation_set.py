@@ -17,7 +17,8 @@ from atlas_builder.anatomical_template import AnatomicalTemplate
 from atlas_builder.atlas_asset import AtlasAsset
 from atlas_builder.parcellation_terminology import ParcellationTerminology
 from atlas_builder.precomputed import (convert_compressed_annotations_to_precomputed,
-                                      write_segment_properties)
+                                      write_segment_properties,
+                                      create_mesh_from_annotation)
 from utils import decompose_affine
 
 @dataclass
@@ -87,6 +88,11 @@ class AnatomicalAnnotationSet(AtlasAsset):
             self.parcellation_terminology.df,
         )
 
+        # Create mesh precomputed objects from annotation
+        logging.info("Creating meshes from annotation to {output_dir}")
+        mesh_dir = output_root / "annotations.precomputed" / "mesh"
+        create_mesh_from_annotation(compressed_results, self.scales, mesh_dir)
+
         # Compute voxel counts for all terms using highest resolution data
         logging.info("Computing voxel counts for all terms at highest resolution...")
         voxel_counts_df = self.count_voxels_for_all_terms(
@@ -116,8 +122,11 @@ class AnatomicalAnnotationSet(AtlasAsset):
 
         # Copy annotation files with standardized compressed annotation naming convention
         for scale in self.scales:
+            logging.info(f"Scale is {scale}")
             src_file = f"{input_prefix}_{scale}.nii.gz"
+            logging.info(f"Creating annotation set from source: {src_file}")
             dst_file = output_dir / f"annotations_compressed_{scale}.nii.gz"
+            logging.info(f"Annotation set path: {dst_file}")
             shutil.copy2(src_file, dst_file)
             logging.info(f"Copied {src_file} to {dst_file}")
 

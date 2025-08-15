@@ -14,8 +14,8 @@ from atlas_builder import (
     ParcellationAtlas,
     ParcellationTerminology,
 )
-from atlas_builder.mesh import Mesh
-from atlas_builder.precomputed import append_meshes_to_precomputed
+# from atlas_builder.mesh import Mesh
+from atlas_builder.precomputed import create_mesh_from_annotation
 
 import datetime
 from aind_data_schema.core.data_description import DataDescription, Funding
@@ -67,9 +67,9 @@ def _write_template_data_description(output_dir: Path,
         modalities=modalities,
         data_level="derived",
         creation_time=creation_time,
-        institution=None, ### TODO: Need to add HMBA/WUSTL as an organization and BRAIN initiative as a funding organization
-        investigators=None, 
-        funding_source=None,
+        institution=Organization.AIBS, ### TODO: Need to add HMBA/WUSTL as an organization and BRAIN initiative as a funding organization
+        investigators=[Person(name="Song-Lin Ding", registry_identifier="0000-0002-0007-7935")],
+        funding_source=[Funding(funder=Organization.AI)],
         project_name=project_name,
     )
 
@@ -130,20 +130,6 @@ def _write_ontology_data_description(output_dir: Path, name: str, version: str, 
     dd.write_standard_file(output_directory=output_dir)
     logging.info(f"Wrote data_description.json for ontology {name} {version} to {output_dir}")
 
-def load_homba_meshes(mesh_dir):
-    """Load meshes from a directory.
-    Args:
-        mesh_dir (Path): Directory containing .obj mesh files.
-    Yields:
-        tuple: (Mesh, identifier) where Mesh is an instance of Mesh class and identifier is the mapped identifier.
-    """
-
-    for fname in glob.glob(str(mesh_dir / "*.obj")):
-        obj_id = int(Path(fname).stem.split("_")[1])
-
-        mesh = Mesh.from_obj(fname)
-        yield mesh, obj_id
-
 
 def create_all_anatomical_templates(
     input_dir: Path, 
@@ -154,7 +140,7 @@ def create_all_anatomical_templates(
     """Create anatomical templates from CCF 3 atlas data."""
 
     # Create human HCP template
-    average_template_prefix = input_dir / "average_template" / "hcp_template"
+    average_template_prefix = input_dir / "average_template" / "hcp_template" / "20250829" / "human_hcp_template"
     template = AnatomicalTemplate(
         name="hmba-adult-human-mri-template", version="2025", scales=scales['hcp']
     )
@@ -170,11 +156,11 @@ def create_all_anatomical_templates(
         summary=HCP_TEMPLATE_SUMMARY,
         project_name = "hmba-adult-human-mri-template",
         modalities=[Modality.MRI],
-        creation_time=HCP_TEMPLATE_CREATION_TIME
+        creation_time=HCP_TEMPLATE_CREATION_TIME,
     )
 
    # Create macaque mac25 rhesus template
-    average_template_prefix = input_dir / "average_template" / "mac25_template"
+    average_template_prefix = input_dir / "average_template" / "mac25_template" / "20250829" / "macaque_mac25_template"
     template = AnatomicalTemplate(
         name="hmba-adult-macaque-mri-template", version="2025", scales=scales['mac25']
     )
@@ -190,11 +176,11 @@ def create_all_anatomical_templates(
         summary=MAC25_TEMPLATE_SUMMARY,
         project_name = "hmba-adult-macaque-mri-template",
         modalities=[Modality.MRI],
-        creation_time=MAC25_TEMPLATE_CREATION_TIME
+        creation_time=MAC25_TEMPLATE_CREATION_TIME,
     )
 
     # Create marmoset riken25 template
-    average_template_prefix = input_dir / "average_template" / "riken_template"
+    average_template_prefix = input_dir / "average_template" / "riken25_template" / "20250829" / "marmoset_riken25_template"
     template = AnatomicalTemplate(
         name="hmba-adult-marmoset-mri-template", version="2025", scales=scales['riken25']
     )
@@ -210,7 +196,7 @@ def create_all_anatomical_templates(
         summary=RIKEN25_TEMPLATE_SUMMARY,
         project_name = "hmba-adult-marmoset-mri-template",
         modalities=[Modality.MRI],
-        creation_time=RIKEN25_TEMPLATE_CREATION_TIME
+        creation_time=RIKEN25_TEMPLATE_CREATION_TIME,
     )
 
 
@@ -240,26 +226,29 @@ def create_all_ccf_annotation_sets(
     # Define annotation configurations for different CCF versions
     annotations = [
         {
-            "directory": "hcp_2025",
+            "directory": "hcp_homba_bg_2025",
             "template": template_hcp,
             "version": "2025",
             "name": "hmba-adult-human-homba-annotation",
+            "scale": scales["hcp"],
             "summary": HCP_HOMBA_ANNOTATION_DESCRIPTION,
             "creation_time": HCP_HOMBA_ANNOTATION_CREATION_TIME,
         },
         {
-            "directory": "mac25_2025",
+            "directory": "mac25_homba_bg_2025",
             "template": template_mac25,
             "version": "2025",
             "name": "hmba-adult-macaque-homba-annotation",
+            "scale": scales["mac25"],
             "summary": MAC25_HOMBA_ANNOTATION_DESCRIPTION,
             "creation_time": MAC25_HOMBA_ANNOTATION_CREATION_TIME,
         },
         {
-            "directory": "riken25_2025",
+            "directory": "riken25_homba_bg_2025",
             "template": template_riken25,
             "version": "2025",
             "name": "hmba-adult-marmoset-homba-annotation",
+            "scale": scales["riken25"],
             "summary": RIKEN25_HOMBA_ANNOTATION_DESCRIPTION,
             "creation_time": RIKEN25_HOMBA_ANNOTATION_CREATION_TIME,
         },
@@ -272,7 +261,7 @@ def create_all_ccf_annotation_sets(
             anatomical_template=annotation["template"],
             parcellation_terminology=terminology,
             version=annotation["version"],
-            scales=scales,
+            scales=annotation["scale"],
         )
 
         annotation_set.create_from_nifti(
@@ -293,20 +282,22 @@ def create_all_ccf_annotation_sets(
         annotation_set.create_manifest(results_dir)
         library.add(annotation_set)
 
-        meshes = load_homba_meshes(
-            Path(f"./data/meshes/{annotation["directory"]}")
-        )
-        mesh_subdirectory = annotation["name"]
-        version_date = annotation["version"]
-        append_meshes_to_precomputed(
-            meshes,
-            results_dir
-            / "anatomical-annotation-sets"
-            / mesh_subdirectory
-            / version_date
-            / "annotations.precomputed",
-            scale=1000,  # convert to nanometers
-        )
+        create_mesh_from_annotation()
+
+        # meshes = load_homba_meshes(
+        #     Path(f"./data/meshes/{annotation["directory"]}")
+        # )
+        # mesh_subdirectory = annotation["name"]
+        # version_date = annotation["version"]
+        # append_meshes_to_precomputed(
+        #     meshes,
+        #     results_dir
+        #     / "anatomical-annotation-sets"
+        #     / mesh_subdirectory
+        #     / version_date
+        #     / "annotations.precomputed",
+        #     scale=1000,  # convert to nanometers
+        # )
 
     logging.info("All CCF anatomical annotation sets created successfully")
 
@@ -377,7 +368,7 @@ def package_ccf(input_dir, output_dir, library, scales):
         name="hmba-adult-human-mri-space",
         version="2025",
         anatomical_template=library.get_anatomical_template(
-            "allen-adult-mouse-mri-template", "2025"
+            "hmba-adult-human-mri-template", "2025"
         ),
     )
     library.add(anatomical_space)
@@ -395,7 +386,7 @@ def package_ccf(input_dir, output_dir, library, scales):
         name="hmba-adult-marmoset-mri-space",
         version="2025",
         anatomical_template=library.get_anatomical_template(
-            "hmba-adult-macaque-mri-template", "2025"
+            "hmba-adult-marmoset-mri-template", "2025"
         ),
     )
     library.add(anatomical_space)
