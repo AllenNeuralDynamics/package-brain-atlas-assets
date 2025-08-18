@@ -122,11 +122,8 @@ class AnatomicalAnnotationSet(AtlasAsset):
 
         # Copy annotation files with standardized compressed annotation naming convention
         for scale in self.scales:
-            logging.info(f"Scale is {scale}")
             src_file = f"{input_prefix}_{scale}.nii.gz"
-            logging.info(f"Creating annotation set from source: {src_file}")
             dst_file = output_dir / f"annotations_compressed_{scale}.nii.gz"
-            logging.info(f"Annotation set path: {dst_file}")
             shutil.copy2(src_file, dst_file)
             logging.info(f"Copied {src_file} to {dst_file}")
 
