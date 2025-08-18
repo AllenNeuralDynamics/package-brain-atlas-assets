@@ -284,21 +284,6 @@ def create_all_ccf_annotation_sets(
 
         create_mesh_from_annotation()
 
-        # meshes = load_homba_meshes(
-        #     Path(f"./data/meshes/{annotation["directory"]}")
-        # )
-        # mesh_subdirectory = annotation["name"]
-        # version_date = annotation["version"]
-        # append_meshes_to_precomputed(
-        #     meshes,
-        #     results_dir
-        #     / "anatomical-annotation-sets"
-        #     / mesh_subdirectory
-        #     / version_date
-        #     / "annotations.precomputed",
-        #     scale=1000,  # convert to nanometers
-        # )
-
     logging.info("All CCF anatomical annotation sets created successfully")
 
 
