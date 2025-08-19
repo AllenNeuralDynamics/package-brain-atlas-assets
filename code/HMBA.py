@@ -14,6 +14,7 @@ from atlas_builder import (
     ParcellationAtlas,
     ParcellationTerminology,
 )
+
 # from atlas_builder.mesh import Mesh
 from atlas_builder.precomputed import create_mesh_from_annotation
 
@@ -41,13 +42,16 @@ MAC25_HOMBA_ANNOTATION_DESCRIPTION = "The 2025 and initial release of the macaqu
 RIKEN25_HOMBA_ANNOTATION_DESCRIPTION = "The 2025 and initial release of the marmoset parcellations of the basal ganglia and associated structures described in the Harmonized Ontology of Mammalian Brain Anatomy (HOMBA). Details and process of parcellation are described in Ding et al. 2025. Labeling was performed on the RIKEN25 template resampled to 70 um isotropic voxel resolution."
 HOMBA_ONTOLOGY_DESCRIPTION = "The 2025 and initial release of the Harmonized Ontology of Mammalian Brain Anatomy (HOMBA). The HOMBA is a harmonized cross-species taxonomy of 2341 brain and spinal cord structures. Derived from the Allen Developing Human Brain Atlas (DHBA) ontology, the HOMBA is hierarchical, allowing users to aggregate structures from fine grain parcellations to broad regions. Terminology is harmonized across human, primate, and rodent structures with synonymous terms and includes transient developmental structures."
 
-def _write_template_data_description(output_dir: Path, 
-                                     name: str, 
-                                     version: str, 
-                                     summary: str,
-                                     project_name: str, 
-                                     modalities, 
-                                     creation_time):
+
+def _write_template_data_description(
+    output_dir: Path,
+    name: str,
+    version: str,
+    summary: str,
+    project_name: str,
+    modalities,
+    creation_time,
+):
     """Create and write a data_description.json for a template using AIND schema.
 
     Args:
@@ -67,7 +71,7 @@ def _write_template_data_description(output_dir: Path,
         modalities=modalities,
         data_level="derived",
         creation_time=creation_time,
-        institution=Organization.AIBS, ### TODO: Need to add HMBA/WUSTL as an organization and BRAIN initiative as a funding organization
+        institution=Organization.AIBS,  ### TODO: Need to add HMBA/WUSTL as an organization and BRAIN initiative as a funding organization
         investigators=[Person(name="Song-Lin Ding", registry_identifier="0000-0002-0007-7935")],
         funding_source=[Funding(funder=Organization.AI)],
         project_name=project_name,
@@ -78,11 +82,7 @@ def _write_template_data_description(output_dir: Path,
     logging.info(f"Wrote data_description.json for {name} to {output_dir}")
 
 
-def _write_annotation_data_description(output_dir: Path,
-                                        name: str, 
-                                        version: str, 
-                                        summary: str, 
-                                        creation_time):
+def _write_annotation_data_description(output_dir: Path, name: str, version: str, summary: str, creation_time):
     """Create and write a data_description.json for an anatomical annotation set.
 
     Args:
@@ -111,8 +111,8 @@ def _write_annotation_data_description(output_dir: Path,
     dd.write_standard_file(output_directory=output_dir)
     logging.info(f"Wrote data_description.json for annotation set {name} {version} to {output_dir}")
 
-def _write_ontology_data_description(output_dir: Path, name: str, version: str, summary: str, creation_time):
 
+def _write_ontology_data_description(output_dir: Path, name: str, version: str, summary: str, creation_time):
     """Create and write a data_description.json for the ontology (terminology)."""
     output_dir.mkdir(parents=True, exist_ok=True)
     dd = DataDescription(
@@ -131,19 +131,12 @@ def _write_ontology_data_description(output_dir: Path, name: str, version: str, 
     logging.info(f"Wrote data_description.json for ontology {name} {version} to {output_dir}")
 
 
-def create_all_anatomical_templates(
-    input_dir: Path, 
-    results_dir: Path,
-    library, 
-    scales
-):
+def create_all_anatomical_templates(input_dir: Path, results_dir: Path, library, scales):
     """Create anatomical templates from CCF 3 atlas data."""
 
     # Create human HCP template
     average_template_prefix = input_dir / "average_template" / "hcp_template" / "20250829" / "human_hcp_template"
-    template = AnatomicalTemplate(
-        name="hmba-adult-human-mri-template", version="2025", scales=scales['hcp']
-    )
+    template = AnatomicalTemplate(name="hmba-adult-human-mri-template", version="2025", scales=scales["hcp"])
     template.create(average_template_prefix, results_dir)
     library.add(template)
     logging.info(f"Created average_template: {template.name} {template.version}")
@@ -154,16 +147,14 @@ def create_all_anatomical_templates(
         name=template.name,
         version=template.version,
         summary=HCP_TEMPLATE_SUMMARY,
-        project_name = "hmba-adult-human-mri-template",
+        project_name="hmba-adult-human-mri-template",
         modalities=[Modality.MRI],
         creation_time=HCP_TEMPLATE_CREATION_TIME,
     )
 
-   # Create macaque mac25 rhesus template
+    # Create macaque mac25 rhesus template
     average_template_prefix = input_dir / "average_template" / "mac25_template" / "20250829" / "macaque_mac25_template"
-    template = AnatomicalTemplate(
-        name="hmba-adult-macaque-mri-template", version="2025", scales=scales['mac25']
-    )
+    template = AnatomicalTemplate(name="hmba-adult-macaque-mri-template", version="2025", scales=scales["mac25"])
     template.create(average_template_prefix, results_dir)
     library.add(template)
     logging.info(f"Created average_template: {template.name} {template.version}")
@@ -174,15 +165,19 @@ def create_all_anatomical_templates(
         name=template.name,
         version=template.version,
         summary=MAC25_TEMPLATE_SUMMARY,
-        project_name = "hmba-adult-macaque-mri-template",
+        project_name="hmba-adult-macaque-mri-template",
         modalities=[Modality.MRI],
         creation_time=MAC25_TEMPLATE_CREATION_TIME,
     )
 
     # Create marmoset riken25 template
-    average_template_prefix = input_dir / "average_template" / "riken25_template" / "20250829" / "marmoset_riken25_template"
+    average_template_prefix = (
+        input_dir / "average_template" / "riken25_template" / "20250829" / "marmoset_riken25_template"
+    )
     template = AnatomicalTemplate(
-        name="hmba-adult-marmoset-mri-template", version="2025", scales=scales['riken25']
+        name="hmba-adult-marmoset-mri-template",
+        version="2025",
+        scales=scales["riken25"],
     )
     template.create(average_template_prefix, results_dir)
     library.add(template)
@@ -194,34 +189,21 @@ def create_all_anatomical_templates(
         name=template.name,
         version=template.version,
         summary=RIKEN25_TEMPLATE_SUMMARY,
-        project_name = "hmba-adult-marmoset-mri-template",
+        project_name="hmba-adult-marmoset-mri-template",
         modalities=[Modality.MRI],
         creation_time=RIKEN25_TEMPLATE_CREATION_TIME,
     )
 
 
-def create_all_ccf_annotation_sets(
-    input_dir: Path,
-    results_dir: Path, 
-    library, 
-    scales
-):
+def create_all_ccf_annotation_sets(input_dir: Path, results_dir: Path, library, scales):
     """Create all CCF anatomical annotation sets across different versions and templates."""
     logging.info("Creating all CCF anatomical annotation sets...")
 
     # Get templates and terminology from library
-    template_hcp = library.get_anatomical_template(
-        "hmba-adult-human-mri-template", "2025"
-    )
-    template_mac25 = library.get_anatomical_template(
-        "hmba-adult-macaque-mri-template", "2025"
-    )
-    template_riken25 = library.get_anatomical_template(
-        "hmba-adult-marmoset-mri-template", "2025"
-    )
-    terminology = library.get_parcellation_terminology(
-        "hmba-mammalian-homba-terminology", "2025"
-    )
+    template_hcp = library.get_anatomical_template("hmba-adult-human-mri-template", "2025")
+    template_mac25 = library.get_anatomical_template("hmba-adult-macaque-mri-template", "2025")
+    template_riken25 = library.get_anatomical_template("hmba-adult-marmoset-mri-template", "2025")
+    terminology = library.get_parcellation_terminology("hmba-mammalian-homba-terminology", "2025")
 
     # Define annotation configurations for different CCF versions
     annotations = [
@@ -292,7 +274,7 @@ def create_homba_parcellation_terminology(input_dir, output_dir, library):
     input_path = input_dir / "annotation" / "HOMBA_v1_mapping.csv"
 
     df = pd.read_csv(input_path)
-    df["color_hex_triplet"] = [f"#{r:02x}{g:02x}{b:02x}" for r,g,b in zip(df['r'], df['g'], df['b'])]
+    df["color_hex_triplet"] = [f"#{r:02x}{g:02x}{b:02x}" for r, g, b in zip(df["r"], df["g"], df["b"])]
 
     # Create DataFrame with required columns for ParcellationTerminology
     # For homba, use structure IDs as both file_id and identifier
@@ -307,14 +289,10 @@ def create_homba_parcellation_terminology(input_dir, output_dir, library):
         }
     )
 
-    terminology = ParcellationTerminology(
-        name="hmba-mammalian-homba-terminology", version="2025", df=filtered_df
-    )
+    terminology = ParcellationTerminology(name="hmba-mammalian-homba-terminology", version="2025", df=filtered_df)
 
     # Build identifier -> annotation_value lookup since identifiers are prefixed
-    id_to_ann = dict(
-        zip(terminology.df["identifier"], terminology.df["annotation_value"])
-    )
+    id_to_ann = dict(zip(terminology.df["identifier"], terminology.df["annotation_value"]))
     terminology.set_descendant_annotation_values(
         lambda row: [id_to_ann[i] for i in row["descendants"] if i in id_to_ann]
     )
@@ -352,27 +330,21 @@ def package_ccf(input_dir, output_dir, library, scales):
     anatomical_space = AnatomicalSpace(
         name="hmba-adult-human-mri-space",
         version="2025",
-        anatomical_template=library.get_anatomical_template(
-            "hmba-adult-human-mri-template", "2025"
-        ),
+        anatomical_template=library.get_anatomical_template("hmba-adult-human-mri-template", "2025"),
     )
     library.add(anatomical_space)
 
     anatomical_space = AnatomicalSpace(
         name="hmba-adult-macaque-mri-space",
         version="2025",
-        anatomical_template=library.get_anatomical_template(
-            "hmba-adult-macaque-mri-template", "2025"
-        ),
+        anatomical_template=library.get_anatomical_template("hmba-adult-macaque-mri-template", "2025"),
     )
     library.add(anatomical_space)
 
     anatomical_space = AnatomicalSpace(
         name="hmba-adult-marmoset-mri-space",
         version="2025",
-        anatomical_template=library.get_anatomical_template(
-            "hmba-adult-marmoset-mri-template", "2025"
-        ),
+        anatomical_template=library.get_anatomical_template("hmba-adult-marmoset-mri-template", "2025"),
     )
     library.add(anatomical_space)
 
@@ -381,9 +353,7 @@ def package_ccf(input_dir, output_dir, library, scales):
         ParcellationAtlas(
             name="hmba-adult-human-homba-atlas",
             version="2025",
-            anatomical_space=library.get_anatomical_space(
-                name="hmba-adult-human-mri-space", version="2025"
-            ),
+            anatomical_space=library.get_anatomical_space(name="hmba-adult-human-mri-space", version="2025"),
             anatomical_annotation_set=library.get_anatomical_annotation_set(
                 name="hmba-adult-human-homba-annotation", version="2025"
             ),
@@ -394,9 +364,7 @@ def package_ccf(input_dir, output_dir, library, scales):
         ParcellationAtlas(
             name="hmba-adult-macaque-homba-atlas",
             version="2025",
-            anatomical_space=library.get_anatomical_space(
-                name="hmba-adult-macaque-mri-space", version="2025"
-            ),
+            anatomical_space=library.get_anatomical_space(name="hmba-adult-macaque-mri-space", version="2025"),
             anatomical_annotation_set=library.get_anatomical_annotation_set(
                 name="hmba-adult-macaque-homba-annotation", version="2025"
             ),
@@ -407,9 +375,7 @@ def package_ccf(input_dir, output_dir, library, scales):
         ParcellationAtlas(
             name="hmba-adult-marmoset-homba-atlas",
             version="2025",
-            anatomical_space=library.get_anatomical_space(
-                name="hmba-adult-marmoset-mri-space", version="2025"
-            ),
+            anatomical_space=library.get_anatomical_space(name="hmba-adult-marmoset-mri-space", version="2025"),
             anatomical_annotation_set=library.get_anatomical_annotation_set(
                 name="hmba-adult-marmoset-homba-annotation", version="2025"
             ),

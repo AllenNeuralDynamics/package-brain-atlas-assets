@@ -41,54 +41,42 @@ class AssetLibrary:
         """Get an anatomical space by name and version."""
         asset = self._assets[AnatomicalSpace.__name__].get((name, version))
         if asset is None:
-            raise KeyError(
-                f"AnatomicalSpace with name='{name}' and version='{version}' not found in library"
-            )
+            raise KeyError(f"AnatomicalSpace with name='{name}' and version='{version}' not found in library")
         return asset
 
     def get_coordinate_transformation(self, name: str, version: str) -> AtlasAsset:
         """Get a coordinate transformation by name and version."""
         asset = self._assets[CoordinateTransformation.__name__].get((name, version))
         if asset is None:
-            raise KeyError(
-                f"CoordinateTransformation with name='{name}' and version='{version}' not found in library"
-            )
+            raise KeyError(f"CoordinateTransformation with name='{name}' and version='{version}' not found in library")
         return asset
 
     def get_anatomical_template(self, name: str, version: str) -> AtlasAsset:
         """Get an anatomical template by name and version."""
         asset = self._assets[AnatomicalTemplate.__name__].get((name, version))
         if asset is None:
-            raise KeyError(
-                f"AnatomicalTemplate with name='{name}' and version='{version}' not found in library"
-            )
+            raise KeyError(f"AnatomicalTemplate with name='{name}' and version='{version}' not found in library")
         return asset
 
     def get_parcellation_atlas(self, name: str, version: str) -> AtlasAsset:
         """Get a parcellation atlas by name and version."""
         asset = self._assets[ParcellationAtlas.__name__].get((name, version))
         if asset is None:
-            raise KeyError(
-                f"ParcellationAtlas with name='{name}' and version='{version}' not found in library"
-            )
+            raise KeyError(f"ParcellationAtlas with name='{name}' and version='{version}' not found in library")
         return asset
 
     def get_parcellation_terminology(self, name: str, version: str) -> AtlasAsset:
         """Get a parcellation terminology by name and version."""
         asset = self._assets[ParcellationTerminology.__name__].get((name, version))
         if asset is None:
-            raise KeyError(
-                f"ParcellationTerminology with name='{name}' and version='{version}' not found in library"
-            )
+            raise KeyError(f"ParcellationTerminology with name='{name}' and version='{version}' not found in library")
         return asset
 
     def get_anatomical_annotation_set(self, name: str, version: str) -> AtlasAsset:
         """Get an anatomical annotation set by name and version."""
         asset = self._assets[AnatomicalAnnotationSet.__name__].get((name, version))
         if asset is None:
-            raise KeyError(
-                f"AnatomicalAnnotationSet with name='{name}' and version='{version}' not found in library"
-            )
+            raise KeyError(f"AnatomicalAnnotationSet with name='{name}' and version='{version}' not found in library")
         return asset
 
     @property

@@ -40,6 +40,4 @@ class AtlasAsset:
         manifest_file.parent.mkdir(parents=True, exist_ok=True)
         with open(manifest_file, "w") as f:
             json.dump(self.manifest, f, indent=3)
-        logging.info(
-            f"Created manifest for {self.__class__.__name__}: {self.name} at {manifest_file}"
-        )
+        logging.info(f"Created manifest for {self.__class__.__name__}: {self.name} at {manifest_file}")

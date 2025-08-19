@@ -28,12 +28,8 @@ def create_smartspim_annotation_set(input_dir, results_dir, library):
         library (AssetLibrary): Asset library to get template and terminology from
     """
     # Get required assets from library
-    template = library.get_anatomical_template(
-        "allen-adult-mouse-spim-lca-template", "2024-05"
-    )
-    terminology = library.get_parcellation_terminology(
-        "allen-adult-mouse-terminology", "2017"
-    )
+    template = library.get_anatomical_template("allen-adult-mouse-spim-lca-template", "2024-05")
+    terminology = library.get_parcellation_terminology("allen-adult-mouse-terminology", "2017")
 
     annotation_set = AnatomicalAnnotationSet(
         name="allen-adult-mouse-spim-lca-annotation",
@@ -49,20 +45,14 @@ def create_smartspim_annotation_set(input_dir, results_dir, library):
     annotation_set.create_manifest(results_dir)
     library.add(annotation_set)
 
-    logging.info(
-        f"Created SmartSPIM annotation set at {template.location(results_dir)}"
-    )
+    logging.info(f"Created SmartSPIM annotation set at {template.location(results_dir)}")
 
 
 def create_smartspim_coordinate_transformations(input_dir, results_dir, library):
     """Create coordinate transformation assets for SmartSPIM to CCF registration."""
     # Get required assets from library
-    template = library.get_anatomical_template(
-        "allen-adult-mouse-spim-lca-template", "2024-05"
-    )
-    ccf_template = library.get_anatomical_template(
-        "allen-adult-mouse-stpt-template", "2015"
-    )
+    template = library.get_anatomical_template("allen-adult-mouse-spim-lca-template", "2024-05")
+    ccf_template = library.get_anatomical_template("allen-adult-mouse-stpt-template", "2015")
 
     # Create coordinate transform from SmartSPIM template to CCF 3.1
     cs = CoordinateTransformation.init(
@@ -87,9 +77,7 @@ def copy_transform_files(input_dir, output_dir):
     transform_files = list(input_dir.glob(transform_pattern))
 
     if not transform_files:
-        logging.warning(
-            f"No transform files matching '{transform_pattern}' found in {input_dir}"
-        )
+        logging.warning(f"No transform files matching '{transform_pattern}' found in {input_dir}")
         return
 
     for src in transform_files:
@@ -124,11 +112,7 @@ def copy_data_description(input_dir, output_dir, name):
         institution=Organization.AIND,
         data_level="derived",
         creation_time=t,
-        investigators=[
-            Person(
-                name="Jayaram Chandrashekar", registry_identifier="0000-0001-6412-0114"
-            )
-        ],
+        investigators=[Person(name="Jayaram Chandrashekar", registry_identifier="0000-0001-6412-0114")],
         funding_source=[Funding(funder=Organization.AI)],
         project_name="MSMA Platform Development",
     )
@@ -163,9 +147,7 @@ def copy_processing(input_dir, output_dir):
                     url=dp["code_url"],
                     version=dp["code_version"],
                     parameters=dp["parameters"],
-                    input_data=[
-                        DataAsset(url=s) for s in dp["input_location"].split(",")
-                    ],
+                    input_data=[DataAsset(url=s) for s in dp["input_location"].split(",")],
                 ),
             )
             for i, dp in enumerate(data["processing_pipeline"]["data_processes"])
@@ -188,21 +170,15 @@ def package_smartspim_template(input_dir, results_dir, library, scales):
         library (AssetLibrary): Asset library to register created assets
         scales (tuple): Scales to process (micrometers per voxel)
     """
-    template = AnatomicalTemplate(
-        name="allen-adult-mouse-spim-lca-template", version="2024-05", scales=scales
-    )
+    template = AnatomicalTemplate(name="allen-adult-mouse-spim-lca-template", version="2024-05", scales=scales)
 
     logging.info(f"Packaging SmartSPIM template {template.name}")
     logging.info(f"Processing scales: {template.scales}")
 
     # Create the anatomical template from SmartSPIM data
-    template.create(
-        input_prefix=input_dir / "smartspim_lca_template", output_root=results_dir
-    )
+    template.create(input_prefix=input_dir / "smartspim_lca_template", output_root=results_dir)
     library.add(template)
-    logging.info(
-        f"Created SmartSPIM anatomical template {template.name} {template.version}"
-    )
+    logging.info(f"Created SmartSPIM anatomical template {template.name} {template.version}")
 
     # Copy validated metadata to template directory
     template_dir = template.location(results_dir)

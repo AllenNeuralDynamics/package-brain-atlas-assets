@@ -39,7 +39,10 @@ CCF3_2016_ANNOTATION_DESCRIPTION = "The 2016 release of the Allen Mouse Common C
 CCF3_2017_ANNOTATION_DESCRIPTION = "The 2017 release of the Allen Mouse Common Coordinate Framework, Annotation The process of parcellating the average template of the CCF is detailed in Wang et al, 2020. For any given structure, the process starts with a review of previously published atlases and literature and visual analyses of the average template and multimodal reference datasets. Data types include (1) transgenic expression data imaged with two-photon serial tomography, (2) axonal projection data from the Allen Mouse Connectivity Atlas, (3) immunohistochemical and (4) cytoarchitectural stains, including antibodies against NeuN, NF-160, SMI-32, parvalbumin, SMI-99, and calbindin, as well as stains for DAPI, Nissl, and AChE; and (5) in situ hybridization (ISH) gene expression data from the Allen Mouse Brain Atlas. Specific datasets used for the delineation of brain structures are listed in supplementary table Table S3 of Wang et. al., 2020. The format of the annotation is a 10 µm resolution image volume of the same size and orientation as the average brain template. Each voxel in the brain is labeled with a structure from the Allen Mouse Reference Atlas, Ontology. Voxels are annotated with the label for the most specific (finest) structure that it is a part of. It is inferred the voxel is also a part of any enclosing/parent structures as defined in the hierarchical tree of the ontology. In the 2017 release, the parcellation spanned 43 isocortical areas and their layers, 329 subcortical gray matter structures, 81 fiber tracts, and 8 ventricular structures."
 CCF3_ONTOLOGY_DESCRIPTION = "The 2017 release of the Allen Mouse Reference Atlas Ontology. The Allen Mouse Reference Atlas Ontology defines a hierarchical partonomy of the anatomical structures of the adult mouse brain. At the top level, the brain is divided into gray matter, fiber tracts and ventricular systems. Gray matter is subdivided into three large regions (cerebrum, brain stem, and cerebellum), which are themselves organized into subregions in a hierarchical tree. The Allen Mouse Reference Atlas, Ontology was developed for the Allen Reference Atlas (Dong, 2008) and follows terminology from “Brain Maps: Structure for the Rat Brain” (Swanson, 2004, 2018). The ontology has been subsequently extended and revised to also serve as the structure ontology for the Allen Mouse Common Coordinate Framework (Wang et al, 2020). This 2017 release of the Allen Mouse Reference Atlas Ontology is in support of the 2017 Release of the Allen Mouse Common Framework."
 
-def _write_template_data_description(output_dir: Path, name: str, version: str, summary: str, modalities, creation_time):
+
+def _write_template_data_description(
+    output_dir: Path, name: str, version: str, summary: str, modalities, creation_time
+):
     """Create and write a data_description.json for a template using AIND schema.
 
     Args:
@@ -59,7 +62,7 @@ def _write_template_data_description(output_dir: Path, name: str, version: str, 
         data_level="derived",
         creation_time=creation_time,
         institution=Organization.AIBS,
-        investigators=[Person(name="Lydia Ng", registry_identifier="0000-0002-7499-3514")], 
+        investigators=[Person(name="Lydia Ng", registry_identifier="0000-0002-7499-3514")],
         funding_source=[Funding(funder=Organization.AI)],
         project_name="Allen Mouse Brain Common Coordinate Framework",
     )
@@ -132,15 +135,11 @@ def load_ccf3_meshes(mesh_dir):
         yield mesh, obj_id
 
 
-def create_all_ccf_anatomical_templates(
-    input_dir, results_dir, library, scales=(10, 25, 50, 100)
-):
+def create_all_ccf_anatomical_templates(input_dir, results_dir, library, scales=(10, 25, 50, 100)):
     """Create anatomical templates from CCF 3 atlas data."""
     # Create 2-photon average template
     average_template_prefix = input_dir / "average_template" / "average_template"
-    template = AnatomicalTemplate(
-        name="allen-adult-mouse-stpt-template", version="2015", scales=scales
-    )
+    template = AnatomicalTemplate(name="allen-adult-mouse-stpt-template", version="2015", scales=scales)
     template.create(average_template_prefix, results_dir)
     library.add(template)
     logging.info(f"Created average_template: {template.name} {template.version}")
@@ -157,9 +156,7 @@ def create_all_ccf_anatomical_templates(
 
     # Create Nissl reference template
     ara_nissl_prefix = input_dir / "ara_nissl" / "ara_nissl"
-    template = AnatomicalTemplate(
-        name="allen-adult-mouse-nissl-template", version="2011", scales=scales
-    )
+    template = AnatomicalTemplate(name="allen-adult-mouse-nissl-template", version="2011", scales=scales)
     template.create(ara_nissl_prefix, results_dir)
     library.add(template)
     logging.info(f"Created ara_nissl: {template.name} {template.version}")
@@ -175,22 +172,14 @@ def create_all_ccf_anatomical_templates(
     )
 
 
-def create_all_ccf_annotation_sets(
-    input_dir, results_dir, library, scales=(10, 25, 50, 100)
-):
+def create_all_ccf_annotation_sets(input_dir, results_dir, library, scales=(10, 25, 50, 100)):
     """Create all CCF anatomical annotation sets across different versions and templates."""
     logging.info("Creating all CCF anatomical annotation sets...")
 
     # Get templates and terminology from library
-    template_stpt = library.get_anatomical_template(
-        "allen-adult-mouse-stpt-template", "2015"
-    )
-    template_nissl = library.get_anatomical_template(
-        "allen-adult-mouse-nissl-template", "2011"
-    )
-    terminology = library.get_parcellation_terminology(
-        "allen-adult-mouse-terminology", "2017"
-    )
+    template_stpt = library.get_anatomical_template("allen-adult-mouse-stpt-template", "2015")
+    template_nissl = library.get_anatomical_template("allen-adult-mouse-nissl-template", "2011")
+    terminology = library.get_parcellation_terminology("allen-adult-mouse-terminology", "2017")
 
     # Define annotation configurations for different CCF versions
     annotations = [
@@ -251,6 +240,7 @@ def create_all_ccf_annotation_sets(
         annotation_set.create_from_nifti(
             input_prefix=annotation_dir / "annotation",
             output_root=results_dir,
+            include_meshes=False,  # handling meshes separately
         )
 
         # Write data description only for specified CCF 2015-2017 annotation sets
@@ -266,9 +256,7 @@ def create_all_ccf_annotation_sets(
         annotation_set.create_manifest(results_dir)
         library.add(annotation_set)
 
-    meshes = load_ccf3_meshes(
-        Path("/data/ccf_meshes/mcc/annotation/ccf_2017/structure_meshes")
-    )
+    meshes = load_ccf3_meshes(Path("/data/ccf_meshes/mcc/annotation/ccf_2017/structure_meshes"))
     append_meshes_to_precomputed(
         meshes,
         results_dir
@@ -294,23 +282,17 @@ def create_ccf3_parcellation_terminology(input_dir, output_dir, library):
         {
             "identifier": df["id"].map(lambda x: f"MBA:{int(x)}"),
             "annotation_value": df["id"].astype(int),
-            "parent_identifier": df["parent_structure_id"].map(
-                lambda x: f"MBA:{int(x)}" if not pd.isna(x) else ""
-            ),
+            "parent_identifier": df["parent_structure_id"].map(lambda x: f"MBA:{int(x)}" if not pd.isna(x) else ""),
             "name": df["name"],
             "abbreviation": df["acronym"],
             "color_hex_triplet": df["color_hex_triplet"].map(lambda x: f"#{x}"),
         }
     )
 
-    terminology = ParcellationTerminology(
-        name="allen-adult-mouse-terminology", version="2017", df=filtered_df
-    )
+    terminology = ParcellationTerminology(name="allen-adult-mouse-terminology", version="2017", df=filtered_df)
 
     # Build identifier -> annotation_value lookup since identifiers are prefixed
-    id_to_ann = dict(
-        zip(terminology.df["identifier"], terminology.df["annotation_value"])
-    )
+    id_to_ann = dict(zip(terminology.df["identifier"], terminology.df["annotation_value"]))
     terminology.set_descendant_annotation_values(
         lambda row: [id_to_ann[i] for i in row["descendants"] if i in id_to_ann]
     )
@@ -347,18 +329,14 @@ def package_ccf(input_dir, output_dir, library, scales=(10, 25, 50, 100)):
     anatomical_space = AnatomicalSpace(
         name="allen-adult-mouse-ccf-space",
         version="2015",
-        anatomical_template=library.get_anatomical_template(
-            "allen-adult-mouse-stpt-template", "2015"
-        ),
+        anatomical_template=library.get_anatomical_template("allen-adult-mouse-stpt-template", "2015"),
     )
     library.add(anatomical_space)
 
     anatomical_space = AnatomicalSpace(
         name="allen-adult-mouse-ccf-space",
         version="2011",
-        anatomical_template=library.get_anatomical_template(
-            "allen-adult-mouse-nissl-template", "2011"
-        ),
+        anatomical_template=library.get_anatomical_template("allen-adult-mouse-nissl-template", "2011"),
     )
     library.add(anatomical_space)
 
@@ -367,9 +345,7 @@ def package_ccf(input_dir, output_dir, library, scales=(10, 25, 50, 100)):
         ParcellationAtlas(
             name="allen-adult-mouse-ccf-atlas",
             version="2011",
-            anatomical_space=library.get_anatomical_space(
-                name="allen-adult-mouse-ccf-space", version="2011"
-            ),
+            anatomical_space=library.get_anatomical_space(name="allen-adult-mouse-ccf-space", version="2011"),
             anatomical_annotation_set=library.get_anatomical_annotation_set(
                 name="allen-adult-mouse-annotation", version="2011"
             ),
@@ -380,9 +356,7 @@ def package_ccf(input_dir, output_dir, library, scales=(10, 25, 50, 100)):
         ParcellationAtlas(
             name="allen-adult-mouse-ccf-atlas",
             version="2015",
-            anatomical_space=library.get_anatomical_space(
-                name="allen-adult-mouse-ccf-space", version="2015"
-            ),
+            anatomical_space=library.get_anatomical_space(name="allen-adult-mouse-ccf-space", version="2015"),
             anatomical_annotation_set=library.get_anatomical_annotation_set(
                 name="allen-adult-mouse-annotation", version="2015"
             ),
@@ -393,9 +367,7 @@ def package_ccf(input_dir, output_dir, library, scales=(10, 25, 50, 100)):
         ParcellationAtlas(
             name="allen-adult-mouse-ccf-atlas",
             version="2016",
-            anatomical_space=library.get_anatomical_space(
-                name="allen-adult-mouse-ccf-space", version="2015"
-            ),
+            anatomical_space=library.get_anatomical_space(name="allen-adult-mouse-ccf-space", version="2015"),
             anatomical_annotation_set=library.get_anatomical_annotation_set(
                 name="allen-adult-mouse-annotation", version="2016"
             ),
@@ -406,9 +378,7 @@ def package_ccf(input_dir, output_dir, library, scales=(10, 25, 50, 100)):
         ParcellationAtlas(
             name="allen-adult-mouse-ccf-atlas",
             version="2017",
-            anatomical_space=library.get_anatomical_space(
-                name="allen-adult-mouse-ccf-space", version="2015"
-            ),
+            anatomical_space=library.get_anatomical_space(name="allen-adult-mouse-ccf-space", version="2015"),
             anatomical_annotation_set=library.get_anatomical_annotation_set(
                 name="allen-adult-mouse-annotation", version="2017"
             ),
@@ -419,9 +389,7 @@ def package_ccf(input_dir, output_dir, library, scales=(10, 25, 50, 100)):
         ParcellationAtlas(
             name="allen-dev-mouse-p56-atlas",
             version="2012",
-            anatomical_space=library.get_anatomical_space(
-                name="allen-adult-mouse-ccf-space", version="2015"
-            ),
+            anatomical_space=library.get_anatomical_space(name="allen-adult-mouse-ccf-space", version="2015"),
             anatomical_annotation_set=library.get_anatomical_annotation_set(
                 name="allen-dev-mouse-p56-annotation", version="2012"
             ),

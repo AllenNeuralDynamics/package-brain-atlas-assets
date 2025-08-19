@@ -34,27 +34,83 @@ from aind_data_schema.components.identifiers import Person
 DEVMOUSE_ONTOLOGY_DESCRIPTION = "The Allen Developing Mouse Brain Atlas ontology, authored by Professor Luis Puelles, M.D., Ph.D., organizes mouse brain structures developmentally from the earliest embryonic stage to adulthood using a topological rather than fixed-coordinate approach, enabling applicability to both developing and mature forms. Beginning at Level 00 with the unpatterned neural plate, it progresses through 13 hierarchical levels defined by permanent early boundaries, internal landmarks, and gene expression patterns. Early levels (01–05) capture broad divisions—forebrain, midbrain, hindbrain, spinal cord—followed by neuromeric and dorsoventral partitioning. Intermediate levels (06–08) refine subdivisions, especially in the telencephalon, while Levels 09–10 address radial layering of the neural wall. The final stages (11–13) classify nuclei and subnuclei, largely following The Mouse Brain in Stereotaxic Coordinates by Franklin and Paxinos (2008), with refinements from the ontology’s planar framework. This developmental, topology-based classification facilitates consistent mapping across stages and species, linking embryonic and adult brain data."
 DEVMOUSE_TEMPLATE_DESCRIPTION = "For this developmental atlas (Age: {Age (days)}, Theiler stage: {Theiler stage}, Gender: {Gender}), a reference set of tissue preparations was generated in the {Plane} plane with a histological stain ({Stain}) to aid identification of anatomical structures for atlas drawing. The specimen used was a {Specimen}, sectioned at {Section width} thickness. Annotation was performed on the {Annotated hemisphere} hemisphere, with {# Annotated images} images annotated. Embryonic (E) specimen age is provided relative to days after conception, with birth expected at approximately 19 days post-conception. Postnatal (P) specimen age is given relative to birth (P0). Theiler stages were determined on the basis of external features identified during dissection and embedding (Theiler, 1989). HP Yellow, a nuclear stain, was used for whole embryo reference sets to allow visualization of all tissues and cells; this stain is also used as a counterstain for the ISH in the Allen Developing Mouse Brain Atlas. Nissl stains were used for all dissected brains to provide additional morphological information of maturing neurons. To make a coherent 3D volume, section images were coregistered to each other."
 DEVMOUSE_TEMPLATE_DATA = [
-    {"Age (days)": "E11.5", "Theiler stage": "TS19", "Gender": "N.D.", "Plane": "sagittal",
-     "Stain": "HP Yellow", "Specimen": "Whole embryo", "Section width": "20 µm",
-     "Annotated hemisphere": "Right", "# Annotated images": 28},
-    {"Age (days)": "E13.5", "Theiler stage": "TS21", "Gender": "N.D.", "Plane": "sagittal",
-     "Stain": "HP Yellow", "Specimen": "Whole embryo", "Section width": "20 µm",
-     "Annotated hemisphere": "Right", "# Annotated images": 15},
-    {"Age (days)": "E15.5", "Theiler stage": "TS24", "Gender": "male", "Plane": "sagittal",
-     "Stain": "HP Yellow", "Specimen": "Whole embryo", "Section width": "20 µm",
-     "Annotated hemisphere": "Right", "# Annotated images": 16},
-    {"Age (days)": "E18.5", "Theiler stage": "TS26", "Gender": "male", "Plane": "sagittal",
-     "Stain": "Nissl (cresyl violet)", "Specimen": "Dissected brain", "Section width": "20 µm",
-     "Annotated hemisphere": "Left", "# Annotated images": 19},
-    {"Age (days)": "P4", "Theiler stage": "-", "Gender": "male", "Plane": "sagittal",
-     "Stain": "Nissl (cresyl violet)", "Specimen": "Dissected brain", "Section width": "20 µm",
-     "Annotated hemisphere": "Left", "# Annotated images": 23},
-    {"Age (days)": "P14", "Theiler stage": "-", "Gender": "male", "Plane": "sagittal",
-     "Stain": "Nissl (thionin)", "Specimen": "Dissected brain", "Section width": "25 µm",
-     "Annotated hemisphere": "Left", "# Annotated images": 39},
-    {"Age (days)": "P56", "Theiler stage": "-", "Gender": "male", "Plane": "sagittal",
-     "Stain": "Nissl (thionin)", "Specimen": "Dissected brain", "Section width": "25 µm",
-     "Annotated hemisphere": "Left", "# Annotated images": 21},
+    {
+        "Age (days)": "E11.5",
+        "Theiler stage": "TS19",
+        "Gender": "N.D.",
+        "Plane": "sagittal",
+        "Stain": "HP Yellow",
+        "Specimen": "Whole embryo",
+        "Section width": "20 µm",
+        "Annotated hemisphere": "Right",
+        "# Annotated images": 28,
+    },
+    {
+        "Age (days)": "E13.5",
+        "Theiler stage": "TS21",
+        "Gender": "N.D.",
+        "Plane": "sagittal",
+        "Stain": "HP Yellow",
+        "Specimen": "Whole embryo",
+        "Section width": "20 µm",
+        "Annotated hemisphere": "Right",
+        "# Annotated images": 15,
+    },
+    {
+        "Age (days)": "E15.5",
+        "Theiler stage": "TS24",
+        "Gender": "male",
+        "Plane": "sagittal",
+        "Stain": "HP Yellow",
+        "Specimen": "Whole embryo",
+        "Section width": "20 µm",
+        "Annotated hemisphere": "Right",
+        "# Annotated images": 16,
+    },
+    {
+        "Age (days)": "E18.5",
+        "Theiler stage": "TS26",
+        "Gender": "male",
+        "Plane": "sagittal",
+        "Stain": "Nissl (cresyl violet)",
+        "Specimen": "Dissected brain",
+        "Section width": "20 µm",
+        "Annotated hemisphere": "Left",
+        "# Annotated images": 19,
+    },
+    {
+        "Age (days)": "P4",
+        "Theiler stage": "-",
+        "Gender": "male",
+        "Plane": "sagittal",
+        "Stain": "Nissl (cresyl violet)",
+        "Specimen": "Dissected brain",
+        "Section width": "20 µm",
+        "Annotated hemisphere": "Left",
+        "# Annotated images": 23,
+    },
+    {
+        "Age (days)": "P14",
+        "Theiler stage": "-",
+        "Gender": "male",
+        "Plane": "sagittal",
+        "Stain": "Nissl (thionin)",
+        "Specimen": "Dissected brain",
+        "Section width": "25 µm",
+        "Annotated hemisphere": "Left",
+        "# Annotated images": 39,
+    },
+    {
+        "Age (days)": "P56",
+        "Theiler stage": "-",
+        "Gender": "male",
+        "Plane": "sagittal",
+        "Stain": "Nissl (thionin)",
+        "Specimen": "Dissected brain",
+        "Section width": "25 µm",
+        "Annotated hemisphere": "Left",
+        "# Annotated images": 21,
+    },
 ]
 
 # Creation time constants
@@ -99,7 +155,10 @@ def _write_devmouse_template_data_description(output_dir: Path, age_token: str):
     summary = DEVMOUSE_TEMPLATE_DESCRIPTION.format(**row)
     subject_id = f"dev-mouse-{age_token.lower()}"
     dd = DataDescription(
-        name=build_data_name(f"allen-dev-mouse-{age_token.lower()}-template", DEVMOUSE_TEMPLATE_CREATION_TIME),
+        name=build_data_name(
+            f"allen-dev-mouse-{age_token.lower()}-template",
+            DEVMOUSE_TEMPLATE_CREATION_TIME,
+        ),
         data_summary=summary.strip(),
         subject_id=subject_id,
         modalities=[Modality.BRIGHTFIELD],
@@ -182,9 +241,7 @@ def create_devmouse_terminology(output_dir, library):
     library : AssetLibrary
         Asset library to add the terminology to
     """
-    structures_path = Path(
-        "/root/capsule/data/devmouse-atlas-assets/devmouse_structures.csv"
-    )
+    structures_path = Path("/root/capsule/data/devmouse-atlas-assets/devmouse_structures.csv")
 
     df = pd.read_csv(structures_path)
 
@@ -193,9 +250,7 @@ def create_devmouse_terminology(output_dir, library):
         {
             "identifier": df["id"].map(lambda x: f"DMBA:{int(x)}"),
             "annotation_value": df["id"].astype(int),
-            "parent_identifier": df["parent_structure_id"].map(
-                lambda x: f"DMBA:{int(x)}" if not pd.isna(x) else ""
-            ),
+            "parent_identifier": df["parent_structure_id"].map(lambda x: f"DMBA:{int(x)}" if not pd.isna(x) else ""),
             "name": df["name"],
             "abbreviation": df["acronym"],
             "color_hex_triplet": df["color_hex_triplet"].map(lambda x: f"#{x}"),
@@ -203,14 +258,10 @@ def create_devmouse_terminology(output_dir, library):
     )
 
     # Create the terminology
-    terminology = ParcellationTerminology(
-        name="allen-dev-mouse-terminology", version="2012", df=structures_df
-    )
+    terminology = ParcellationTerminology(name="allen-dev-mouse-terminology", version="2012", df=structures_df)
 
     # Descendant annotation values require lookup since identifiers are prefixed
-    id_to_ann = dict(
-        zip(terminology.df["identifier"], terminology.df["annotation_value"])
-    )
+    id_to_ann = dict(zip(terminology.df["identifier"], terminology.df["annotation_value"]))
     terminology.set_descendant_annotation_values(
         lambda row: [id_to_ann[i] for i in row["descendants"] if i in id_to_ann]
     )
@@ -342,9 +393,7 @@ def package_age_group(age, base_dir, results_dir, asset_library, terminology):
 
     # Create anatomical space for this developmental stage
     space_name = f"allen-dev-mouse-{age.lower()}-space"
-    anatomical_space = AnatomicalSpace(
-        name=space_name, version="2012", anatomical_template=template
-    )
+    anatomical_space = AnatomicalSpace(name=space_name, version="2012", anatomical_template=template)
     anatomical_space.create_manifest(results_dir)
     asset_library.add(anatomical_space)
     print(f"  Created anatomical space: {space_name}")
@@ -387,15 +436,7 @@ def package_devmouse(base_dir, results_dir, library):
 
     # Log summary
     logging.info("DevMouse Summary:")
-    logging.info(
-        f"  Templates: {len([t for t in library.anatomical_templates if 'dev-mouse' in t.name])}"
-    )
-    logging.info(
-        f"  Annotation sets: {len([a for a in library.anatomical_annotation_sets if 'dev-mouse' in a.name])}"
-    )
-    logging.info(
-        f"  Anatomical spaces: {len([s for s in library.anatomical_spaces if 'dev-mouse' in s.name])}"
-    )
-    logging.info(
-        f"  Parcellation atlases: {len([p for p in library.parcellation_atlases if 'dev-mouse' in p.name])}"
-    )
+    logging.info(f"  Templates: {len([t for t in library.anatomical_templates if 'dev-mouse' in t.name])}")
+    logging.info(f"  Annotation sets: {len([a for a in library.anatomical_annotation_sets if 'dev-mouse' in a.name])}")
+    logging.info(f"  Anatomical spaces: {len([s for s in library.anatomical_spaces if 'dev-mouse' in s.name])}")
+    logging.info(f"  Parcellation atlases: {len([p for p in library.parcellation_atlases if 'dev-mouse' in p.name])}")

@@ -47,9 +47,7 @@ class AnatomicalTemplate(AtlasAsset):
         """Convert NIfTI files to OME-Zarr multiscale pyramid."""
         input_dir = self.location(output_root)
         output_dir = input_dir
-        output_zarr_path = str(
-            output_dir / "anatomical_template.ome.zarr"
-        )  # zarr expects string path
+        output_zarr_path = str(output_dir / "anatomical_template.ome.zarr")  # zarr expects string path
 
         logging.info("Starting conversion from NIfTI to OME-Zarr multiscale.")
         logging.info(f"Input directory: {input_dir}")
@@ -85,9 +83,7 @@ class AnatomicalTemplate(AtlasAsset):
             )
 
         group = zarr.open(output_zarr_path, mode="w")
-        logging.info(
-            "Writing OME-Zarr multiscale with affine transforms and chunk size (128, 128, 128)..."
-        )
+        logging.info("Writing OME-Zarr multiscale with affine transforms and chunk size (128, 128, 128)...")
         compressor = {"id": "blosc", "cname": "zstd", "clevel": 3, "shuffle": 1}
         write_multiscale(
             arrays,
@@ -97,15 +93,11 @@ class AnatomicalTemplate(AtlasAsset):
             chunks=(128, 128, 128),
             compressor=compressor,
         )
-        logging.info(
-            f"OME-Zarr multiscale with affine transforms written to {output_zarr_path}"
-        )
+        logging.info(f"OME-Zarr multiscale with affine transforms written to {output_zarr_path}")
 
     def create(self, input_prefix: Path, output_root: Path):
         """Create complete anatomical template package with NIfTI and OME-Zarr formats."""
         self.copy_nifti_files(input_prefix, output_root)
         self.convert_nifti_to_omezarr_multiscale(output_root)
         self.create_manifest(output_root)
-        logging.info(
-            f"Created anatomical template package at {self.location(output_root)}"
-        )
+        logging.info(f"Created anatomical template package at {self.location(output_root)}")

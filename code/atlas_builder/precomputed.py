@@ -7,6 +7,7 @@ import numpy as np
 import tensorstore as ts
 from zmesh import Mesher
 
+
 def append_mesh_to_precomputed(mesh, scale, precomputed_file, identifier):
     cvmesh = cloudvolume.Mesh(
         mesh.vertices[:, [2, 1, 0]] * scale,
@@ -28,9 +29,7 @@ def append_mesh_to_precomputed(mesh, scale, precomputed_file, identifier):
         f.write(cvbytes)
 
 
-def append_meshes_to_precomputed(
-    meshes, precomputed_file, scale, map_annotation_value=None, mesh_dir="mesh"
-):
+def append_meshes_to_precomputed(meshes, precomputed_file, scale, map_annotation_value=None, mesh_dir="mesh"):
     """Append meshes to an existing precomputed dataset and update info (moved)."""
     map_annotation_value = map_annotation_value or (lambda x: x)
 
@@ -83,9 +82,7 @@ def write_segment_properties(
             name = row.get("name", "")
             abbrev_labels.append(f"{abbr}: {name}".strip(": "))
             if has_term_set:
-                term_set_values.append(
-                    row.get("term_set_name") if row.get("term_set_name") else None
-                )
+                term_set_values.append(row.get("term_set_name") if row.get("term_set_name") else None)
 
     properties = [
         {
@@ -134,12 +131,18 @@ def write_segment_properties(
 
 
 def convert_compressed_annotations_to_precomputed(
-    annotation_data, output_location, scale=(.01, .01, .01), chunk_size=(256, 256, 64)
+    annotation_data,
+    output_location,
+    scale=(0.01, 0.01, 0.01),
+    chunk_size=(256, 256, 64),
 ):
     """Convert compressed annotation data to precomputed format (moved)."""
     logging.info("Converting compressed annotations to precomputed format")
     logging.info(f"Data shape: {annotation_data.shape}, dtype: {annotation_data.dtype}")
     logging.info(f"Output location: {output_location}")
+
+    output_location = Path(output_location).resolve()
+    output_location.mkdir(parents=True, exist_ok=True)
 
     # zyx -> xyz
     annotation_data = annotation_data.T
@@ -148,7 +151,7 @@ def convert_compressed_annotations_to_precomputed(
     spec = {
         "kvstore": {
             "driver": "file",
-            "path": output_location,
+            "path": str(output_location),
         },
         "driver": "neuroglancer_precomputed",
         "dtype": "uint32",
@@ -183,79 +186,81 @@ def convert_compressed_annotations_to_precomputed(
     store = ts.open(spec).result()
     store[:, :, :, 0].write(annotation_data.astype(np.uint32)).result()
 
-    logging.info(
-        f"Successfully created precomputed annotation file at {output_location}"
-    )
+    logging.info(f"Successfully created precomputed annotation file at {output_location}")
 
-def create_mesh_from_annotation(compressed_results: dict,
-                                scale: tuple,
-                                mesh_directory: Path,
-                                chunk_size=(256, 256, 64)):
+
+def create_mesh_from_annotation(
+    compressed_results: dict,
+    scale: tuple,
+    mesh_directory: Path,
+    chunk_size=(256, 256, 64),
+):
     """Create meshes from annotation volume using zmesh's Mesher function"""
 
     meshes_dir = mesh_directory / "mesh"
     meshes_dir.mkdir(parents=True, exist_ok=True)
 
-    voxel_spacing = [1000 * min(scale)] * 3 # Assumes isometric voxels. Multiplied by 1000 to get units into nm
+    voxel_spacing = [1000 * min(scale)] * 3  # Assumes isometric voxels. Multiplied by 1000 to get units into nm
     annotation, _ = compressed_results[min(scale)]
     mesher = Mesher(voxel_spacing)
 
-    mesher.mesh(annotation,close=True)
+    mesher.mesh(annotation, close=True)
 
     meshes = []
     for obj_id in mesher.ids():
         meshes.append(
-        [mesher.get(
-        obj_id, 
-        normals=True, # whether to calculate normals or not
+            [
+                mesher.get(
+                    obj_id,
+                    normals=True,  # whether to calculate normals or not
+                    reduction_factor=2,
+                    max_error=8,  # Maximum tolerable error in physical space (um)
+                    voxel_centered=False,  # Voxel center set to index, eg. [0,0,0]
+                ),
+                obj_id,
+            ]
+        )
+        mesher.erase(obj_id)  # delete high res mesh for memory
 
-        reduction_factor=2, 
-        max_error=8, # Maximum tolerable error in physical space (um)
-        voxel_centered=False, # Voxel center set to index, eg. [0,0,0]
-        ),
-        obj_id
-        ])
-        mesher.erase(obj_id) # delete high res mesh for memory
-
-    mesher.clear() 
+    mesher.clear()
     ids = []
     for region_mesh in meshes:
-        
+
         mesh = region_mesh[0]
-        region_id = region_mesh[1] # Same as obj_id above
+        region_id = region_mesh[1]  # Same as obj_id above
         ids.append(region_id)
 
-        mesh = mesher.compute_normals(mesh) 
+        mesh = mesher.compute_normals(mesh)
 
-        cv_manifest = meshes_dir / f'{region_id}:0'
+        cv_manifest = meshes_dir / f"{region_id}:0"
         manifest_json = {"fragments": [f"{region_id}:0:0"]}
         # write the manifest
-        with open(cv_manifest, 'w') as f:
+        with open(cv_manifest, "w") as f:
             json.dump(manifest_json, f)
 
-        save_filename = meshes_dir / f'{region_id}:0:0'
-        with open(save_filename, 'wb') as f:
+        save_filename = meshes_dir / f"{region_id}:0:0"
+        with open(save_filename, "wb") as f:
             f.write(mesh.to_precomputed())
 
-    info_d={
-    "@type" : "neuroglancer_legacy_mesh",
-    "data_type" : "uint64",
-    "num_channels" : 1,
-    "scales" : [
-        {
-            "chunk_sizes" : chunk_size,
-            "compressed_segmentation_block_size" : [ 8, 8, 8 ],
-            "encoding" : "compressed_segmentation",
-            "key" : "_".join([str(x) for x in voxel_spacing]),
-            "resolution" : voxel_spacing,
-            "size" : list(annotation.shape())
-        }
-    ],
-    "type" : "segmentation",
-    "mesh": "mesh",
-    "segment_properties": "segment_properties"
+    info_d = {
+        "@type": "neuroglancer_legacy_mesh",
+        "data_type": "uint64",
+        "num_channels": 1,
+        "scales": [
+            {
+                "chunk_sizes": chunk_size,
+                "compressed_segmentation_block_size": [8, 8, 8],
+                "encoding": "compressed_segmentation",
+                "key": "_".join([str(x) for x in voxel_spacing]),
+                "resolution": voxel_spacing,
+                "size": list(annotation.shape),
+            }
+        ],
+        "type": "segmentation",
+        "mesh": "mesh",
+        "segment_properties": "segment_properties",
     }
 
     # write to an info file in the ccf_meshes folder
-    with open((meshes_dir / 'info'), 'w') as f:
+    with open((meshes_dir / "info"), "w") as f:
         json.dump(info_d, f)
