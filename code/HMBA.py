@@ -264,7 +264,7 @@ def create_all_ccf_annotation_sets(input_dir: Path, results_dir: Path, library, 
         annotation_set.create_manifest(results_dir)
         library.add(annotation_set)
 
-        create_mesh_from_annotation()
+        create_mesh_from_annotation(annotation_set, terminology, annotation_dir)
 
     logging.info("All CCF anatomical annotation sets created successfully")
 

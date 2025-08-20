@@ -188,10 +188,40 @@ def convert_compressed_annotations_to_precomputed(
 
     logging.info(f"Successfully created precomputed annotation file at {output_location}")
 
+def _compute_meshes_from_annotation(terminology_ids, 
+                                    annotation_ids:set,
+                                    annotation: np.ndarray,
+                                    voxel_spacing: list,
+                                    mesher):
+
+    meshes = []
+    for struct_id, descendants in terminology_ids:
+
+        match_ids = set(descendants) & annotation_ids
+        struct_mask = np.zeros_like(annotation)
+        struct_mask[np.isin(annotation,match_ids)] = struct_id
+
+        mesher.mesh(struct_mask, close=True)
+
+        meshes.append(
+            [
+                mesher.get(
+                    struct_id,
+                    normals=True,  # whether to calculate normals or not
+                    reduction_factor=2,
+                    max_error=8,  # Maximum tolerable error in physical space (um)
+                    voxel_centered=False,  # Voxel center set to index, eg. [0,0,0]
+                ),
+                struct_id,
+            ]
+        )
+        mesher.erase(struct_id)  # delete high res mesh for memory``
+        mesher.clear()
+    
+    return meshes
 
 def create_mesh_from_annotation(
-    compressed_results: dict,
-    scale: tuple,
+    annotation_set: dict,
     mesh_directory: Path,
     chunk_size=(256, 256, 64),
 ):
@@ -200,35 +230,25 @@ def create_mesh_from_annotation(
     meshes_dir = mesh_directory / "mesh"
     meshes_dir.mkdir(parents=True, exist_ok=True)
 
+    scale = annotation_set.scale
+
     voxel_spacing = [1000 * min(scale)] * 3  # Assumes isometric voxels. Multiplied by 1000 to get units into nm
-    annotation, _ = compressed_results[min(scale)]
+    
+    # Get annotation and terminology from annotation_set (see AnatomicalAnnotationSet) and extract identifiers
+    annotation, _ = annotation_set.compressed_results[min(scale)]
+    terminology = annotation_set.terminology
+
+    annotation_ids = set(np.unique(annotation)[1:]) # Leaving out 0 (background)
+    terminology_ids = zip(terminology.df["identifier"], terminology.df["descendant_identifiers"])
+    
+    # Initialize mesher with voxel size in nm
     mesher = Mesher(voxel_spacing)
+    meshes = _compute_meshes_from_annotation(terminology_ids, annotation_ids, annotation, voxel_spacing, mesher)
 
-    mesher.mesh(annotation, close=True)
-
-    meshes = []
-    for obj_id in mesher.ids():
-        meshes.append(
-            [
-                mesher.get(
-                    obj_id,
-                    normals=True,  # whether to calculate normals or not
-                    reduction_factor=2,
-                    max_error=8,  # Maximum tolerable error in physical space (um)
-                    voxel_centered=False,  # Voxel center set to index, eg. [0,0,0]
-                ),
-                obj_id,
-            ]
-        )
-        mesher.erase(obj_id)  # delete high res mesh for memory
-
-    mesher.clear()
-    ids = []
     for region_mesh in meshes:
 
         mesh = region_mesh[0]
-        region_id = region_mesh[1]  # Same as obj_id above
-        ids.append(region_id)
+        region_id = region_mesh[1]  # Same as struct_id above
 
         mesh = mesher.compute_normals(mesh)
 
