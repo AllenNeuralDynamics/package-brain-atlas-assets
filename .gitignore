@@ -151,3 +151,5 @@ dmypy.json
 !.vscode/extensions.json
 !.vscode/*.code-snippets
 .vscode
+metadata/metadata.yml
+metadata/metadata.yml
