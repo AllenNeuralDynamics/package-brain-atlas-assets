@@ -2,13 +2,13 @@
 
 from typing import Dict, List, Tuple
 
-from atlas_builder.anatomical_annotation_set import AnatomicalAnnotationSet
-from atlas_builder.anatomical_space import AnatomicalSpace
-from atlas_builder.anatomical_template import AnatomicalTemplate
+from atlas_builder.annotation_set import AnnotationSet
+from atlas_builder.coordinate_space import CoordinateSpace
+from atlas_builder.template import Template
 from atlas_builder.atlas_asset import AtlasAsset
 from atlas_builder.coordinate_transformation import CoordinateTransformation
-from atlas_builder.parcellation_atlas import ParcellationAtlas
-from atlas_builder.parcellation_terminology import ParcellationTerminology
+from atlas_builder.atlas import Atlas
+from atlas_builder.terminology import Terminology
 
 
 class AssetLibrary:
@@ -17,12 +17,12 @@ class AssetLibrary:
     def __init__(self):
         # Store assets by type and (name, version) key for efficient lookup
         self._assets: Dict[str, Dict[Tuple[str, str], AtlasAsset]] = {
-            AnatomicalTemplate.__name__: {},
-            AnatomicalAnnotationSet.__name__: {},
+            Template.__name__: {},
+            AnnotationSet.__name__: {},
             CoordinateTransformation.__name__: {},
-            ParcellationAtlas.__name__: {},
-            ParcellationTerminology.__name__: {},
-            AnatomicalSpace.__name__: {},
+            Atlas.__name__: {},
+            Terminology.__name__: {},
+            CoordinateSpace.__name__: {},
         }
 
     def add(self, asset: AtlasAsset):
@@ -37,12 +37,12 @@ class AssetLibrary:
         key = (asset.name, asset.version)
         self._assets[asset_type][key] = asset
 
-    def get_anatomical_space(self, name: str, version: str) -> AtlasAsset:
-        """Get an anatomical space by name and version."""
-        asset = self._assets[AnatomicalSpace.__name__].get((name, version))
+    def get_coordinate_space(self, name: str, version: str) -> AtlasAsset:
+        """Get a coordinate space by name and version."""
+        asset = self._assets[CoordinateSpace.__name__].get((name, version))
         if asset is None:
             raise KeyError(
-                f"AnatomicalSpace with name='{name}' and version='{version}' not found in library"
+                f"CoordinateSpace with name='{name}' and version='{version}' not found in library"
             )
         return asset
 
@@ -55,51 +55,51 @@ class AssetLibrary:
             )
         return asset
 
-    def get_anatomical_template(self, name: str, version: str) -> AtlasAsset:
-        """Get an anatomical template by name and version."""
-        asset = self._assets[AnatomicalTemplate.__name__].get((name, version))
+    def get_template(self, name: str, version: str) -> AtlasAsset:
+        """Get a template by name and version."""
+        asset = self._assets[Template.__name__].get((name, version))
         if asset is None:
             raise KeyError(
-                f"AnatomicalTemplate with name='{name}' and version='{version}' not found in library"
+                f"Template with name='{name}' and version='{version}' not found in library"
             )
         return asset
 
     def get_parcellation_atlas(self, name: str, version: str) -> AtlasAsset:
         """Get a parcellation atlas by name and version."""
-        asset = self._assets[ParcellationAtlas.__name__].get((name, version))
+        asset = self._assets[Atlas.__name__].get((name, version))
         if asset is None:
             raise KeyError(
-                f"ParcellationAtlas with name='{name}' and version='{version}' not found in library"
+                f"Atlas with name='{name}' and version='{version}' not found in library"
             )
         return asset
 
-    def get_parcellation_terminology(self, name: str, version: str) -> AtlasAsset:
-        """Get a parcellation terminology by name and version."""
-        asset = self._assets[ParcellationTerminology.__name__].get((name, version))
+    def get_terminology(self, name: str, version: str) -> AtlasAsset:
+        """Get a terminology by name and version."""
+        asset = self._assets[Terminology.__name__].get((name, version))
         if asset is None:
             raise KeyError(
-                f"ParcellationTerminology with name='{name}' and version='{version}' not found in library"
+                f"Terminology with name='{name}' and version='{version}' not found in library"
             )
         return asset
 
-    def get_anatomical_annotation_set(self, name: str, version: str) -> AtlasAsset:
-        """Get an anatomical annotation set by name and version."""
-        asset = self._assets[AnatomicalAnnotationSet.__name__].get((name, version))
+    def get_annotation_set(self, name: str, version: str) -> AtlasAsset:
+        """Get an annotation set by name and version."""
+        asset = self._assets[AnnotationSet.__name__].get((name, version))
         if asset is None:
             raise KeyError(
-                f"AnatomicalAnnotationSet with name='{name}' and version='{version}' not found in library"
+                f"AnnotationSet with name='{name}' and version='{version}' not found in library"
             )
         return asset
 
     @property
-    def anatomical_templates(self) -> List[AtlasAsset]:
-        """List all anatomical templates."""
-        return list(self._assets[AnatomicalTemplate.__name__].values())
+    def templates(self) -> List[AtlasAsset]:
+        """List all templates."""
+        return list(self._assets[Template.__name__].values())
 
     @property
-    def anatomical_annotation_sets(self) -> List[AtlasAsset]:
-        """List all anatomical annotation sets."""
-        return list(self._assets[AnatomicalAnnotationSet.__name__].values())
+    def annotation_sets(self) -> List[AtlasAsset]:
+        """List all annotation sets."""
+        return list(self._assets[AnnotationSet.__name__].values())
 
     @property
     def coordinate_transformations(self) -> List[AtlasAsset]:
@@ -109,17 +109,17 @@ class AssetLibrary:
     @property
     def parcellation_atlases(self) -> List[AtlasAsset]:
         """List all parcellation atlases."""
-        return list(self._assets[ParcellationAtlas.__name__].values())
+        return list(self._assets[Atlas.__name__].values())
 
     @property
-    def parcellation_terminologies(self) -> List[AtlasAsset]:
-        """List all parcellation terminologies."""
-        return list(self._assets[ParcellationTerminology.__name__].values())
+    def terminologies(self) -> List[AtlasAsset]:
+        """List all terminologies."""
+        return list(self._assets[Terminology.__name__].values())
 
     @property
-    def anatomical_spaces(self) -> List[AtlasAsset]:
-        """List all anatomical spaces."""
-        return list(self._assets[AnatomicalSpace.__name__].values())
+    def coordinate_spaces(self) -> List[AtlasAsset]:
+        """List all coordinate spaces."""
+        return list(self._assets[CoordinateSpace.__name__].values())
 
     @property
     def all_assets(self) -> List[AtlasAsset]:

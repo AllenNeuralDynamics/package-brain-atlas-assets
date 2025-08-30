@@ -8,11 +8,11 @@ from pathlib import Path
 import pandas as pd
 
 from atlas_builder import (
-    AnatomicalAnnotationSet,
-    AnatomicalSpace,
-    AnatomicalTemplate,
-    ParcellationAtlas,
-    ParcellationTerminology,
+    AnnotationSet,
+    CoordinateSpace,
+    Template,
+    Atlas,
+    Terminology,
 )
 from atlas_builder.mesh import Mesh
 from atlas_builder.precomputed import append_meshes_to_precomputed
@@ -132,13 +132,13 @@ def load_ccf3_meshes(mesh_dir):
         yield mesh, obj_id
 
 
-def create_all_ccf_anatomical_templates(
+def create_all_ccf_templates(
     input_dir, results_dir, library, scales=(10, 25, 50, 100)
 ):
-    """Create anatomical templates from CCF 3 atlas data."""
+    """Create templates from CCF 3 atlas data."""
     # Create 2-photon average template
     average_template_prefix = input_dir / "average_template" / "average_template"
-    template = AnatomicalTemplate(
+    template = Template(
         name="allen-adult-mouse-stpt-template", version="2015", scales=scales
     )
     template.create(average_template_prefix, results_dir)
@@ -157,7 +157,7 @@ def create_all_ccf_anatomical_templates(
 
     # Create Nissl reference template
     ara_nissl_prefix = input_dir / "ara_nissl" / "ara_nissl"
-    template = AnatomicalTemplate(
+    template = Template(
         name="allen-adult-mouse-nissl-template", version="2011", scales=scales
     )
     template.create(ara_nissl_prefix, results_dir)
@@ -182,13 +182,13 @@ def create_all_ccf_annotation_sets(
     logging.info("Creating all CCF anatomical annotation sets...")
 
     # Get templates and terminology from library
-    template_stpt = library.get_anatomical_template(
+    template_stpt = library.get_template(
         "allen-adult-mouse-stpt-template", "2015"
     )
-    template_nissl = library.get_anatomical_template(
+    template_nissl = library.get_template(
         "allen-adult-mouse-nissl-template", "2011"
     )
-    terminology = library.get_parcellation_terminology(
+    terminology = library.get_terminology(
         "allen-adult-mouse-terminology", "2017"
     )
 
@@ -240,10 +240,10 @@ def create_all_ccf_annotation_sets(
 
     for annotation in annotations:
         annotation_dir = input_dir / "annotation" / annotation["directory"]
-        annotation_set = AnatomicalAnnotationSet(
+        annotation_set = AnnotationSet(
             name=annotation["name"],
-            anatomical_template=annotation["template"],
-            parcellation_terminology=terminology,
+            template=annotation["template"],
+            terminology=terminology,
             version=annotation["version"],
             scales=scales,
         )
@@ -282,13 +282,13 @@ def create_all_ccf_annotation_sets(
     logging.info("All CCF anatomical annotation sets created successfully")
 
 
-def create_ccf3_parcellation_terminology(input_dir, output_dir, library):
+def create_ccf3_terminology(input_dir, output_dir, library):
     """Create parcellation terminology from CCF 3 structure hierarchy."""
     input_path = input_dir / "annotation" / "adult_mouse_ccf_structures.csv"
 
     df = pd.read_csv(input_path)
 
-    # Create DataFrame with required columns for ParcellationTerminology
+    # Create DataFrame with required columns for Terminology
     # For CCF3, use structure IDs as both file_id and identifier
     filtered_df = pd.DataFrame(
         {
@@ -303,7 +303,7 @@ def create_ccf3_parcellation_terminology(input_dir, output_dir, library):
         }
     )
 
-    terminology = ParcellationTerminology(
+    terminology = Terminology(
         name="allen-adult-mouse-terminology", version="2017", df=filtered_df
     )
 
@@ -335,97 +335,97 @@ def create_ccf3_parcellation_terminology(input_dir, output_dir, library):
 def package_ccf(input_dir, output_dir, library, scales=(10, 25, 50, 100)):
     """Complete packaging workflow for CCF 3 atlas data."""
     # Create and register terminologies
-    create_ccf3_parcellation_terminology(input_dir, output_dir, library)
+    create_ccf3_terminology(input_dir, output_dir, library)
 
     # Create and register anatomical templates
-    create_all_ccf_anatomical_templates(input_dir, output_dir, library, scales)
+    create_all_ccf_templates(input_dir, output_dir, library, scales)
 
     # Create and register annotation sets
     create_all_ccf_annotation_sets(input_dir, output_dir, library, scales=scales)
 
-    # Create and register anatomical space
-    anatomical_space = AnatomicalSpace(
+    # Create and register coordinate space
+    coordinate_space = CoordinateSpace(
         name="allen-adult-mouse-ccf-space",
         version="2015",
-        anatomical_template=library.get_anatomical_template(
+        template=library.get_template(
             "allen-adult-mouse-stpt-template", "2015"
         ),
     )
-    library.add(anatomical_space)
+    library.add(coordinate_space)
 
-    anatomical_space = AnatomicalSpace(
+    coordinate_space = CoordinateSpace(
         name="allen-adult-mouse-ccf-space",
         version="2011",
-        anatomical_template=library.get_anatomical_template(
+        template=library.get_template(
             "allen-adult-mouse-nissl-template", "2011"
         ),
     )
-    library.add(anatomical_space)
+    library.add(coordinate_space)
 
     # Create and register parcellation atlas
     atlases = [
-        ParcellationAtlas(
+        Atlas(
             name="allen-adult-mouse-ccf-atlas",
             version="2011",
-            anatomical_space=library.get_anatomical_space(
+            coordinate_space=library.get_coordinate_space(
                 name="allen-adult-mouse-ccf-space", version="2011"
             ),
-            anatomical_annotation_set=library.get_anatomical_annotation_set(
+            annotation_set=library.get_annotation_set(
                 name="allen-adult-mouse-annotation", version="2011"
             ),
-            parcellation_terminology=library.get_parcellation_terminology(
+            terminology=library.get_terminology(
                 name="allen-adult-mouse-terminology", version="2017"
             ),
         ),
-        ParcellationAtlas(
+        Atlas(
             name="allen-adult-mouse-ccf-atlas",
             version="2015",
-            anatomical_space=library.get_anatomical_space(
+            coordinate_space=library.get_coordinate_space(
                 name="allen-adult-mouse-ccf-space", version="2015"
             ),
-            anatomical_annotation_set=library.get_anatomical_annotation_set(
+            annotation_set=library.get_annotation_set(
                 name="allen-adult-mouse-annotation", version="2015"
             ),
-            parcellation_terminology=library.get_parcellation_terminology(
+            terminology=library.get_terminology(
                 name="allen-adult-mouse-terminology", version="2017"
             ),
         ),
-        ParcellationAtlas(
+        Atlas(
             name="allen-adult-mouse-ccf-atlas",
             version="2016",
-            anatomical_space=library.get_anatomical_space(
+            coordinate_space=library.get_coordinate_space(
                 name="allen-adult-mouse-ccf-space", version="2015"
             ),
-            anatomical_annotation_set=library.get_anatomical_annotation_set(
+            annotation_set=library.get_annotation_set(
                 name="allen-adult-mouse-annotation", version="2016"
             ),
-            parcellation_terminology=library.get_parcellation_terminology(
+            terminology=library.get_terminology(
                 name="allen-adult-mouse-terminology", version="2017"
             ),
         ),
-        ParcellationAtlas(
+        Atlas(
             name="allen-adult-mouse-ccf-atlas",
             version="2017",
-            anatomical_space=library.get_anatomical_space(
+            coordinate_space=library.get_coordinate_space(
                 name="allen-adult-mouse-ccf-space", version="2015"
             ),
-            anatomical_annotation_set=library.get_anatomical_annotation_set(
+            annotation_set=library.get_annotation_set(
                 name="allen-adult-mouse-annotation", version="2017"
             ),
-            parcellation_terminology=library.get_parcellation_terminology(
+            terminology=library.get_terminology(
                 name="allen-adult-mouse-terminology", version="2017"
             ),
         ),
-        ParcellationAtlas(
+        Atlas(
             name="allen-dev-mouse-p56-atlas",
             version="2012",
-            anatomical_space=library.get_anatomical_space(
+            coordinate_space=library.get_coordinate_space(
                 name="allen-adult-mouse-ccf-space", version="2015"
             ),
-            anatomical_annotation_set=library.get_anatomical_annotation_set(
+            annotation_set=library.get_annotation_set(
                 name="allen-dev-mouse-p56-annotation", version="2012"
             ),
-            parcellation_terminology=library.get_parcellation_terminology(
+            terminology=library.get_terminology(
                 name="allen-dev-mouse-terminology", version="2012"
             ),
         ),

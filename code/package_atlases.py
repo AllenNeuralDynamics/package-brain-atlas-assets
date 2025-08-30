@@ -77,7 +77,7 @@ def main():
     # Package CCF 2020 annotations
     CCFv2020.package_ccf2020(abc_dir, results_dir, library, scales=(10,))    
 
-    for a in library.anatomical_spaces:
+    for a in library.coordinate_spaces:
         a.create_manifest(results_dir)
 
 

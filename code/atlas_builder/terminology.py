@@ -1,4 +1,4 @@
-"""Brain structure hierarchy and terminology management (moved)."""
+"""Brain structure hierarchy and terminology management."""
 
 import logging
 from dataclasses import dataclass
@@ -9,7 +9,7 @@ from atlas_builder.atlas_asset import AtlasAsset
 
 
 @dataclass
-class ParcellationTerminology(AtlasAsset):
+class Terminology(AtlasAsset):
     """Hierarchical brain structure terminology manager.
 
     Attributes:
@@ -18,7 +18,7 @@ class ParcellationTerminology(AtlasAsset):
 
     df: pd.DataFrame = None
 
-    _asset_location = "parcellation-terminologies"
+    _asset_location = "terminologies"
 
     def __post_init__(self):
         """Initialize terminology and precompute descendant relationships."""
@@ -136,8 +136,8 @@ class ParcellationTerminology(AtlasAsset):
     def write_terminology(self, output_root):
         output_dir = self.location(output_root)
         output_dir.mkdir(parents=True, exist_ok=True)
-        csv_output_path = output_dir / "parcellation_terminology.csv"
-        parquet_output_path = output_dir / "parcellation_terminology.parquet"
+        csv_output_path = output_dir / "terminology.csv"
+        parquet_output_path = output_dir / "terminology.parquet"
         self.df.to_csv(csv_output_path, index=False)
         self.df.to_parquet(parquet_output_path, index=False)
-        logging.info(f"Parcellation terminology written to {csv_output_path}")
+        logging.info(f"Terminology written to {csv_output_path}")

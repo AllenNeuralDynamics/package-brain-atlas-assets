@@ -1,53 +1,40 @@
 {
 	"version": 1,
 	"base_image": "codeocean/code-server-python-extensions-pack:code-server4.101.2python3.12.4aind-metadata-mcp0.4.2",
-	"args": [
-		"AWS_ACCESS_KEY_ID",
-		"AWS_DEFAULT_REGION",
-		"AWS_SECRET_ACCESS_KEY"
-	],
 	"options": {
 		"registry_host_arg": true,
-		"git_ask_pass": true
+		"git_ask_pass": true,
+		"mount_secrets": true
 	},
 	"installers": {
 		"pip": {
 			"packages": [
 				{
-					"name": "aind-data-schema",
-					"version": "2.0.0"
+					"name": "aind-data-schema"
 				},
 				{
-					"name": "awscli",
-					"version": "1.42.6"
+					"name": "awscli"
 				},
 				{
-					"name": "cloud-volume",
-					"version": "12.4.1"
+					"name": "cloud-volume"
 				},
 				{
-					"name": "nibabel",
-					"version": "5.3.2"
+					"name": "nibabel"
 				},
 				{
-					"name": "ome-zarr",
-					"version": "0.11.1"
+					"name": "ome-zarr"
 				},
 				{
-					"name": "pandas",
-					"version": "2.3.1"
+					"name": "pandas"
 				},
 				{
-					"name": "pyarrow",
-					"version": "21.0.0"
+					"name": "pyarrow"
 				},
 				{
-					"name": "simpleitk",
-					"version": "2.5.2"
+					"name": "simpleitk"
 				},
 				{
-					"name": "tensorstore",
-					"version": "0.1.76"
+					"name": "tensorstore"
 				}
 			],
 			"options": {},
