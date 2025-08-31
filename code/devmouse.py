@@ -397,5 +397,5 @@ def package_devmouse(base_dir, results_dir, library):
         f"  Coordinate spaces: {len([s for s in library.coordinate_spaces if 'dev-mouse' in s.name])}"
     )
     logging.info(
-        f"  Parcellation atlases: {len([p for p in library.parcellation_atlases if 'dev-mouse' in p.name])}"
+        f"  Atlases: {len([p for p in library.atlases if 'dev-mouse' in p.name])}"
     )

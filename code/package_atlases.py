@@ -52,7 +52,7 @@ def main():
     ccf3_dir = Path("/data/allen_mouse_ccf")
     smartspim_dir = Path("/data/smartspim_lca_template_opendata")
     devmouse_dir = Path("/data/devmouse-atlas-assets")
-    results_dir = Path("/results")
+    results_dir = Path("/scratch")
 
     # Initialize asset library
     library = AssetLibrary()

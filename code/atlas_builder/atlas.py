@@ -16,7 +16,7 @@ class Atlas(AtlasAsset):
     annotation_set: AnnotationSet
     terminology: Terminology
 
-    _asset_location = "parcellation-atlases"
+    _asset_location = "atlases"
 
     @property
     def manifest(self):

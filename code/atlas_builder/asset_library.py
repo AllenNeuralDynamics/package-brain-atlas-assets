@@ -64,8 +64,8 @@ class AssetLibrary:
             )
         return asset
 
-    def get_parcellation_atlas(self, name: str, version: str) -> AtlasAsset:
-        """Get a parcellation atlas by name and version."""
+    def get_atlas(self, name: str, version: str) -> AtlasAsset:
+        """Get an atlas by name and version."""
         asset = self._assets[Atlas.__name__].get((name, version))
         if asset is None:
             raise KeyError(
@@ -107,8 +107,8 @@ class AssetLibrary:
         return list(self._assets[CoordinateTransformation.__name__].values())
 
     @property
-    def parcellation_atlases(self) -> List[AtlasAsset]:
-        """List all parcellation atlases."""
+    def atlases(self) -> List[AtlasAsset]:
+        """List all atlases."""
         return list(self._assets[Atlas.__name__].values())
 
     @property

@@ -272,7 +272,7 @@ def create_all_ccf_annotation_sets(
     append_meshes_to_precomputed(
         meshes,
         results_dir
-        / "anatomical-annotation-sets"
+        / "annotation-sets"
         / "allen-adult-mouse-annotation"
         / "2017"
         / "annotations.precomputed",

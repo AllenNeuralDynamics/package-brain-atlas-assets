@@ -291,7 +291,7 @@ def create_ccf2020_annotation_set(input_dir, results_dir, library, scales=(10,))
     append_meshes_to_precomputed(
         ((m, map_obj_id_to_annotation_value(obj_id)) for m, obj_id in meshes),
         results_dir
-        / "anatomical-annotation-sets"
+        / "annotation-sets"
         / "allen-adult-mouse-stereotaxic-annotation"
         / "2020"
         / "annotations.precomputed",
