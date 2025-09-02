@@ -7,9 +7,9 @@ from pathlib import Path
 import pandas as pd
 from CCFv3 import load_ccf3_meshes
 
-from atlas_builder import (AnatomicalAnnotationSet, AnatomicalSpace,
-                          AnatomicalTemplate, ParcellationAtlas,
-                          ParcellationTerminology)
+from atlas_builder import (AnnotationSet, CoordinateSpace,
+                          Template, Atlas,
+                          Terminology)
 from atlas_builder.precomputed import append_meshes_to_precomputed
 import datetime
 from aind_data_schema.core.data_description import DataDescription, Funding
@@ -27,13 +27,13 @@ CCF2020_TERMINOLOGY_DESCRIPTION = "The 2020 release of the Allen Mouse Reference
 CCF2020_TEMPLATE_DESCRIPTION = "The 2020 release of the anatomical template is the same as the 2017 Allen adult mouse template, however the coordinate system moved. The origin of the space this template defines is now located near the anterior commissure."
 
 
-def create_ccf2020_anatomical_template(input_dir, results_dir, library, scales=(10,)):
+def create_ccf2020_template(input_dir, results_dir, library, scales=(10,)):
     """Create CCF 2020 anatomical template from ABC Atlas data."""
     logging.info("Creating CCF 2020 anatomical template...")
 
     # Create anatomical template from the ABC Atlas average template
     template_dir = input_dir / "image_volumes" / "Allen-CCF-2020" / "20230630"
-    template = AnatomicalTemplate(
+    template = Template(
         name="allen-adult-mouse-stpt-template", version="2020", scales=scales
     )
 
@@ -47,7 +47,7 @@ def create_ccf2020_anatomical_template(input_dir, results_dir, library, scales=(
     return template
 
 
-def create_ccf2020_parcellation_terminology(input_dir, output_dir, library):
+def create_ccf2020_terminology(input_dir, output_dir, library):
     """Create parcellation terminology from CCF 2020 metadata."""
     metadata_dir = Path(input_dir) / "metadata" / "Allen-CCF-2020" / "20230630"
 
@@ -142,7 +142,7 @@ def create_ccf2020_parcellation_terminology(input_dir, output_dir, library):
         combined.at[i, "annotation_value"] = [next_new_id]
         next_new_id += 1
 
-    # Build DataFrame expected by ParcellationTerminology (include term_set_name)
+    # Build DataFrame expected by Terminology (include term_set_name)
     filtered_df = pd.DataFrame(
         {
             "identifier": combined["identifier"],  # preserve NaN
@@ -157,7 +157,7 @@ def create_ccf2020_parcellation_terminology(input_dir, output_dir, library):
         }
     )
 
-    pt = ParcellationTerminology(
+    pt = Terminology(
         df=filtered_df,
         name="allen-adult-mouse-terminology",
         version="2020",
@@ -252,15 +252,15 @@ def create_ccf2020_annotation_set(input_dir, results_dir, library, scales=(10,))
     logging.info("Creating CCF 2020 anatomical annotation set...")
 
     # Get required assets from library
-    template = library.get_anatomical_template("allen-adult-mouse-stpt-template", "2020")
-    terminology = library.get_parcellation_terminology(
+    template = library.get_template("allen-adult-mouse-stpt-template", "2020")
+    terminology = library.get_terminology(
         "allen-adult-mouse-terminology", "2020"
     )
 
-    annotation_set = AnatomicalAnnotationSet(
+    annotation_set = AnnotationSet(
         name="allen-adult-mouse-stereotaxic-annotation",
-        anatomical_template=template,
-        parcellation_terminology=terminology,
+        template=template,
+        terminology=terminology,
         version="2020",
         scales=scales,
     )
@@ -291,7 +291,7 @@ def create_ccf2020_annotation_set(input_dir, results_dir, library, scales=(10,))
     append_meshes_to_precomputed(
         ((m, map_obj_id_to_annotation_value(obj_id)) for m, obj_id in meshes),
         results_dir
-        / "anatomical-annotation-sets"
+        / "annotation-sets"
         / "allen-adult-mouse-stereotaxic-annotation"
         / "2020"
         / "annotations.precomputed",
@@ -308,35 +308,35 @@ def create_ccf2020_annotation_set(input_dir, results_dir, library, scales=(10,))
 def package_ccf2020(input_dir, output_dir, library, scales=(10,)):
     """Complete packaging workflow for CCF 2020 atlas data."""
     # Create and register anatomical template
-    create_ccf2020_anatomical_template(input_dir, output_dir, library, scales)
+    create_ccf2020_template(input_dir, output_dir, library, scales)
 
     # Create and register terminology
-    create_ccf2020_parcellation_terminology(input_dir, output_dir, library)
+    create_ccf2020_terminology(input_dir, output_dir, library)
 
     # Create and register annotation set
     create_ccf2020_annotation_set(input_dir, output_dir, library, scales)
 
-    # Create and register anatomical space
-    template = library.get_anatomical_template("allen-adult-mouse-stpt-template", "2020")
-    anatomical_space = AnatomicalSpace(
+    # Create and register coordinate space
+    template = library.get_template("allen-adult-mouse-stpt-template", "2020")
+    coordinate_space = CoordinateSpace(
         name="allen-adult-mouse-ccf-stereotaxic-space",
         version="2020",
-        anatomical_template=template,
+        template=template,
     )
-    anatomical_space.create_manifest(output_dir)
-    library.add(anatomical_space)
+    coordinate_space.create_manifest(output_dir)
+    library.add(coordinate_space)
 
     # Create parcellation atlas
-    atlas = ParcellationAtlas(
+    atlas = Atlas(
         name="allen-adult-mouse-ccf-stereotaxic-atlas",
         version="2020",
-        anatomical_space=library.get_anatomical_space(
+        coordinate_space=library.get_coordinate_space(
             "allen-adult-mouse-ccf-stereotaxic-space", "2020"
         ),
-        anatomical_annotation_set=library.get_anatomical_annotation_set(
+        annotation_set=library.get_annotation_set(
             "allen-adult-mouse-stereotaxic-annotation", "2020"
         ),
-        parcellation_terminology=library.get_parcellation_terminology(
+        terminology=library.get_terminology(
             "allen-adult-mouse-terminology", "2020"
         ),
     )

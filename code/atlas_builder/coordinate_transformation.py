@@ -2,7 +2,7 @@
 
 from dataclasses import dataclass
 
-from atlas_builder.anatomical_template import AnatomicalTemplate
+from atlas_builder.template import Template
 from atlas_builder.atlas_asset import AtlasAsset
 
 
@@ -15,16 +15,16 @@ class CoordinateTransformation(AtlasAsset):
         output_template: Target template space
     """
 
-    input_template: AnatomicalTemplate
-    output_template: AnatomicalTemplate
+    input_template: Template
+    output_template: Template
 
     _asset_location = "coordinate-transformations"
 
     @classmethod
     def init(
         cls,
-        input_template: AnatomicalTemplate,
-        output_template: AnatomicalTemplate,
+        input_template: Template,
+        output_template: Template,
         version: str,
     ):
         """Initialize coordinate transformation with auto-generated name.

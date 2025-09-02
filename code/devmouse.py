@@ -17,11 +17,11 @@ import pandas as pd
 import SimpleITK as sitk
 
 from atlas_builder import (
-    AnatomicalAnnotationSet,
-    AnatomicalSpace,
-    AnatomicalTemplate,
-    ParcellationAtlas,
-    ParcellationTerminology,
+    AnnotationSet,
+    CoordinateSpace,
+    Template,
+    Atlas,
+    Terminology,
 )
 import datetime
 from aind_data_schema.core.data_description import DataDescription, Funding
@@ -173,7 +173,7 @@ def convert_mhd_to_nifti(mhd_path, output_path):
 
 def create_devmouse_terminology(output_dir, library):
     """
-    Create a ParcellationTerminology from the devmouse structures CSV.
+    Create a Terminology from the devmouse structures CSV.
 
     Parameters
     ----------
@@ -188,7 +188,7 @@ def create_devmouse_terminology(output_dir, library):
 
     df = pd.read_csv(structures_path)
 
-    # Create DataFrame with required columns for ParcellationTerminology
+    # Create DataFrame with required columns for Terminology
     structures_df = pd.DataFrame(
         {
             "identifier": df["id"].map(lambda x: f"DMBA:{int(x)}"),
@@ -203,7 +203,7 @@ def create_devmouse_terminology(output_dir, library):
     )
 
     # Create the terminology
-    terminology = ParcellationTerminology(
+    terminology = Terminology(
         name="allen-dev-mouse-terminology", version="2012", df=structures_df
     )
 
@@ -244,7 +244,7 @@ def package_age_group(age, base_dir, results_dir, asset_library, terminology):
         Results directory for output
     asset_library : AssetLibrary
         The asset library to add assets to
-    terminology : ParcellationTerminology
+    terminology : Terminology
         The parcellation terminology
     """
     print(f"\nProcessing age group: {age}")
@@ -305,13 +305,13 @@ def package_age_group(age, base_dir, results_dir, asset_library, terminology):
 
     # Create anatomical template
     template_name = f"allen-dev-mouse-{age.lower()}-nissl-template"
-    template = AnatomicalTemplate(name=template_name, version="2012", scales=(scale,))
+    template = Template(name=template_name, version="2012", scales=(scale,))
 
     # Create template directory and convert MHD to NIfTI with correct naming
     template_dir = template.location(results_dir)
     template_dir.mkdir(parents=True, exist_ok=True)
 
-    template_nii = template_dir / f"anatomical_template_{scale}.nii.gz"
+    template_nii = template_dir / f"template_{scale}.nii.gz"
     convert_mhd_to_nifti(template_mhd, template_nii)
 
     # Convert NIfTI to OME-Zarr and create manifest
@@ -325,10 +325,10 @@ def package_age_group(age, base_dir, results_dir, asset_library, terminology):
 
     # Create annotation set
     annotation_name = f"allen-dev-mouse-{age.lower()}-annotation"
-    annotation_set = AnatomicalAnnotationSet(
+    annotation_set = AnnotationSet(
         name=annotation_name,
-        anatomical_template=template,
-        parcellation_terminology=terminology,
+        template=template,
+        terminology=terminology,
         version="2012",
         scales=(scale,),
     )
@@ -340,23 +340,23 @@ def package_age_group(age, base_dir, results_dir, asset_library, terminology):
     asset_library.add(annotation_set)
     print(f"  Added annotation set: {annotation_name}")
 
-    # Create anatomical space for this developmental stage
+    # Create coordinate space for this developmental stage
     space_name = f"allen-dev-mouse-{age.lower()}-space"
-    anatomical_space = AnatomicalSpace(
-        name=space_name, version="2012", anatomical_template=template
+    coordinate_space = CoordinateSpace(
+        name=space_name, version="2012", template=template
     )
-    anatomical_space.create_manifest(results_dir)
-    asset_library.add(anatomical_space)
-    print(f"  Created anatomical space: {space_name}")
+    coordinate_space.create_manifest(results_dir)
+    asset_library.add(coordinate_space)
+    print(f"  Created coordinate space: {space_name}")
 
     # Create parcellation atlas
     atlas_name = f"allen-dev-mouse-{age.lower()}-atlas"
-    atlas = ParcellationAtlas(
+    atlas = Atlas(
         name=atlas_name,
         version="2012",
-        anatomical_space=anatomical_space,
-        anatomical_annotation_set=annotation_set,
-        parcellation_terminology=terminology,
+        coordinate_space=coordinate_space,
+        annotation_set=annotation_set,
+        terminology=terminology,
     )
     atlas.create_manifest(results_dir)
     asset_library.add(atlas)
@@ -388,14 +388,14 @@ def package_devmouse(base_dir, results_dir, library):
     # Log summary
     logging.info("DevMouse Summary:")
     logging.info(
-        f"  Templates: {len([t for t in library.anatomical_templates if 'dev-mouse' in t.name])}"
+        f"  Templates: {len([t for t in library.templates if 'dev-mouse' in t.name])}"
     )
     logging.info(
-        f"  Annotation sets: {len([a for a in library.anatomical_annotation_sets if 'dev-mouse' in a.name])}"
+        f"  Annotation sets: {len([a for a in library.annotation_sets if 'dev-mouse' in a.name])}"
     )
     logging.info(
-        f"  Anatomical spaces: {len([s for s in library.anatomical_spaces if 'dev-mouse' in s.name])}"
+        f"  Coordinate spaces: {len([s for s in library.coordinate_spaces if 'dev-mouse' in s.name])}"
     )
     logging.info(
-        f"  Parcellation atlases: {len([p for p in library.parcellation_atlases if 'dev-mouse' in p.name])}"
+        f"  Atlases: {len([p for p in library.atlases if 'dev-mouse' in p.name])}"
     )

@@ -1,25 +1,21 @@
 {
 	"version": 1,
 	"base_image": "codeocean/code-server-python-extensions-pack:code-server4.101.2python3.12.4aind-metadata-mcp0.4.2",
-	"args": [
-		"AWS_ACCESS_KEY_ID",
-		"AWS_DEFAULT_REGION",
-		"AWS_SECRET_ACCESS_KEY"
-	],
 	"options": {
 		"registry_host_arg": true,
-		"git_ask_pass": true
+		"git_ask_pass": true,
+		"mount_secrets": true
 	},
 	"installers": {
 		"pip": {
 			"packages": [
 				{
 					"name": "aind-data-schema",
-					"version": "2.0.0"
+					"version": "2.0.1"
 				},
 				{
 					"name": "awscli",
-					"version": "1.42.6"
+					"version": "1.42.21"
 				},
 				{
 					"name": "cloud-volume",
@@ -31,11 +27,11 @@
 				},
 				{
 					"name": "ome-zarr",
-					"version": "0.11.1"
+					"version": "0.12.2"
 				},
 				{
 					"name": "pandas",
-					"version": "2.3.1"
+					"version": "2.3.2"
 				},
 				{
 					"name": "pyarrow",

@@ -1,4 +1,4 @@
-"""Anatomical template data package management with NIfTI and OME-Zarr support (moved)."""
+"""Template data package management with NIfTI and OME-Zarr support."""
 
 import logging
 import shutil
@@ -15,8 +15,8 @@ from utils import decompose_affine
 
 
 @dataclass
-class AnatomicalTemplate(AtlasAsset):
-    """Anatomical template dataset with multiscale support.
+class Template(AtlasAsset):
+    """Template dataset with multiscale support.
 
     Attributes:
         scales: Tuple of resolution scales in micrometers per voxel
@@ -24,7 +24,7 @@ class AnatomicalTemplate(AtlasAsset):
 
     scales: tuple
 
-    _asset_location = "anatomical-templates"
+    _asset_location = "templates"
 
     def copy_nifti_files(self, prefix, output_root):
         """Copy NIfTI template files with standardized naming."""
@@ -33,7 +33,7 @@ class AnatomicalTemplate(AtlasAsset):
 
         for scale in self.scales:
             src = f"{prefix}_{scale}.nii.gz"
-            dst_fname = f"anatomical_template_{scale}.nii.gz"
+            dst_fname = f"template_{scale}.nii.gz"
             dst = template_dir / dst_fname
             if not dst.exists():
                 shutil.copy2(src, dst)
@@ -46,7 +46,7 @@ class AnatomicalTemplate(AtlasAsset):
         input_dir = self.location(output_root)
         output_dir = input_dir
         output_zarr_path = str(
-            output_dir / "anatomical_template.ome.zarr"
+            output_dir / "template.ome.zarr"
         )  # zarr expects string path
 
         logging.info("Starting conversion from NIfTI to OME-Zarr multiscale.")
@@ -62,7 +62,7 @@ class AnatomicalTemplate(AtlasAsset):
         ]
 
         for scale in self.scales:
-            fname = f"anatomical_template_{scale}.nii.gz"
+            fname = f"template_{scale}.nii.gz"
             fpath = input_dir / fname
             logging.info(f"Loading file: {fpath}")
             img = nib.load(str(fpath))
@@ -100,10 +100,10 @@ class AnatomicalTemplate(AtlasAsset):
         )
 
     def create(self, input_prefix: Path, output_root: Path):
-        """Create complete anatomical template package with NIfTI and OME-Zarr formats."""
+        """Create complete template package with NIfTI and OME-Zarr formats."""
         self.copy_nifti_files(input_prefix, output_root)
         self.convert_nifti_to_omezarr_multiscale(output_root)
         self.create_manifest(output_root)
         logging.info(
-            f"Created anatomical template package at {self.location(output_root)}"
+            f"Created template package at {self.location(output_root)}"
         )
