@@ -48,12 +48,11 @@ def main():
 
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 
-    abc_dir = Path("../data/abc_atlas")
-    ccf3_dir = Path("../data/allen_mouse_ccf")
-    smartspim_dir = Path("../data/smartspim_lca_template_opendata")
-    devmouse_dir = Path("../data/devmouse-atlas-assets")
-    hmba_dir = Path("../data/hmba")
-    results_dir = Path("../results")
+    abc_dir = Path("/data/abc_atlas")
+    ccf3_dir = Path("/data/allen_mouse_ccf")
+    smartspim_dir = Path("/data/smartspim_lca_template_opendata")
+    devmouse_dir = Path("/data/devmouse-atlas-assets")
+    results_dir = Path("/scratch")
 
     # Initialize asset library
     library = AssetLibrary()
@@ -74,12 +73,9 @@ def main():
     idisco.package_idisco_template(results_dir)
 
     # Package CCF 2020 annotations
-    CCFv2020.package_ccf2020(abc_dir, results_dir, library, scales=(10,))
+    CCFv2020.package_ccf2020(abc_dir, results_dir, library, scales=(10,))    
 
-    # Package HMBA human, macaque, marmoset annotations
-    HMBA.package_ccf(hmba_dir, results_dir, library, scales=hmba_scales)
-
-    for a in library.anatomical_spaces:
+    for a in library.coordinate_spaces:
         a.create_manifest(results_dir)
 
 

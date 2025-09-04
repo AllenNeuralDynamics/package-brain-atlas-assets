@@ -9,7 +9,7 @@ import re
 from ome_zarr.writer import write_image, write_multiscale
 from ome_zarr.io import parse_url
 from ome_zarr.format import CurrentFormat
-from atlas_builder.anatomical_template import AnatomicalTemplate
+from atlas_builder.template import Template
 from utils import decompose_affine
 
 # Directory containing the multiresolution, multichannel NIfTI files
@@ -47,15 +47,15 @@ def load_nifti_channels(res_dir):
 def package_idisco_template(results_dir):
     """Package iDISCO multichannel template as OME-Zarr multiscale pyramid (OME standard)."""
     results_dir = Path(results_dir)
-    # Use AnatomicalTemplate location for output_dir
-    template = AnatomicalTemplate(
+    # Use Template location for output_dir
+    template = Template(
         name="allen-adult-mouse-spim-idisco-template",
         version="2025-05",
         scales=tuple(RESOLUTIONS),
     )
     output_dir = template.location(results_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
-    zarr_path = output_dir / "anatomical_template.ome.zarr"
+    zarr_path = output_dir / "template.ome.zarr"
     group = zarr_lib.open(str(zarr_path), mode="w")
 
     arrays = []
@@ -108,9 +108,9 @@ def package_idisco_template(results_dir):
     )
     logging.info(f"iDISCO OME-Zarr multiscale pyramid written to {zarr_path}")
 
-    # Create and register AnatomicalTemplate asset
+    # Create and register Template asset
     template.create_manifest(results_dir)
-    logging.info(f"Created AnatomicalTemplate manifest at {template.location(results_dir)}")
+    logging.info(f"Created Template manifest at {template.location(results_dir)}")
 
 
 if __name__ == "__main__":

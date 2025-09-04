@@ -13,8 +13,8 @@ from aind_data_schema_models.modalities import Modality
 from aind_data_schema_models.organizations import Organization
 
 from atlas_builder import (
-    AnatomicalAnnotationSet,
-    AnatomicalTemplate,
+    AnnotationSet,
+    Template,
     CoordinateTransformation,
 )
 
@@ -28,13 +28,17 @@ def create_smartspim_annotation_set(input_dir, results_dir, library):
         library (AssetLibrary): Asset library to get template and terminology from
     """
     # Get required assets from library
-    template = library.get_anatomical_template("allen-adult-mouse-spim-lca-template", "2024-05")
-    terminology = library.get_parcellation_terminology("allen-adult-mouse-terminology", "2017")
+    template = library.get_template(
+        "allen-adult-mouse-spim-lca-template", "2024-05"
+    )
+    terminology = library.get_terminology(
+        "allen-adult-mouse-terminology", "2017"
+    )
 
-    annotation_set = AnatomicalAnnotationSet(
+    annotation_set = AnnotationSet(
         name="allen-adult-mouse-spim-lca-annotation",
-        anatomical_template=template,
-        parcellation_terminology=terminology,
+        template=template,
+        terminology=terminology,
         version="2024-05",
         scales=(25,),
     )
@@ -51,8 +55,12 @@ def create_smartspim_annotation_set(input_dir, results_dir, library):
 def create_smartspim_coordinate_transformations(input_dir, results_dir, library):
     """Create coordinate transformation assets for SmartSPIM to CCF registration."""
     # Get required assets from library
-    template = library.get_anatomical_template("allen-adult-mouse-spim-lca-template", "2024-05")
-    ccf_template = library.get_anatomical_template("allen-adult-mouse-stpt-template", "2015")
+    template = library.get_template(
+        "allen-adult-mouse-spim-lca-template", "2024-05"
+    )
+    ccf_template = library.get_template(
+        "allen-adult-mouse-stpt-template", "2015"
+    )
 
     # Create coordinate transform from SmartSPIM template to CCF 3.1
     cs = CoordinateTransformation.init(
@@ -170,7 +178,9 @@ def package_smartspim_template(input_dir, results_dir, library, scales):
         library (AssetLibrary): Asset library to register created assets
         scales (tuple): Scales to process (micrometers per voxel)
     """
-    template = AnatomicalTemplate(name="allen-adult-mouse-spim-lca-template", version="2024-05", scales=scales)
+    template = Template(
+        name="allen-adult-mouse-spim-lca-template", version="2024-05", scales=scales
+    )
 
     logging.info(f"Packaging SmartSPIM template {template.name}")
     logging.info(f"Processing scales: {template.scales}")

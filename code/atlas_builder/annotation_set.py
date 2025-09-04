@@ -1,4 +1,4 @@
-"""Brain structure annotation management with multiscale OME-Zarr support (moved)."""
+"""Brain structure annotation management with multiscale OME-Zarr support."""
 
 import logging
 import shutil
@@ -13,39 +13,36 @@ import zarr
 from ome_zarr.writer import write_multiscale, write_multiscales_metadata
 import SimpleITK as sitk
 
-from atlas_builder.anatomical_template import AnatomicalTemplate
+from atlas_builder.template import Template
 from atlas_builder.atlas_asset import AtlasAsset
-from atlas_builder.parcellation_terminology import ParcellationTerminology
-from atlas_builder.precomputed import (
-    convert_compressed_annotations_to_precomputed,
-    write_segment_properties,
-    create_mesh_from_annotation,
-)
+from atlas_builder.terminology import Terminology
+from atlas_builder.precomputed import (convert_compressed_annotations_to_precomputed,
+                                      write_segment_properties)
 from utils import decompose_affine
 
 
 @dataclass
-class AnatomicalAnnotationSet(AtlasAsset):
+class AnnotationSet(AtlasAsset):
     """Brain structure annotation dataset manager.
 
     Attributes:
-        anatomical_template: Aligned anatomical template
-        parcellation_terminology: Brain structure terminology/hierarchy
+        template: Aligned template
+        terminology: Brain structure terminology/hierarchy
         scales: Available resolution scales in micrometers per voxel
     """
 
-    anatomical_template: AnatomicalTemplate
-    parcellation_terminology: ParcellationTerminology
+    template: Template
+    terminology: Terminology
     scales: tuple
 
-    _asset_location = "anatomical-annotation-sets"
+    _asset_location = "annotation-sets"
 
     @property
     def manifest(self) -> dict:
         """Generate manifest dictionary for this annotation set."""
         return super().manifest | {
-            "anatomical_template": self.anatomical_template.manifest,
-            "parcellation_terminology": self.parcellation_terminology.manifest,
+            "template": self.template.manifest,
+            "terminology": self.terminology.manifest,
         }
 
     def create(self, compressed_results, output_root, include_meshes=True):
@@ -85,8 +82,8 @@ class AnatomicalAnnotationSet(AtlasAsset):
         # Write segment properties (without meshes) from terminology
         logging.info("Writing segment properties (without meshes) to precomputed...")
         write_segment_properties(
-            str(precomputed_output),
-            self.parcellation_terminology.df,
+            precomputed_output,
+            self.terminology.df,
         )
 
         if include_meshes:
@@ -203,7 +200,10 @@ class AnatomicalAnnotationSet(AtlasAsset):
         Raises:
             ValueError: If terminology doesn't have descendant_annotation_values column
         """
-        if "descendant_annotation_values" not in self.parcellation_terminology.df.columns:
+        if (
+            "descendant_annotation_values"
+            not in self.terminology.df.columns
+        ):
             raise ValueError(
                 "Terminology does not have 'descendant_annotation_values' column. "
                 "Please ensure set_descendant_annotation_values() has been called."
@@ -218,14 +218,18 @@ class AnatomicalAnnotationSet(AtlasAsset):
             # Array spacing - compute product
             voxel_volume = np.prod(spacing_array)
 
-        logging.info(f"Counting voxels for all {len(self.parcellation_terminology.df)} terms in terminology")
-        logging.info(f"Voxel spacing: {spacing_array} mm, voxel volume: {voxel_volume} mm³")
+        logging.info(
+            f"Counting voxels for all {len(self.terminology.df)} terms in terminology"
+        )
+        logging.info(
+            f"Voxel spacing: {spacing_array} mm, voxel volume: {voxel_volume} mm³"
+        )
 
         # Create a mapping from annotation value to list of term identifiers that should include it
         value_to_terms = {}
         term_to_identifier = {}
 
-        for _, row in self.parcellation_terminology.df.iterrows():
+        for _, row in self.terminology.df.iterrows():
             term_identifier = row["identifier"]
             descendant_values = row["descendant_annotation_values"]
             term_to_identifier[term_identifier] = term_identifier
