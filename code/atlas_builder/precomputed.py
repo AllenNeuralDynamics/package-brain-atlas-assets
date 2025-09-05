@@ -189,39 +189,48 @@ def convert_compressed_annotations_to_precomputed(
     logging.info(f"Successfully created precomputed annotation file at {output_location}")
 
 def _compute_meshes_from_annotation(terminology_ids, 
-                                    annotation_ids:set,
                                     annotation: np.ndarray,
-                                    voxel_spacing: list,
-                                    mesher):
+                                    voxel_spacing: list):
 
-    meshes = []
+    annotation_ids = set(np.unique(annotation)[1:]) # Leaving out 0 (background)
+
     for struct_id, descendants in terminology_ids:
-
         match_ids = set(descendants) & annotation_ids
-        struct_mask = np.zeros_like(annotation)
-        struct_mask[np.isin(annotation,match_ids)] = struct_id
 
-        mesher.mesh(struct_mask, close=True)
+        if match_ids:
+            struct = np.zeros_like(annotation)
+            mask = np.isin(annotation,np.array(match_ids))
+            struct[mask] = struct_id
 
-        meshes.append(
-            [
-                mesher.get(
-                    struct_id,
-                    normals=True,  # whether to calculate normals or not
-                    reduction_factor=2,
-                    max_error=8,  # Maximum tolerable error in physical space (um)
-                    voxel_centered=False,  # Voxel center set to index, eg. [0,0,0]
-                ),
-                struct_id,
-            ]
-        )
-        mesher.erase(struct_id)  # delete high res mesh for memory``
-        mesher.clear()
-    
-    return meshes
+            mesher = Mesher(voxel_spacing)
+            mesher.mesh(struct, close=True)
+
+            mesh = mesher.get(
+                        struct_id,
+                        normals=False,  # whether to calculate normals or not
+                        reduction_factor=2,
+                        max_error=8,  # Maximum tolerable error in physical space (um)
+                        voxel_centered=False,  # Voxel center set to index, eg. [0,0,0]
+                    )
+            mesh = mesher.compute_normals(mesh)
+
+            cv_manifest = meshes_dir / f"{region_id}:0"
+            manifest_json = {"fragments": [f"{region_id}:0:0"]}
+            # write the manifest
+            with open(cv_manifest, "w") as f:
+                json.dump(manifest_json, f)
+
+            save_filename = meshes_dir / f"{region_id}:0:0"
+            with open(save_filename, "wb") as f:
+                f.write(mesh.to_precomputed())
+
+        
+            mesher.erase(struct_id)  # delete high res mesh for memory``
+            mesher.clear()
 
 def create_mesh_from_annotation(
-    annotation_set: dict,
+    annotation_set,
+    compressed_results,
     mesh_directory: Path,
     chunk_size=(256, 256, 64),
 ):
@@ -230,57 +239,38 @@ def create_mesh_from_annotation(
     meshes_dir = mesh_directory / "mesh"
     meshes_dir.mkdir(parents=True, exist_ok=True)
 
-    scale = annotation_set.scale
-
-    voxel_spacing = [1000 * min(scale)] * 3  # Assumes isometric voxels. Multiplied by 1000 to get units into nm
+    scales = annotation_set.scales
+    voxel_spacing = [1000 * min(scales)] * 3  # Assumes isometric voxels. Multiplied by 1000 to get units into nm
     
-    # Get annotation and terminology from annotation_set (see AnatomicalAnnotationSet) and extract identifiers
-    annotation, _ = annotation_set.compressed_results[min(scale)]
+    # Get annotation and terminology from annotation_set (see AnnotationSet) and extract identifiers
+    annotation, _ = compressed_results[min(scales)]
     terminology = annotation_set.terminology
-
-    annotation_ids = set(np.unique(annotation)[1:]) # Leaving out 0 (background)
-    terminology_ids = zip(terminology.df["identifier"], terminology.df["descendant_identifiers"])
+    terminology_ids = zip(terminology.df["annotation_value"], terminology.df["descendant_annotation_values"])
     
-    # Initialize mesher with voxel size in nm
-    mesher = Mesher(voxel_spacing)
-    meshes = _compute_meshes_from_annotation(terminology_ids, annotation_ids, annotation, voxel_spacing, mesher)
+    # Compute meshes 
+    meshes = _compute_meshes_from_annotation(terminology_ids, annotation, voxel_spacing)
 
-    for region_mesh in meshes:
-
-        mesh = region_mesh[0]
-        region_id = region_mesh[1]  # Same as struct_id above
-
-        mesh = mesher.compute_normals(mesh)
-
-        cv_manifest = meshes_dir / f"{region_id}:0"
-        manifest_json = {"fragments": [f"{region_id}:0:0"]}
-        # write the manifest
-        with open(cv_manifest, "w") as f:
-            json.dump(manifest_json, f)
-
-        save_filename = meshes_dir / f"{region_id}:0:0"
-        with open(save_filename, "wb") as f:
-            f.write(mesh.to_precomputed())
-
+    # Write info file
     info_d = {
-        "@type": "neuroglancer_legacy_mesh",
-        "data_type": "uint64",
-        "num_channels": 1,
-        "scales": [
-            {
-                "chunk_sizes": chunk_size,
-                "compressed_segmentation_block_size": [8, 8, 8],
-                "encoding": "compressed_segmentation",
-                "key": "_".join([str(x) for x in voxel_spacing]),
-                "resolution": voxel_spacing,
-                "size": list(annotation.shape),
-            }
-        ],
-        "type": "segmentation",
-        "mesh": "mesh",
-        "segment_properties": "segment_properties",
-    }
+            "@type": "neuroglancer_legacy_mesh",
+            "data_type": "uint64",
+            "num_channels": 1,
+            "scales": [
+                {
+                    "chunk_sizes": chunk_size,
+                    "compressed_segmentation_block_size": [8, 8, 8],
+                    "encoding": "compressed_segmentation",
+                    "key": "_".join([str(x) for x in voxel_spacing]),
+                    "resolution": voxel_spacing,
+                    "size": list(annotation.shape),
+                }
+            ],
+            "type": "segmentation",
+            "mesh": "mesh",
+            "segment_properties": "segment_properties",
+        }
 
     # write to an info file in the ccf_meshes folder
     with open((meshes_dir / "info"), "w") as f:
         json.dump(info_d, f)
+
