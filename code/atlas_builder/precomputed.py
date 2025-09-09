@@ -190,16 +190,19 @@ def convert_compressed_annotations_to_precomputed(
 
 def _compute_meshes_from_annotation(terminology_ids, 
                                     annotation: np.ndarray,
-                                    voxel_spacing: list):
+                                    voxel_spacing: list,
+                                    meshes_dir: Path):
 
-    annotation_ids = set(np.unique(annotation)[1:]) # Leaving out 0 (background)
+    annotation_ids = np.unique(annotation)[1:] # Leaving out 0 (background)
 
     for struct_id, descendants in terminology_ids:
-        match_ids = set(descendants) & annotation_ids
+        desc = np.asarray(descendants)
+        desc = desc.astype(annotation_ids.dtype, copy=False)
+        match_ids = np.intersect1d(desc, annotation_ids)
 
-        if match_ids:
+        if match_ids.size > 0:
             struct = np.zeros_like(annotation)
-            mask = np.isin(annotation,np.array(match_ids))
+            mask = np.isin(annotation,match_ids)
             struct[mask] = struct_id
 
             mesher = Mesher(voxel_spacing)
@@ -214,63 +217,49 @@ def _compute_meshes_from_annotation(terminology_ids,
                     )
             mesh = mesher.compute_normals(mesh)
 
-            cv_manifest = meshes_dir / f"{region_id}:0"
-            manifest_json = {"fragments": [f"{region_id}:0:0"]}
+            cv_manifest = meshes_dir / f"{struct_id}:0"
+            manifest_json = {"fragments": [f"{struct_id}:0:0"]}
             # write the manifest
             with open(cv_manifest, "w") as f:
                 json.dump(manifest_json, f)
 
-            save_filename = meshes_dir / f"{region_id}:0:0"
+            save_filename = meshes_dir / f"{struct_id}:0:0"
             with open(save_filename, "wb") as f:
                 f.write(mesh.to_precomputed())
 
-        
             mesher.erase(struct_id)  # delete high res mesh for memory``
             mesher.clear()
 
 def create_mesh_from_annotation(
-    annotation_set,
-    compressed_results,
-    mesh_directory: Path,
+    annotation,
+    scales,
+    terminology,
+    precomputed_output: Path,
     chunk_size=(256, 256, 64),
 ):
     """Create meshes from annotation volume using zmesh's Mesher function"""
 
-    meshes_dir = mesh_directory / "mesh"
+    meshes_dir = precomputed_output / "mesh"
     meshes_dir.mkdir(parents=True, exist_ok=True)
 
-    scales = annotation_set.scales
     voxel_spacing = [1000 * min(scales)] * 3  # Assumes isometric voxels. Multiplied by 1000 to get units into nm
     
     # Get annotation and terminology from annotation_set (see AnnotationSet) and extract identifiers
-    annotation, _ = compressed_results[min(scales)]
-    terminology = annotation_set.terminology
-    terminology_ids = zip(terminology.df["annotation_value"], terminology.df["descendant_annotation_values"])
+    annotation = annotation.astype(np.uint32)
+    annotation = annotation.transpose(2,1,0) #Orient to z,y,x to align with neuroglancer format
+    logging.info(f"Annotation dtype: {annotation.dtype}. Should be uint32.")
+    terminology_ids = zip(terminology["annotation_value"], terminology["descendant_annotation_values"])
     
     # Compute meshes 
-    meshes = _compute_meshes_from_annotation(terminology_ids, annotation, voxel_spacing)
+    meshes = _compute_meshes_from_annotation(terminology_ids, annotation, voxel_spacing, meshes_dir)
 
-    # Write info file
-    info_d = {
-            "@type": "neuroglancer_legacy_mesh",
-            "data_type": "uint64",
-            "num_channels": 1,
-            "scales": [
-                {
-                    "chunk_sizes": chunk_size,
-                    "compressed_segmentation_block_size": [8, 8, 8],
-                    "encoding": "compressed_segmentation",
-                    "key": "_".join([str(x) for x in voxel_spacing]),
-                    "resolution": voxel_spacing,
-                    "size": list(annotation.shape),
-                }
-            ],
-            "type": "segmentation",
-            "mesh": "mesh",
-            "segment_properties": "segment_properties",
-        }
-
-    # write to an info file in the ccf_meshes folder
-    with open((meshes_dir / "info"), "w") as f:
-        json.dump(info_d, f)
-
+    # Update info to point to mesh dir
+    info_path = Path(precomputed_output) / "info"
+    if info_path.exists():
+        with open(info_path, "r") as f:
+            existing_info = json.load(f)
+    else:
+        existing_info = {}
+    existing_info.update({"mesh": "mesh"})
+    with open(info_path, "w") as f:
+        json.dump(existing_info, f, indent=2)

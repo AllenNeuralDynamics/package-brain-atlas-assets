@@ -69,6 +69,8 @@ class AnnotationSet(AtlasAsset):
         scale_vec, rotation_mat, translation_vec = decompose_affine(
             high_res_affine
         )  # Ensure affine is decomposed correctly
+        # Round scale
+        scale_vec = [round(1e4*dim)/1e4 for dim in scale_vec]
         logging.info(
             f"Decomposed affine for highest resolution: scale={scale_vec}, translation={translation_vec}, rotation=\n{rotation_mat}"
         )
@@ -89,7 +91,7 @@ class AnnotationSet(AtlasAsset):
         if include_meshes:
             # Create mesh precomputed objects from annotation
             logging.info(f"Creating meshes from annotation to {precomputed_output}")
-            create_mesh_from_annotation(self, compressed_results, precomputed_output)
+            create_mesh_from_annotation(high_res_data, self.scales, self.terminology.df, precomputed_output)
 
         # Compute voxel counts for all terms using highest resolution data
         logging.info("Computing voxel counts for all terms at highest resolution...")

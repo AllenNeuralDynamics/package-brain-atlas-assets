@@ -53,7 +53,7 @@ def main():
     smartspim_dir = Path("/data/smartspim_lca_template_opendata")
     devmouse_dir = Path("/data/devmouse-atlas-assets")
     hmba_dir = Path("/data/hmba")
-    results_dir = Path("/scratch")
+    results_dir = Path("/results")
 
     # Initialize asset library
     library = AssetLibrary()
@@ -74,7 +74,7 @@ def main():
     # idisco.package_idisco_template(results_dir)
 
     # # Package CCF 2020 annotations
-    # CCFv2020.package_ccf2020(abc_dir, results_dir, library, scales=(10,))    
+    CCFv2020.package_ccf2020(abc_dir, results_dir, library, scales=(10,))    
 
     # Package HMBA atlases
     HMBA.package_ccf(hmba_dir, results_dir, 

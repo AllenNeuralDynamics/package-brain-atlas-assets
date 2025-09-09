@@ -260,8 +260,6 @@ def create_all_ccf_annotation_sets(input_dir: Path, results_dir: Path, library, 
         annotation_set.create_manifest(results_dir)
         library.add(annotation_set)
 
-        create_mesh_from_annotation(annotation_set, terminology, annotation_dir)
-
     logging.info("All CCF anatomical annotation sets created successfully")
 
 
@@ -326,21 +324,21 @@ def package_ccf(input_dir, output_dir, library, scales):
     anatomical_space = CoordinateSpace(
         name="hmba-adult-human-mri-space",
         version="2025",
-        anatomical_template=library.get_anatomical_template("hmba-adult-human-mri-template", "2025"),
+        template=library.get_template("hmba-adult-human-mri-template", "2025"),
     )
     library.add(anatomical_space)
 
     anatomical_space = CoordinateSpace(
         name="hmba-adult-macaque-mri-space",
         version="2025",
-        anatomical_template=library.get_anatomical_template("hmba-adult-macaque-mri-template", "2025"),
+        template=library.get_template("hmba-adult-macaque-mri-template", "2025"),
     )
     library.add(anatomical_space)
 
     anatomical_space = CoordinateSpace(
         name="hmba-adult-marmoset-mri-space",
         version="2025",
-        anatomical_template=library.get_anatomical_template("hmba-adult-marmoset-mri-template", "2025"),
+        template=library.get_template("hmba-adult-marmoset-mri-template", "2025"),
     )
     library.add(anatomical_space)
 
@@ -349,33 +347,33 @@ def package_ccf(input_dir, output_dir, library, scales):
         Atlas(
             name="hmba-adult-human-homba-atlas",
             version="2025",
-            anatomical_space=library.get_anatomical_space(name="hmba-adult-human-mri-space", version="2025"),
-            anatomical_annotation_set=library.get_anatomical_annotation_set(
+            coordinate_space=library.get_coordinate_space(name="hmba-adult-human-mri-space", version="2025"),
+            annotation_set=library.get_annotation_set(
                 name="hmba-adult-human-homba-annotation", version="2025"
             ),
-            parcellation_terminology=library.get_parcellation_terminology(
+            terminology=library.get_terminology(
                 name="hmba-mammalian-homba-terminology", version="2025"
             ),
         ),
         Atlas(
             name="hmba-adult-macaque-homba-atlas",
             version="2025",
-            anatomical_space=library.get_anatomical_space(name="hmba-adult-macaque-mri-space", version="2025"),
-            anatomical_annotation_set=library.get_anatomical_annotation_set(
+            coordinate_space=library.get_coordinate_space(name="hmba-adult-macaque-mri-space", version="2025"),
+            annotation_set=library.get_annotation_set(
                 name="hmba-adult-macaque-homba-annotation", version="2025"
             ),
-            parcellation_terminology=library.get_parcellation_terminology(
+            terminology=library.get_terminology(
                 name="hmba-mammalian-homba-terminology", version="2025"
             ),
         ),
         Atlas(
             name="hmba-adult-marmoset-homba-atlas",
             version="2025",
-            anatomical_space=library.get_anatomical_space(name="hmba-adult-marmoset-mri-space", version="2025"),
-            anatomical_annotation_set=library.get_anatomical_annotation_set(
+            coordinate_space=library.get_coordinate_space(name="hmba-adult-marmoset-mri-space", version="2025"),
+            annotation_set=library.get_annotation_set(
                 name="hmba-adult-marmoset-homba-annotation", version="2025"
             ),
-            parcellation_terminology=library.get_parcellation_terminology(
+            terminology=library.get_terminology(
                 name="hmba-mammalian-homba-terminology", version="2025"
             ),
         ),
