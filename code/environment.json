@@ -1,0 +1,57 @@
+{
+	"version": 1,
+	"base_image": "codeocean/code-server-python-extensions-pack:code-server4.101.2python3.12.4aind-metadata-mcp0.4.2",
+	"options": {
+		"registry_host_arg": true,
+		"git_ask_pass": true,
+		"mount_secrets": true
+	},
+	"installers": {
+		"pip": {
+			"packages": [
+				{
+					"name": "aind-data-schema",
+					"version": "2.0.1"
+				},
+				{
+					"name": "awscli",
+					"version": "1.42.21"
+				},
+				{
+					"name": "cloud-volume",
+					"version": "12.4.1"
+				},
+				{
+					"name": "nibabel",
+					"version": "5.3.2"
+				},
+				{
+					"name": "ome-zarr",
+					"version": "0.12.2"
+				},
+				{
+					"name": "pandas",
+					"version": "2.3.2"
+				},
+				{
+					"name": "pyarrow",
+					"version": "21.0.0"
+				},
+				{
+					"name": "simpleitk",
+					"version": "2.5.2"
+				},
+				{
+					"name": "tensorstore",
+					"version": "0.1.76"
+				},
+				{
+					"name": "zmesh",
+					"version": "1.8.0"
+				}
+			],
+			"options": {},
+			"pre_install_options": {}
+		}
+	}
+}

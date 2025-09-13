@@ -188,49 +188,39 @@ def convert_compressed_annotations_to_precomputed(
 
     logging.info(f"Successfully created precomputed annotation file at {output_location}")
 
-def _compute_meshes_from_annotation(terminology_ids, 
-                                    annotation: np.ndarray,
-                                    voxel_spacing: list,
-                                    meshes_dir: Path):
-
-    annotation_ids = np.unique(annotation)[1:] # Leaving out 0 (background)
-
+def _compute_hierarchical_meshes_from_compressed_annotation(
+    terminology_ids,
+    annotation: np.ndarray,
+    voxel_spacing: list,
+):
+    """
+    Generator that computes meshes for each structure defined by the
+    provided terminology and yields (struct_id, mesh) tuples.
+    - Handles only computation; no file IO.
+    - Skips background id 0.
+    """
+    annotation_ids = np.unique(annotation)[1:]  # Leaving out 0 (background)
     for struct_id, descendants in terminology_ids:
-        desc = np.asarray(descendants)
-        desc = desc.astype(annotation_ids.dtype, copy=False)
-        match_ids = np.intersect1d(desc, annotation_ids)
+        match_ids = set(descendants) & set(annotation_ids)
+        if not match_ids:
+            continue
+        struct = np.zeros_like(annotation)
+        mask = np.isin(annotation, np.array(list(match_ids)))
+        struct[mask] = struct_id
+        mesher = Mesher(voxel_spacing)
+        mesher.mesh(struct, close=True)
+        mesh = mesher.get(
+            struct_id,
+            normals=False,  # whether to calculate normals or not
+            reduction_factor=2,
+            max_error=8,  # Maximum tolerable error in physical space (um)
+            voxel_centered=False,  # Voxel center set to index, eg. [0,0,0]
+        )
+        mesh = mesher.compute_normals(mesh)
 
-        if match_ids.size > 0:
-            struct = np.zeros_like(annotation)
-            mask = np.isin(annotation,match_ids)
-            struct[mask] = struct_id
+        yield struct_id, mesh
 
-            mesher = Mesher(voxel_spacing)
-            mesher.mesh(struct, close=True)
-
-            mesh = mesher.get(
-                        struct_id,
-                        normals=False,  # whether to calculate normals or not
-                        reduction_factor=2,
-                        max_error=8,  # Maximum tolerable error in physical space (um)
-                        voxel_centered=False,  # Voxel center set to index, eg. [0,0,0]
-                    )
-            mesh = mesher.compute_normals(mesh)
-
-            cv_manifest = meshes_dir / f"{struct_id}:0"
-            manifest_json = {"fragments": [f"{struct_id}:0:0"]}
-            # write the manifest
-            with open(cv_manifest, "w") as f:
-                json.dump(manifest_json, f)
-
-            save_filename = meshes_dir / f"{struct_id}:0:0"
-            with open(save_filename, "wb") as f:
-                f.write(mesh.to_precomputed())
-
-            mesher.erase(struct_id)  # delete high res mesh for memory``
-            mesher.clear()
-
-def create_mesh_from_annotation(
+def create_mesh_from_compressed_annotation(
     annotation,
     scales,
     terminology,
@@ -250,8 +240,19 @@ def create_mesh_from_annotation(
     logging.info(f"Annotation dtype: {annotation.dtype}. Should be uint32.")
     terminology_ids = zip(terminology["annotation_value"], terminology["descendant_annotation_values"])
     
-    # Compute meshes 
-    meshes = _compute_meshes_from_annotation(terminology_ids, annotation, voxel_spacing, meshes_dir)
+    # Compute meshes and write precomputed files
+    for struct_id, mesh in _compute_hierarchical_meshes_from_compressed_annotation(
+        terminology_ids, annotation, voxel_spacing
+    ):
+        # Write manifest
+        cv_manifest = meshes_dir / f"{struct_id}:0"
+        manifest_json = {"fragments": [f"{struct_id}:0:0"]}
+        with open(cv_manifest, "w") as f:
+            json.dump(manifest_json, f)
+        # Write fragment bytes
+        save_filename = meshes_dir / f"{struct_id}:0:0"
+        with open(save_filename, "wb") as f:
+            f.write(mesh.to_precomputed())
 
     # Update info to point to mesh dir
     info_path = Path(precomputed_output) / "info"

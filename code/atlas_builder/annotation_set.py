@@ -17,7 +17,7 @@ from atlas_builder.template import Template
 from atlas_builder.atlas_asset import AtlasAsset
 from atlas_builder.terminology import Terminology
 from atlas_builder.precomputed import (convert_compressed_annotations_to_precomputed,
-                                      write_segment_properties, create_mesh_from_annotation)
+                                      write_segment_properties, create_mesh_from_compressed_annotation)
 from utils import decompose_affine
 
 
@@ -91,7 +91,7 @@ class AnnotationSet(AtlasAsset):
         if include_meshes:
             # Create mesh precomputed objects from annotation
             logging.info(f"Creating meshes from annotation to {precomputed_output}")
-            create_mesh_from_annotation(high_res_data, self.scales, self.terminology.df, precomputed_output)
+            create_mesh_from_compressed_annotation(high_res_data, self.scales, self.terminology.df, precomputed_output)
 
         # Compute voxel counts for all terms using highest resolution data
         logging.info("Computing voxel counts for all terms at highest resolution...")
