@@ -79,8 +79,7 @@ def main():
     CCFv2020.package_ccf2020(abc_dir, results_dir, library, scales=(10,))    
 
     # Package HMBA atlases
-    HMBA.package_ccf(hmba_dir, results_dir, 
-    library, scales=hmba_scales)
+    HMBA.package_ccf(hmba_dir, results_dir, library, scales=hmba_scales)
 
     for a in library.coordinate_spaces:
         a.create_manifest(results_dir)

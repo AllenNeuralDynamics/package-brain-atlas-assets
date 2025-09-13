@@ -11,9 +11,6 @@ from atlas_builder import (AnnotationSet, CoordinateSpace,
                           Template, Atlas,
                           Terminology)
 
-# from atlas_builder.mesh import Mesh
-from atlas_builder.precomputed import create_mesh_from_annotation
-
 import datetime
 from aind_data_schema.core.data_description import DataDescription, Funding
 from aind_data_schema_models.data_name_patterns import build_data_name
