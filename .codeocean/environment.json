@@ -15,11 +15,11 @@
 				},
 				{
 					"name": "awscli",
-					"version": "1.42.21"
+					"version": "1.42.32"
 				},
 				{
 					"name": "cloud-volume",
-					"version": "12.4.1"
+					"version": "12.5.0"
 				},
 				{
 					"name": "nibabel",
@@ -44,10 +44,6 @@
 				{
 					"name": "tensorstore",
 					"version": "0.1.76"
-				},
-				{
-					"name": "zmesh",
-					"version": "1.8.0"
 				}
 			],
 			"options": {},
