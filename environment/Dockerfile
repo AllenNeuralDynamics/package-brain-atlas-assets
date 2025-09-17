@@ -15,4 +15,5 @@ RUN pip install -U --no-cache-dir \
     pandas==2.3.2 \
     pyarrow==21.0.0 \
     simpleitk==2.5.2 \
-    tensorstore==0.1.76
+    tensorstore==0.1.76 \
+    zmesh==1.8.0

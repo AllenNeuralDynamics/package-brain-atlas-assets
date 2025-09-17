@@ -35,7 +35,7 @@ def load_nifti_channels(res_dir):
         arrays.append(img.get_fdata(dtype=np.float32))
         # Remove the last _<digits>um or _<digits> before the extension
         base = f.name
-        base = re.sub(r'(_\d+um?|_\d+)?(\.nii(\.gz)?)$', '', base)
+        base = re.sub(r"(_\d+um?|_\d+)?(\.nii(\.gz)?)$", "", base)
         channel_names.append(base)
     if not arrays:
         raise RuntimeError(f"No NIfTI files found in {res_dir}")
@@ -57,7 +57,6 @@ def package_idisco_template(results_dir):
     output_dir.mkdir(parents=True, exist_ok=True)
     zarr_path = output_dir / "template.ome.zarr"
     group = zarr_lib.open(str(zarr_path), mode="w")
-
 
     arrays = []
     all_channel_names = None
@@ -86,9 +85,7 @@ def package_idisco_template(results_dir):
             all_channel_names = channel_names
         elif channel_names != all_channel_names:
             logging.warning(f"Channel names at {res}um do not match previous scales!")
-        coordinate_transformations.append([
-            {"type": "scale", "scale": [1.0] + scale_vec.tolist()}
-        ])
+        coordinate_transformations.append([{"type": "scale", "scale": [1.0] + scale_vec.tolist()}])
 
     if not arrays:
         raise RuntimeError("No valid scales found to write OME-Zarr multiscale.")

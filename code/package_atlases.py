@@ -8,6 +8,7 @@ from pathlib import Path
 
 import CCFv3
 import CCFv2020
+import HMBA
 import devmouse
 import SmartSPIM
 import idisco
@@ -43,16 +44,16 @@ def main():
     annotation sets, and coordinate transformations.
     """
     scales = (10, 25, 50, 100)
+    hmba_scales = {"hcp": (700,), "mac25": (160,), "riken25": (70,)}
 
-    logging.basicConfig(
-        level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s"
-    )
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 
     abc_dir = Path("/data/abc_atlas")
     ccf3_dir = Path("/data/allen_mouse_ccf")
     smartspim_dir = Path("/data/smartspim_lca_template_opendata")
     devmouse_dir = Path("/data/devmouse-atlas-assets")
-    results_dir = Path("/scratch")
+    hmba_dir = Path("/data/hmba")
+    results_dir = Path("/results")
 
     # Initialize asset library
     library = AssetLibrary()
@@ -60,22 +61,25 @@ def main():
     # Clear the entire results directory
     clear_directory(results_dir)
 
-    # # Package DevMouse atlas assets first
-    # devmouse.package_devmouse(devmouse_dir, results_dir, library)
+    # Package DevMouse atlas assets first
+    devmouse.package_devmouse(devmouse_dir, results_dir, library)
 
-    # # Package CCF 3 legacy annotations and templates
-    # CCFv3.package_ccf(ccf3_dir, results_dir, library, scales=scales)
+    # Package CCF 3 legacy annotations and templates
+    CCFv3.package_ccf(ccf3_dir, results_dir, library, scales=scales)
 
-    # # Package SmartSPIM template (uses library for assets)
-    # SmartSPIM.package_smartspim_template(
-    #     smartspim_dir, results_dir, library, scales=scales
-    # )
+    # Package SmartSPIM template (uses library for assets)
+    SmartSPIM.package_smartspim_template(
+        smartspim_dir, results_dir, library, scales=scales
+    )
 
-    # # Package iDISCO template
-    # idisco.package_idisco_template(results_dir)
+    # Package iDISCO template
+    idisco.package_idisco_template(results_dir)
 
-    # # Package CCF 2020 annotations
-    # CCFv2020.package_ccf2020(abc_dir, results_dir, library, scales=(10,))    
+    # Package CCF 2020 annotations
+    CCFv2020.package_ccf2020(abc_dir, results_dir, library, scales=(10,))    
+
+    # Package HMBA atlases
+    HMBA.package_ccf(hmba_dir, results_dir, library, scales=hmba_scales)
 
     for a in library.coordinate_spaces:
         a.create_manifest(results_dir)

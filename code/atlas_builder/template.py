@@ -35,6 +35,7 @@ class Template(AtlasAsset):
             src = f"{prefix}_{scale}.nii.gz"
             dst_fname = f"template_{scale}.nii.gz"
             dst = template_dir / dst_fname
+            logging.info(f"Destination file: {dst}")
             if not dst.exists():
                 shutil.copy2(src, dst)
                 logging.info(f"Copied {src} to {dst} with new name")
@@ -83,9 +84,7 @@ class Template(AtlasAsset):
             )
 
         group = zarr.open(output_zarr_path, mode="w")
-        logging.info(
-            "Writing OME-Zarr multiscale with affine transforms and chunk size (128, 128, 128)..."
-        )
+        logging.info("Writing OME-Zarr multiscale with affine transforms and chunk size (128, 128, 128)...")
         compressor = {"id": "blosc", "cname": "zstd", "clevel": 3, "shuffle": 1}
         write_multiscale(
             arrays,
@@ -95,9 +94,7 @@ class Template(AtlasAsset):
             chunks=(128, 128, 128),
             compressor=compressor,
         )
-        logging.info(
-            f"OME-Zarr multiscale with affine transforms written to {output_zarr_path}"
-        )
+        logging.info(f"OME-Zarr multiscale with affine transforms written to {output_zarr_path}")
 
     def create(self, input_prefix: Path, output_root: Path):
         """Create complete template package with NIfTI and OME-Zarr formats."""

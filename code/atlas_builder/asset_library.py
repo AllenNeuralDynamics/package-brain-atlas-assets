@@ -50,9 +50,7 @@ class AssetLibrary:
         """Get a coordinate transformation by name and version."""
         asset = self._assets[CoordinateTransformation.__name__].get((name, version))
         if asset is None:
-            raise KeyError(
-                f"CoordinateTransformation with name='{name}' and version='{version}' not found in library"
-            )
+            raise KeyError(f"CoordinateTransformation with name='{name}' and version='{version}' not found in library")
         return asset
 
     def get_template(self, name: str, version: str) -> AtlasAsset:

@@ -39,9 +39,7 @@ class Terminology(AtlasAsset):
         logging.info("Pre-computing descendant lists for all terms in terminology...")
 
         # Add descendant_identifiers column to DataFrame (includes self)
-        self.df["descendant_identifiers"] = self.df["identifier"].apply(
-            self._compute_descendant_identifiers
-        )
+        self.df["descendant_identifiers"] = self.df["identifier"].apply(self._compute_descendant_identifiers)
         # Backward-compatible alias
         self.df["descendants"] = self.df["descendant_identifiers"]
 
@@ -96,9 +94,7 @@ class Terminology(AtlasAsset):
 
         if not include_self:
             # Remove the identifier itself from the list
-            descendant_identifiers = [
-                desc_id for desc_id in descendant_identifiers if desc_id != identifier
-            ]
+            descendant_identifiers = [desc_id for desc_id in descendant_identifiers if desc_id != identifier]
 
         return self.df[self.df["identifier"].isin(descendant_identifiers)]
 

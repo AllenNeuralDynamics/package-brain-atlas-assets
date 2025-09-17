@@ -5,6 +5,7 @@ from pathlib import Path
 import cloudvolume
 import numpy as np
 import tensorstore as ts
+from zmesh import Mesher
 
 
 def append_mesh_to_precomputed(mesh, scale, precomputed_file, identifier):
@@ -28,9 +29,7 @@ def append_mesh_to_precomputed(mesh, scale, precomputed_file, identifier):
         f.write(cvbytes)
 
 
-def append_meshes_to_precomputed(
-    meshes, precomputed_file, scale, map_annotation_value=None, mesh_dir="mesh"
-):
+def append_meshes_to_precomputed(meshes, precomputed_file, scale, map_annotation_value=None, mesh_dir="mesh"):
     """Append meshes to an existing precomputed dataset and update info (moved)."""
     map_annotation_value = map_annotation_value or (lambda x: x)
 
@@ -83,9 +82,7 @@ def write_segment_properties(
             name = row.get("name", "")
             abbrev_labels.append(f"{abbr}: {name}".strip(": "))
             if has_term_set:
-                term_set_values.append(
-                    row.get("term_set_name") if row.get("term_set_name") else None
-                )
+                term_set_values.append(row.get("term_set_name") if row.get("term_set_name") else None)
 
     properties = [
         {
@@ -134,12 +131,18 @@ def write_segment_properties(
 
 
 def convert_compressed_annotations_to_precomputed(
-    annotation_data, output_location, scale=(.01, .01, .01), chunk_size=(256, 256, 64)
+    annotation_data,
+    output_location,
+    scale=(0.01, 0.01, 0.01),
+    chunk_size=(256, 256, 64),
 ):
     """Convert compressed annotation data to precomputed format (moved)."""
     logging.info("Converting compressed annotations to precomputed format")
     logging.info(f"Data shape: {annotation_data.shape}, dtype: {annotation_data.dtype}")
     logging.info(f"Output location: {output_location}")
+
+    output_location = Path(output_location).resolve()
+    output_location.mkdir(parents=True, exist_ok=True)
 
     # zyx -> xyz
     annotation_data = annotation_data.T
@@ -148,7 +151,7 @@ def convert_compressed_annotations_to_precomputed(
     spec = {
         "kvstore": {
             "driver": "file",
-            "path": output_location,
+            "path": str(output_location),
         },
         "driver": "neuroglancer_precomputed",
         "dtype": "uint32",
@@ -183,6 +186,81 @@ def convert_compressed_annotations_to_precomputed(
     store = ts.open(spec).result()
     store[:, :, :, 0].write(annotation_data.astype(np.uint32)).result()
 
-    logging.info(
-        f"Successfully created precomputed annotation file at {output_location}"
-    )
+    logging.info(f"Successfully created precomputed annotation file at {output_location}")
+
+def _compute_hierarchical_meshes_from_compressed_annotation(
+    terminology_ids,
+    annotation: np.ndarray,
+    voxel_spacing: list,
+):
+    """
+    Generator that computes meshes for each structure defined by the
+    provided terminology and yields (struct_id, mesh) tuples.
+    - Handles only computation; no file IO.
+    - Skips background id 0.
+    """
+    annotation_ids = np.unique(annotation)[1:]  # Leaving out 0 (background)
+    for struct_id, descendants in terminology_ids:
+        match_ids = set(descendants) & set(annotation_ids)
+        if not match_ids:
+            continue
+        struct = np.zeros_like(annotation)
+        mask = np.isin(annotation, np.array(list(match_ids)))
+        struct[mask] = struct_id
+        mesher = Mesher(voxel_spacing)
+        mesher.mesh(struct, close=True)
+        mesh = mesher.get(
+            struct_id,
+            normals=False,  # whether to calculate normals or not
+            reduction_factor=2,
+            max_error=8,  # Maximum tolerable error in physical space (um)
+            voxel_centered=False,  # Voxel center set to index, eg. [0,0,0]
+        )
+        mesh = mesher.compute_normals(mesh)
+
+        yield struct_id, mesh
+
+def create_mesh_from_compressed_annotation(
+    annotation,
+    scales,
+    terminology,
+    precomputed_output: Path,
+    chunk_size=(256, 256, 64),
+):
+    """Create meshes from annotation volume using zmesh's Mesher function"""
+
+    meshes_dir = precomputed_output / "mesh"
+    meshes_dir.mkdir(parents=True, exist_ok=True)
+
+    voxel_spacing = [1000 * min(scales)] * 3  # Assumes isometric voxels. Multiplied by 1000 to get units into nm
+    
+    # Get annotation and terminology from annotation_set (see AnnotationSet) and extract identifiers
+    annotation = annotation.astype(np.uint32)
+    annotation = annotation.transpose(2,1,0) #Orient to z,y,x to align with neuroglancer format
+    logging.info(f"Annotation dtype: {annotation.dtype}. Should be uint32.")
+    terminology_ids = zip(terminology["annotation_value"], terminology["descendant_annotation_values"])
+    
+    # Compute meshes and write precomputed files
+    for struct_id, mesh in _compute_hierarchical_meshes_from_compressed_annotation(
+        terminology_ids, annotation, voxel_spacing
+    ):
+        # Write manifest
+        cv_manifest = meshes_dir / f"{struct_id}:0"
+        manifest_json = {"fragments": [f"{struct_id}:0:0"]}
+        with open(cv_manifest, "w") as f:
+            json.dump(manifest_json, f)
+        # Write fragment bytes
+        save_filename = meshes_dir / f"{struct_id}:0:0"
+        with open(save_filename, "wb") as f:
+            f.write(mesh.to_precomputed())
+
+    # Update info to point to mesh dir
+    info_path = Path(precomputed_output) / "info"
+    if info_path.exists():
+        with open(info_path, "r") as f:
+            existing_info = json.load(f)
+    else:
+        existing_info = {}
+    existing_info.update({"mesh": "mesh"})
+    with open(info_path, "w") as f:
+        json.dump(existing_info, f, indent=2)

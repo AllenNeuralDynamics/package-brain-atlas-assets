@@ -17,8 +17,9 @@ from atlas_builder.template import Template
 from atlas_builder.atlas_asset import AtlasAsset
 from atlas_builder.terminology import Terminology
 from atlas_builder.precomputed import (convert_compressed_annotations_to_precomputed,
-                                      write_segment_properties)
+                                      write_segment_properties, create_mesh_from_compressed_annotation)
 from utils import decompose_affine
+
 
 @dataclass
 class AnnotationSet(AtlasAsset):
@@ -44,7 +45,7 @@ class AnnotationSet(AtlasAsset):
             "terminology": self.terminology.manifest,
         }
 
-    def create(self, compressed_results, output_root):
+    def create(self, compressed_results, output_root, include_meshes=True):
         """Create annotation set from compressed annotation data at multiple scales.
 
         Args:
@@ -58,25 +59,25 @@ class AnnotationSet(AtlasAsset):
 
         # Convert compressed annotations to OME-Zarr multiscale format
         logging.info("Converting compressed anatomical annotations to OME-zarr...")
-        convert_compressed_annotations_to_zarr(
-            compressed_results, output_dir, scales=self.scales
-        )
+        convert_compressed_annotations_to_zarr(compressed_results, output_dir, scales=self.scales)
 
         # Create precomputed file using highest resolution scale
         highest_res_scale = min(self.scales)  # Smallest number = highest resolution
-        logging.info(
-            f"Creating precomputed annotation file using highest resolution scale: {highest_res_scale}μm"
-        )
+        logging.info(f"Creating precomputed annotation file using highest resolution scale: {highest_res_scale}μm")
 
         high_res_data, high_res_affine = compressed_results[highest_res_scale]
-        scale_vec, rotation_mat, translation_vec = decompose_affine(high_res_affine)  # Ensure affine is decomposed correctly
+        scale_vec, rotation_mat, translation_vec = decompose_affine(
+            high_res_affine
+        )  # Ensure affine is decomposed correctly
+        # Round scale
+        scale_vec = [round(1e4*dim)/1e4 for dim in scale_vec]
         logging.info(
             f"Decomposed affine for highest resolution: scale={scale_vec}, translation={translation_vec}, rotation=\n{rotation_mat}"
         )
-        precomputed_output = str(output_dir / "annotations.precomputed")
+        precomputed_output = output_dir / "annotations.precomputed"
         convert_compressed_annotations_to_precomputed(
             high_res_data,
-            precomputed_output,
+            str(precomputed_output),
             scale=scale_vec,
         )
 
@@ -87,22 +88,23 @@ class AnnotationSet(AtlasAsset):
             self.terminology.df,
         )
 
+        if include_meshes:
+            # Create mesh precomputed objects from annotation
+            logging.info(f"Creating meshes from annotation to {precomputed_output}")
+            create_mesh_from_compressed_annotation(high_res_data, self.scales, self.terminology.df, precomputed_output)
+
         # Compute voxel counts for all terms using highest resolution data
         logging.info("Computing voxel counts for all terms at highest resolution...")
-        voxel_counts_df = self.count_voxels_for_all_terms(
-            high_res_data, highest_res_scale
-        )
+        voxel_counts_df = self.count_voxels_for_all_terms(high_res_data, highest_res_scale)
 
         # Save voxel counts to a CSV file for reference
         voxel_counts_file = output_dir / "parcellation_volumes.csv"
         voxel_counts_df.to_csv(voxel_counts_file, index=False)
-        logging.info(
-            f"Saved voxel counts for {len(voxel_counts_df)} terms to {voxel_counts_file}"
-        )
+        logging.info(f"Saved voxel counts for {len(voxel_counts_df)} terms to {voxel_counts_file}")
 
         logging.info(f"Created annotation set at {output_dir}")
 
-    def create_from_nifti(self, input_prefix, output_root):
+    def create_from_nifti(self, input_prefix, output_root, include_meshes=True):
         """Create annotation set from NIfTI source files with standardized naming convention.
 
         Args:
@@ -123,16 +125,16 @@ class AnnotationSet(AtlasAsset):
 
         # Load the copied files and use the general create method
         compressed_results = load_compressed_annotations(output_dir, scales=self.scales)
-        self.create(compressed_results, output_root)
+        self.create(compressed_results, output_root, include_meshes=include_meshes)
 
-    def create_from_mhd(self, mhd_paths, output_root):
+    def create_from_mhd(self, mhd_paths, output_root, include_meshes=True):
         """Create annotation set from MHD (Meta Image) source files.
-        
+
         Args:
             mhd_paths: Dictionary mapping scale to MHD file paths, or single MHD path for single scale
             output_root: Root directory where the annotation set will be created
         """
-        
+
         output_dir = self.location(output_root)
         output_dir.mkdir(parents=True, exist_ok=True)
 
@@ -144,26 +146,26 @@ class AnnotationSet(AtlasAsset):
             if len(self.scales) != 1:
                 raise ValueError("Single MHD path provided but annotation set has multiple scales")
             mhd_paths = {self.scales[0]: mhd_paths}
-        
+
         # Convert MHD files to NIfTI with proper naming and collect compressed results
         compressed_results = {}
-        
+
         for scale in self.scales:
             if scale not in mhd_paths:
                 logging.warning(f"No MHD file provided for scale {scale}, skipping")
                 continue
-                
+
             mhd_path = mhd_paths[scale]
             logging.info(f"Processing MHD file for scale {scale}: {mhd_path}")
-            
+
             # Read MHD file using SimpleITK
             image = sitk.ReadImage(str(mhd_path))
-            
+
             # Convert spacing from microns to millimeters (divide by 1000)
             spacing_microns = image.GetSpacing()
             spacing_mm = tuple(s / 1000.0 for s in spacing_microns)
             image.SetSpacing(spacing_mm)
-            
+
             # Convert origin from microns to millimeters (divide by 1000)
             origin_microns = image.GetOrigin()
             origin_mm = tuple(o / 1000.0 for o in origin_microns)
@@ -173,19 +175,19 @@ class AnnotationSet(AtlasAsset):
             temp_nii = output_dir / f"annotations_compressed_{scale}.nii.gz"
             sitk.WriteImage(image, str(temp_nii))
             logging.info(f"Converted MHD to NIfTI: {temp_nii}")
-            
+
             # Load the converted file to get compressed results
             img = nib.load(str(temp_nii))
             compressed_data = img.get_fdata().astype(np.int32)
             compressed_results[scale] = (compressed_data, img.affine)
-            
+
             logging.info(f"Loaded compressed annotation for scale {scale} with shape {compressed_data.shape}")
 
         if not compressed_results:
             raise ValueError("No valid MHD files were processed")
 
         # Use the general create method with the compressed results
-        self.create(compressed_results, output_root)
+        self.create(compressed_results, output_root, include_meshes=include_meshes)
 
     def count_voxels_for_all_terms(self, compressed_annotation_data, spacing):
         """Count voxels for all terms in the terminology and return results as a DataFrame.
@@ -244,13 +246,9 @@ class AnnotationSet(AtlasAsset):
         voxel_counts = {term_id: 0 for term_id in term_to_identifier.keys()}
 
         # Get unique values in the annotation data (excluding background 0)
-        unique_values, counts = np.unique(
-            compressed_annotation_data, return_counts=True
-        )
+        unique_values, counts = np.unique(compressed_annotation_data, return_counts=True)
 
-        logging.info(
-            f"Found {len(unique_values)} unique annotation values, processing voxel counts..."
-        )
+        logging.info(f"Found {len(unique_values)} unique annotation values, processing voxel counts...")
 
         # For each unique annotation value, add its count to all terms that include it
         for annotation_value, count in zip(unique_values, counts):
@@ -343,9 +341,7 @@ def uncompress_single_scale(
     data_annotation_values = set(np.unique(compressed_data))
     data_annotation_values.discard(0)  # Remove background
 
-    logging.info(
-        f"Found {len(data_annotation_values)} unique annotation values in data"
-    )
+    logging.info(f"Found {len(data_annotation_values)} unique annotation values in data")
 
     # Process all identifiers in the terminology
     identifiers_with_data = []
@@ -355,17 +351,13 @@ def uncompress_single_scale(
 
         # Check which descendant values are present in the data
         if descendant_values:
-            present_descendants = [
-                val for val in descendant_values if val in data_annotation_values
-            ]
+            present_descendants = [val for val in descendant_values if val in data_annotation_values]
         else:
             present_descendants = []
         # Include all identifiers for consistent dimensions (will be all zeros if no descendants present)
         identifiers_with_data.append((identifier, present_descendants))
 
-    logging.info(
-        f"Processing {len(identifiers_with_data)} identifiers from terminology"
-    )
+    logging.info(f"Processing {len(identifiers_with_data)} identifiers from terminology")
 
     # Create uncompressed array: (identifiers, z, y, x)
     identifiers = [s[0] for s in identifiers_with_data]
@@ -376,9 +368,7 @@ def uncompress_single_scale(
     new_affine[:3, :3] = affine[:3, :3]
     new_affine[:3, 3] = affine[:3, 3]
 
-    logging.info(
-        f"Creating zarr array and writing annotations in batches for scale {scale}"
-    )
+    logging.info(f"Creating zarr array and writing annotations in batches for scale {scale}")
 
     # Create zarr array
     compressor = zarr.Blosc(cname="zstd", clevel=3, shuffle=1)
@@ -397,9 +387,7 @@ def uncompress_single_scale(
         batch_identifiers = identifiers_with_data[batch_start:batch_end]
 
         # Create batch array
-        batch_annotations = np.zeros(
-            (len(batch_identifiers),) + compressed_data.shape, dtype=np.uint8
-        )
+        batch_annotations = np.zeros((len(batch_identifiers),) + compressed_data.shape, dtype=np.uint8)
 
         for i, (identifier, descendant_values) in enumerate(batch_identifiers):
             logging.info(
@@ -422,9 +410,7 @@ def uncompress_single_scale(
     return (zarr_array, new_affine, np.array(identifiers))
 
 
-def convert_compressed_annotations_to_zarr(
-    compressed_results, output_dir, scales=(10, 25, 50, 100)
-):
+def convert_compressed_annotations_to_zarr(compressed_results, output_dir, scales=(10, 25, 50, 100)):
     """Convert compressed annotation data to OME-Zarr multiscale format.
 
     Args:
@@ -450,9 +436,7 @@ def convert_compressed_annotations_to_zarr(
         if scale in compressed_results:
             data, affine = compressed_results[scale]
 
-            logging.info(
-                f"Processing compressed scale {scale}: data shape {data.shape}, dtype {data.dtype}"
-            )
+            logging.info(f"Processing compressed scale {scale}: data shape {data.shape}, dtype {data.dtype}")
             arrays.append(data)
 
             # Extract transformation information from affine matrix
@@ -468,9 +452,7 @@ def convert_compressed_annotations_to_zarr(
 
     if arrays:
         group = zarr.open(str(output_zarr_path), mode="w")
-        logging.info(
-            "Writing OME-Zarr multiscale compressed annotations with chunk size (128, 128, 128)..."
-        )
+        logging.info("Writing OME-Zarr multiscale compressed annotations with chunk size (128, 128, 128)...")
 
         # Dictionary format for ome-zarr write_multiscale
         compressor_dict = {"id": "blosc", "cname": "zstd", "clevel": 3, "shuffle": 1}
@@ -484,9 +466,7 @@ def convert_compressed_annotations_to_zarr(
             compressor=compressor_dict,
         )
 
-        logging.info(
-            f"OME-Zarr multiscale compressed annotations written to {output_zarr_path}"
-        )
+        logging.info(f"OME-Zarr multiscale compressed annotations written to {output_zarr_path}")
     else:
         logging.error("No compressed annotation data found to convert")
 
@@ -513,25 +493,19 @@ def load_compressed_annotations(input_dir, scales=(10, 25, 50, 100)):
         compressed_data = img.get_fdata().astype(np.int32)
 
         results[scale] = (compressed_data, img.affine)
-        logging.info(
-            f"Loaded compressed annotation for scale {scale} with shape {compressed_data.shape}"
-        )
+        logging.info(f"Loaded compressed annotation for scale {scale} with shape {compressed_data.shape}")
 
     return results
 
 
-def uncompress_annotations_to_zarr(
-    input_dir, terminology, output_dir, scales=(10, 25, 50, 100)
-):
+def uncompress_annotations_to_zarr(input_dir, terminology, output_dir, scales=(10, 25, 50, 100)):
     """Create hierarchical binary annotations from compressed annotations with memory optimization."""
     # Descendants are already precomputed in the terminology object
 
     output_dir.mkdir(parents=True, exist_ok=True)
     output_zarr_path = output_dir / "annotations.ome.zarr"
 
-    logging.info(
-        "Creating memory-optimized OME-Zarr multiscale format with consistent dimensions"
-    )
+    logging.info("Creating memory-optimized OME-Zarr multiscale format with consistent dimensions")
     logging.info(f"Output Zarr path: {output_zarr_path}")
 
     # Remove existing zarr file if it exists
@@ -633,6 +607,4 @@ def uncompress_annotations_to_zarr(
         )
         logging.info(f"Stored {len(terminology_ids)} terminology IDs")
 
-    logging.info(
-        f"Memory-optimized OME-Zarr multiscale annotations written to {output_zarr_path}"
-    )
+    logging.info(f"Memory-optimized OME-Zarr multiscale annotations written to {output_zarr_path}")

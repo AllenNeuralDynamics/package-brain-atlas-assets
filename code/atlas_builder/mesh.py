@@ -50,6 +50,7 @@ class Mesh:
     @classmethod
     def from_msh(cls, path: str):
         """Load mesh from a binary .msh file produced by Allen tools (moved)."""
+
         def read_exact(f, n):
             data = f.read(n)
             if len(data) != n:
@@ -109,7 +110,11 @@ class Mesh:
                     if n < 3:
                         continue
                     for j in range(n - 2):
-                        a, b, c = int(indices[j]), int(indices[j + 1]), int(indices[j + 2])
+                        a, b, c = (
+                            int(indices[j]),
+                            int(indices[j + 1]),
+                            int(indices[j + 2]),
+                        )
                         if j % 2 == 1:  # flip winding
                             faces[tri_cursor] = [a, c, b]
                         else:
@@ -143,7 +148,9 @@ class Mesh:
                     vertex_normals[nz] = (vertex_normals[nz].T / file_norm_len[nz]).T
 
                 logging.info(
-                    "Loaded MSH: %d vertices, %d faces", vertices.shape[0], faces.shape[0]
+                    "Loaded MSH: %d vertices, %d faces",
+                    vertices.shape[0],
+                    faces.shape[0],
                 )
 
                 return cls(
