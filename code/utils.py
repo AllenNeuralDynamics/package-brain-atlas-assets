@@ -1,7 +1,7 @@
 """Utility functions shared across atlas processing modules."""
 
 import numpy as np
-
+from typing import List
 
 def decompose_affine(affine):
     """Decompose 4x4 affine matrix into scale, rotation, and translation components."""
@@ -18,3 +18,17 @@ def decompose_affine(affine):
     rotation = M / scale
 
     return scale, rotation, translation
+
+def get_image_orientation(rotation_matrix: np.ndarray,
+                          axes_metadata: List,
+                          species: str,
+                          ):
+    
+    # Create lookup for orientation. 
+    # - Humans (bipeds) use anterior-posterior (front-back) and superior-inferior (head-feet)
+    # - Quadrupeds use rostral-caudal (front-back) and dorsal-ventral.
+    orientation_lookup = {'AP': ['anterior','posterior'],
+                          'DV': ['dorsal', 'ventral'],
+                          'LR': ['left', 'right'],
+                          'RC': ['rostral', 'caudal'],
+                          'SI': ['superior', 'inferior']}
