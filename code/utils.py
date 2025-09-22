@@ -27,6 +27,7 @@ def get_image_orientation(rotation_matrix: np.ndarray,
     # Create lookup for orientation. 
     # - Humans (bipeds) use anterior-posterior (front-back) and superior-inferior (head-feet)
     # - Quadrupeds use rostral-caudal (front-back) and dorsal-ventral.
+
     orientation_lookup = {'AP': ['anterior','posterior'],
                           'DV': ['dorsal', 'ventral'],
                           'LR': ['left', 'right'],
