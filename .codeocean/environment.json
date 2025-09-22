@@ -44,10 +44,6 @@
 				{
 					"name": "tensorstore",
 					"version": "0.1.76"
-				},
-				{
-					"name": "zmesh",
-					"version": "1.8.0"
 				}
 			],
 			"options": {},
