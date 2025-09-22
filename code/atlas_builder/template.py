@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 import nibabel as nib
+import SimpleITK as sitk
 import numpy as np
 import zarr
 from ome_zarr.writer import write_multiscale
@@ -66,9 +67,19 @@ class Template(AtlasAsset):
             fname = f"template_{scale}.nii.gz"
             fpath = input_dir / fname
             logging.info(f"Loading file: {fpath}")
-            img = nib.load(str(fpath))
-            data = img.get_fdata().astype(np.float32)
+            # img = nib.load(str(fpath))
+            # data = img.get_fdata().astype(np.float32)
+            img = sitk.ReadImage(str(fpath))
+            data = sitk.GetArrayFromImage(img).astype(np.float32)
             arrays.append(data)
+            spacing = img.GetSpacing()
+            origin = img.GetOrigin()
+            affine = img.GetDirection()
+            logging.info(
+                f"Scale {scale}: data shape {data.shape}, dtype {data.dtype}, spacing {spacing}, "
+                f"origin {origin}, affine:\n{img.affine}\n"
+                #f"Decomposed: scale={scale_vec}, translation={translation_vec}, rotation=\n{rotation_mat}"
+            )
             spacing = img.header.get_zooms()[:3]
             origin = img.affine[:3, 3]
             scale_vec, rotation_mat, translation_vec = decompose_affine(img.affine)
