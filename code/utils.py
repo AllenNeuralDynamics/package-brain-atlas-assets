@@ -2,6 +2,7 @@
 
 import numpy as np
 from typing import List
+import nibabel as nib
 
 def decompose_affine(affine):
     """Decompose 4x4 affine matrix into scale, rotation, and translation components."""
@@ -19,17 +20,30 @@ def decompose_affine(affine):
 
     return scale, rotation, translation
 
-def get_image_orientation(rotation_matrix: np.ndarray,
+def write_image_orientation(affine: np.ndarray,
                           axes_metadata: List,
-                          species: str,
+                          human:bool = False,
                           ):
     
     # Create lookup for orientation. 
     # - Humans (bipeds) use anterior-posterior (front-back) and superior-inferior (head-feet)
     # - Quadrupeds use rostral-caudal (front-back) and dorsal-ventral.
 
-    orientation_lookup = {'AP': ['anterior','posterior'],
-                          'DV': ['dorsal', 'ventral'],
-                          'LR': ['left', 'right'],
-                          'RC': ['rostral', 'caudal'],
-                          'SI': ['superior', 'inferior']}
+    if human:
+        orientation_start = {'R':'right', 'L':'left', 'A':'anterior', 'P':'posterior', 'S':'superior', 'I':'inferior'}
+        orientation_end = {'R':'left',  'L':'right','A':'posterior','P':'anterior','S':'inferior', 'I':'superior'}
+    else:
+        orientation_start = {'R':'right', 'L':'left', 'A':'rostral', 'P':'caudal', 'S':'dorsal', 'I':'ventral'}
+        orientation_end = {'R':'left',  'L':'right','A':'caudal','P':'rostral','S':'ventral', 'I':'dorsal'}
+
+    ax_code = nib.aff2axcodes(affine)
+    axis_directions = [f"{orientation_start[val]}-to-{orientation_end[val]}" for val in ax_code]
+
+    axis_directions = list(reversed(axis_directions)) # [x,y,z] to [z,y,z] to match the numpy axis order
+
+    for idx, axis in enumerate(axes_metadata):
+        axis.update({"orientation": {"type": "anatomical", "value": axis_directions[idx]}})
+
+    return axes_metadata
+
+

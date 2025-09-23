@@ -1,4 +1,4 @@
-# hash:sha256:ac3c056cb8bdcf4b3728c57f61c033df29dab12ee44b87c686dd25abf88c3d4d
+# hash:sha256:e887157fe7033102f93a8776729be0d9e4add5e41b9f69b999d90300cd95b08c
 ARG REGISTRY_HOST
 FROM $REGISTRY_HOST/codeocean/code-server-python-extensions-pack:code-server4.101.2python3.12.4aind-metadata-mcp0.4.2
 
@@ -15,4 +15,5 @@ RUN pip install -U --no-cache-dir \
     pandas==2.3.2 \
     pyarrow==21.0.0 \
     simpleitk==2.5.2 \
-    tensorstore==0.1.76
+    tensorstore==0.1.76 \
+    zmesh==1.8.0

@@ -4,15 +4,14 @@ import logging
 import shutil
 from dataclasses import dataclass
 from pathlib import Path
-
 import nibabel as nib
-import SimpleITK as sitk
 import numpy as np
+import re
 import zarr
 from ome_zarr.writer import write_multiscale
 
 from atlas_builder.atlas_asset import AtlasAsset
-from utils import decompose_affine
+from utils import decompose_affine, write_image_orientation
 
 
 @dataclass
@@ -67,19 +66,9 @@ class Template(AtlasAsset):
             fname = f"template_{scale}.nii.gz"
             fpath = input_dir / fname
             logging.info(f"Loading file: {fpath}")
-            # img = nib.load(str(fpath))
-            # data = img.get_fdata().astype(np.float32)
-            img = sitk.ReadImage(str(fpath))
-            data = sitk.GetArrayFromImage(img).astype(np.float32)
+            img = nib.load(str(fpath))
+            data = img.get_fdata().astype(np.float32)
             arrays.append(data)
-            spacing = img.GetSpacing()
-            origin = img.GetOrigin()
-            affine = img.GetDirection()
-            logging.info(
-                f"Scale {scale}: data shape {data.shape}, dtype {data.dtype}, spacing {spacing}, "
-                f"origin {origin}, affine:\n{img.affine}\n"
-                #f"Decomposed: scale={scale_vec}, translation={translation_vec}, rotation=\n{rotation_mat}"
-            )
             spacing = img.header.get_zooms()[:3]
             origin = img.affine[:3, 3]
             scale_vec, rotation_mat, translation_vec = decompose_affine(img.affine)
@@ -93,6 +82,11 @@ class Template(AtlasAsset):
                     {"type": "scale", "scale": scale_vec.tolist()},
                 ]
             )
+        
+        # Update axis info with orientation
+        human = "human" in str(fpath).lower()
+        axes_orientation = write_image_orientation(img.affine, axes, human=human)
+        logging.info(f"Axis orientation is set to: {axes_orientation}")
 
         group = zarr.open(output_zarr_path, mode="w")
         logging.info("Writing OME-Zarr multiscale with affine transforms and chunk size (128, 128, 128)...")
@@ -100,7 +94,7 @@ class Template(AtlasAsset):
         write_multiscale(
             arrays,
             group,
-            axes=axes,
+            axes=axes_orientation,
             coordinate_transformations=transforms,
             chunks=(128, 128, 128),
             compressor=compressor,
