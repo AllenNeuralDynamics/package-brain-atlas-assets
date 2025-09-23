@@ -426,6 +426,7 @@ def convert_compressed_annotations_to_zarr(compressed_results, output_dir, scale
 
     arrays = []
     transforms = []
+    affines = []
     axes = [
         {"name": "z", "type": "space", "unit": "millimeter"},
         {"name": "y", "type": "space", "unit": "millimeter"},
@@ -450,6 +451,7 @@ def convert_compressed_annotations_to_zarr(compressed_results, output_dir, scale
                     {"type": "scale", "scale": scale_vec.tolist()},
                 ]
             )
+            affines.append(affine.astype(float))
         else:
             logging.warning(f"Scale {scale} not found in compressed results, skipping.")
 
@@ -468,6 +470,47 @@ def convert_compressed_annotations_to_zarr(compressed_results, output_dir, scale
             chunks=(128, 128, 128),  # 3D chunks for compressed data
             compressor=compressor_dict,
         )
+
+        attrs = dict(group.attrs)
+        ome_block = attrs.get("ome")
+        coord_systems = [
+            {"name": "mm", "axes": axes}
+        ]
+        ome_block["coordinateSystems"] = coord_systems
+
+        multiscales = ome_block.get("multiscales", [])[0]
+        array_data = multiscales.get("datasets", []) 
+        for idx in range(len(array_data)):
+            _array = array_data[idx]
+            _array_affine = affines[idx]
+            # Matrix must be stored as 2D nested array
+            dim_order = [2,1,0] # Needs to be flipped to [z,y,x]...I think
+            affine_nested = _array_affine[dim_order, :4]
+
+            array_path = _array.get("path", str(idx))
+            coord_transform = _array.get("coordinateTransformations", [])
+            coordinate_transform_metadata = {
+                    "type": "affine",
+                    "input": array_path,
+                    "output": "mm",
+                    "affine": affine_nested.tolist(),
+                }
+            coord_transform.append(coordinate_transform_metadata)
+            _array["coordinateTransformations"] = coord_transform
+
+            # Apply same coordinate transform to all zarr arrays
+            array_attr = group[array_path].attrs
+            ome_attr = array_attr.get("ome", {})
+            array_coord_transform = ome_attr.get("coordinateTransformations", [])
+            array_coord_transform.append(coordinate_transform_metadata)
+            ome_attr["coordinateTransformations"] = array_coord_transform
+            logging.info(f"OME attr: {ome_attr}")
+            array_attr["ome"] = ome_attr
+            group[array_path].attrs.put(array_attr)
+
+        ome_block["multiscales"] = multiscales
+        attrs["ome"] = ome_block
+        group.attrs.put(attrs)
 
         logging.info(f"OME-Zarr multiscale compressed annotations written to {output_zarr_path}")
     else:
