@@ -444,8 +444,9 @@ def convert_compressed_annotations_to_zarr(compressed_results, output_dir, scale
             scale_vec, rotation_mat, translation_vec = decompose_affine(affine)
 
             # Write affine information to axes
-            axes_orientation = write_image_orientation(affine, axes)
-
+            path_str = str(output_dir).lower()
+            axes_orientation, ax_code = write_image_orientation(affine, axes, path_str)
+            logging.info(f"Image axis: {ax_code}.\n Axis orientation is set to: {axes_orientation}")
             transforms.append(
                 [
                     {"type": "scale", "scale": scale_vec.tolist()},
@@ -484,8 +485,7 @@ def convert_compressed_annotations_to_zarr(compressed_results, output_dir, scale
             _array = array_data[idx]
             _array_affine = affines[idx]
             # Matrix must be stored as 2D nested array
-            dim_order = [2,1,0] # Needs to be flipped to [z,y,x]...I think
-            affine_nested = _array_affine[dim_order, :4]
+            affine_nested = _array_affine[:, :3]
 
             array_path = _array.get("path", str(idx))
             coord_transform = _array.get("coordinateTransformations", [])

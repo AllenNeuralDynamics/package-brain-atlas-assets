@@ -87,9 +87,9 @@ class Template(AtlasAsset):
             affines.append(img.affine.astype(float))
         
         # Update axis info with orientation
-        human = "human" in str(fpath).lower()
-        axes_orientation = write_image_orientation(img.affine, axes, human=human)
-        logging.info(f"Axis orientation is set to: {axes_orientation}")
+        path_str = str(fpath).lower()
+        axes_orientation, ax_code = write_image_orientation(img.affine, axes, path_str)
+        logging.info(f"Image axis: {ax_code}.\n Axis orientation is set to: {axes_orientation}")
 
         group = zarr.open(output_zarr_path, mode="w")
         logging.info("Writing OME-Zarr multiscale with affine transforms and chunk size (128, 128, 128)...")
@@ -116,9 +116,9 @@ class Template(AtlasAsset):
         for idx in range(len(array_data)):
             _array = array_data[idx]
             _array_affine = affines[idx]
+
             # Matrix must be stored as 2D nested array
-            dim_order = [2,1,0] # Needs to be flipped to [z,y,x]...I think
-            affine_nested = _array_affine[dim_order, :4]
+            affine_nested = _array_affine[:, :3]
 
             array_path = _array.get("path", str(idx))
             coord_transform = _array.get("coordinateTransformations", [])
