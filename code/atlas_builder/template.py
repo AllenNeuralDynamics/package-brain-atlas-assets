@@ -56,7 +56,7 @@ class Template(AtlasAsset):
 
         arrays = []
         transforms = []
-        affines = []
+        #affines = []
         axes = [
             {"name": "z", "type": "space", "unit": "millimeter"},
             {"name": "y", "type": "space", "unit": "millimeter"},
@@ -81,10 +81,11 @@ class Template(AtlasAsset):
             transforms.append(
                 [
                     {"type": "scale", "scale": scale_vec.tolist()},
-                    {"type": "translation", "translation": translation_vec.tolist()}
+                    {"type": "translation", "translation": translation_vec.tolist()},
+                    {"type": "rotation", "rotation": rotation_mat.tolist()}
                 ]
             )
-            affines.append(img.affine.astype(float))
+            #affines.append(img.affine.astype(float))
         
         # Update axis info with orientation
         path_str = str(fpath).lower()
@@ -115,10 +116,10 @@ class Template(AtlasAsset):
         array_data = multiscales.get("datasets", []) 
         for idx in range(len(array_data)):
             _array = array_data[idx]
-            _array_affine = affines[idx]
+            #_array_affine = affines[idx]
 
             # Matrix must be stored as 2D nested array
-            affine_nested = _array_affine[:, :3]
+            #affine_nested = _array_affine[:, :3]
 
             array_path = _array.get("path", str(idx))
             coord_transform = _array.get("coordinateTransformations", [])
@@ -126,7 +127,7 @@ class Template(AtlasAsset):
                     "type": "affine",
                     "input": array_path,
                     "output": "mm",
-                    "affine": affine_nested.tolist(),
+                    #"affine": affine_nested.tolist(),
                 }
             coord_transform.append(coordinate_transform_metadata)
             _array["coordinateTransformations"] = coord_transform

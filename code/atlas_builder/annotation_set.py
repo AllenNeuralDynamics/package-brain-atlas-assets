@@ -426,7 +426,7 @@ def convert_compressed_annotations_to_zarr(compressed_results, output_dir, scale
 
     arrays = []
     transforms = []
-    affines = []
+    #affines = []
     axes = [
         {"name": "z", "type": "space", "unit": "millimeter"},
         {"name": "y", "type": "space", "unit": "millimeter"},
@@ -450,9 +450,11 @@ def convert_compressed_annotations_to_zarr(compressed_results, output_dir, scale
             transforms.append(
                 [
                     {"type": "scale", "scale": scale_vec.tolist()},
+                    {"type": "translation", "translation": translation_vec.tolist()},
+                    {"type": "rotation", "rotation": rotation_mat.tolist()}
                 ]
             )
-            affines.append(affine.astype(float))
+            #affines.append(affine.astype(float))
         else:
             logging.warning(f"Scale {scale} not found in compressed results, skipping.")
 
@@ -483,9 +485,9 @@ def convert_compressed_annotations_to_zarr(compressed_results, output_dir, scale
         array_data = multiscales.get("datasets", []) 
         for idx in range(len(array_data)):
             _array = array_data[idx]
-            _array_affine = affines[idx]
+            #_array_affine = affines[idx]
             # Matrix must be stored as 2D nested array
-            affine_nested = _array_affine[:, :3]
+            #affine_nested = _array_affine[:, :3]
 
             array_path = _array.get("path", str(idx))
             coord_transform = _array.get("coordinateTransformations", [])
@@ -493,7 +495,7 @@ def convert_compressed_annotations_to_zarr(compressed_results, output_dir, scale
                     "type": "affine",
                     "input": array_path,
                     "output": "mm",
-                    "affine": affine_nested.tolist(),
+                    #"affine": affine_nested.tolist(),
                 }
             coord_transform.append(coordinate_transform_metadata)
             _array["coordinateTransformations"] = coord_transform
