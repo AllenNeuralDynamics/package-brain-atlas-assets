@@ -3,6 +3,7 @@
 import numpy as np
 from typing import List
 import nibabel as nib
+import logging
 
 def decompose_affine(affine):
     """Decompose 4x4 affine matrix into scale, rotation, and translation components."""
@@ -18,7 +19,12 @@ def decompose_affine(affine):
     # Rotation: normalize columns to remove scaling
     rotation = M / scale
 
-    return scale, rotation, translation
+    # Replace no-op components with None
+    scale_out = None if np.allclose(scale, np.ones_like(scale)) else scale
+    rotation_out = None if np.allclose(rotation, np.eye(3)) else rotation
+    translation_out = None if np.allclose(translation, np.zeros_like(translation)) else translation
+    
+    return scale_out, rotation_out, translation_out
 
 def write_image_orientation(affine: np.ndarray,
                           axes_metadata: List,
@@ -49,3 +55,38 @@ def write_image_orientation(affine: np.ndarray,
     return axes_metadata, ax_code
 
 
+def correct_coordinate_transforms_rfc5(group, axes, coordinate_system_name="mm"):
+    attrs = dict(group.attrs)
+    ome_block = attrs.get("ome")
+    ome_block["coordinateSystems"] = [
+        {"name": coordinate_system_name, "axes": axes}
+    ]
+    multiscales = ome_block.get("multiscales", [])[0]
+    array_data = multiscales.get("datasets", []) 
+    for idx in range(len(array_data)):
+        _array = array_data[idx]
+
+        array_path = _array.get("path", str(idx))
+        
+        # this is being written as a list of transformations. 
+        # for RFC5, we want to save a "sequence" of transformations
+        coord_transforms = _array.get("coordinateTransformations", [])
+        coordinate_transform_metadata = {
+            "type": "sequence",
+            "input": array_path,
+            "output": "mm",
+            "transformations": coord_transforms
+        }
+        _array["coordinateTransformations"] = [coordinate_transform_metadata]
+
+        # Apply same coordinate transform to all zarr arrays
+        array_attr = group[array_path].attrs
+        ome_attr = array_attr.get("ome", {})
+        ome_attr["coordinateTransformations"] = [coordinate_transform_metadata]
+        logging.info(f"OME attr: {ome_attr}")
+        array_attr["ome"] = ome_attr
+        group[array_path].attrs.put(array_attr)
+
+    ome_block["multiscales"] = multiscales
+    attrs["ome"] = ome_block
+    group.attrs.put(attrs)

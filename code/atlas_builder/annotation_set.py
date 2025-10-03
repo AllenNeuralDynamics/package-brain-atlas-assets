@@ -18,7 +18,7 @@ from atlas_builder.atlas_asset import AtlasAsset
 from atlas_builder.terminology import Terminology
 from atlas_builder.precomputed import (convert_compressed_annotations_to_precomputed,
                                       write_segment_properties, create_mesh_from_compressed_annotation)
-from utils import decompose_affine, write_image_orientation
+from utils import decompose_affine, write_image_orientation, correct_coordinate_transforms_rfc5
 
 
 @dataclass
@@ -66,9 +66,7 @@ class AnnotationSet(AtlasAsset):
         logging.info(f"Creating precomputed annotation file using highest resolution scale: {highest_res_scale}μm")
 
         high_res_data, high_res_affine = compressed_results[highest_res_scale]
-        scale_vec, rotation_mat, translation_vec = decompose_affine(
-            high_res_affine
-        )  # Ensure affine is decomposed correctly
+        scale_vec, rotation_mat, translation_vec = decompose_affine(high_res_affine)  # Ensure affine is decomposed correctly
         # Round scale
         scale_vec = [round(1e4*dim)/1e4 for dim in scale_vec]
         logging.info(
@@ -426,7 +424,6 @@ def convert_compressed_annotations_to_zarr(compressed_results, output_dir, scale
 
     arrays = []
     transforms = []
-    #affines = []
     axes = [
         {"name": "z", "type": "space", "unit": "millimeter"},
         {"name": "y", "type": "space", "unit": "millimeter"},
@@ -447,14 +444,14 @@ def convert_compressed_annotations_to_zarr(compressed_results, output_dir, scale
             path_str = str(output_dir).lower()
             axes_orientation, ax_code = write_image_orientation(affine, axes, path_str)
             logging.info(f"Image axis: {ax_code}.\n Axis orientation is set to: {axes_orientation}")
-            transforms.append(
-                [
-                    {"type": "scale", "scale": scale_vec.tolist()},
-                    {"type": "translation", "translation": translation_vec.tolist()},
-                    {"type": "rotation", "rotation": rotation_mat.tolist()}
-                ]
-            )
-            #affines.append(affine.astype(float))
+            scale_transforms = []
+            if scale_vec is not None:
+                scale_transforms.append({"type": "scale", "scale": scale_vec.tolist()})
+            if translation_vec is not None:
+                scale_transforms.append({"type": "translation", "translation": translation_vec.tolist()})
+            if rotation_mat is not None:
+                scale_transforms.append({"type": "rotation", "rotation": rotation_mat.tolist()})
+            transforms.append(scale_transforms)
         else:
             logging.warning(f"Scale {scale} not found in compressed results, skipping.")
 
@@ -474,45 +471,7 @@ def convert_compressed_annotations_to_zarr(compressed_results, output_dir, scale
             compressor=compressor_dict,
         )
 
-        attrs = dict(group.attrs)
-        ome_block = attrs.get("ome")
-        coord_systems = [
-            {"name": "mm", "axes": axes}
-        ]
-        ome_block["coordinateSystems"] = coord_systems
-
-        multiscales = ome_block.get("multiscales", [])[0]
-        array_data = multiscales.get("datasets", []) 
-        for idx in range(len(array_data)):
-            _array = array_data[idx]
-            #_array_affine = affines[idx]
-            # Matrix must be stored as 2D nested array
-            #affine_nested = _array_affine[:, :3]
-
-            array_path = _array.get("path", str(idx))
-            coord_transform = _array.get("coordinateTransformations", [])
-            coordinate_transform_metadata = {
-                    "type": "affine",
-                    "input": array_path,
-                    "output": "mm",
-                    #"affine": affine_nested.tolist(),
-                }
-            coord_transform.append(coordinate_transform_metadata)
-            _array["coordinateTransformations"] = coord_transform
-
-            # Apply same coordinate transform to all zarr arrays
-            array_attr = group[array_path].attrs
-            ome_attr = array_attr.get("ome", {})
-            array_coord_transform = ome_attr.get("coordinateTransformations", [])
-            array_coord_transform.append(coordinate_transform_metadata)
-            ome_attr["coordinateTransformations"] = array_coord_transform
-            logging.info(f"OME attr: {ome_attr}")
-            array_attr["ome"] = ome_attr
-            group[array_path].attrs.put(array_attr)
-
-        ome_block["multiscales"] = multiscales
-        attrs["ome"] = ome_block
-        group.attrs.put(attrs)
+        correct_coordinate_transforms_rfc5(group, axes)
 
         logging.info(f"OME-Zarr multiscale compressed annotations written to {output_zarr_path}")
     else:
