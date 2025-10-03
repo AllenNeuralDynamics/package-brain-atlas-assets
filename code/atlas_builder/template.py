@@ -89,7 +89,7 @@ class Template(AtlasAsset):
         
         # Update axis info with orientation
         path_str = str(fpath).lower()
-        axes_orientation, ax_code = write_image_orientation(img.affine, axes, path_str)
+        axes_orientation, original_orientation, ax_code = write_image_orientation(img.affine, axes, path_str)
         logging.info(f"Image axis: {ax_code}.\n Axis orientation is set to: {axes_orientation}")
 
         group = zarr.open(output_zarr_path, mode="w")
@@ -99,13 +99,13 @@ class Template(AtlasAsset):
         write_multiscale(
             arrays,
             group,
-            axes=axes_orientation,
+            axes=original_orientation,
             coordinate_transformations=transforms,
             chunks=(128, 128, 128),
             compressor=compressor,
         )
 
-        correct_coordinate_transforms_rfc5(group, axes)
+        correct_coordinate_transforms_rfc5(group, axes_orientation)
 
         logging.info(f"OME-Zarr multiscale with affine transforms written to {output_zarr_path}")
 

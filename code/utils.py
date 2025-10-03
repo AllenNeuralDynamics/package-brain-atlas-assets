@@ -4,6 +4,7 @@ import numpy as np
 from typing import List
 import nibabel as nib
 import logging
+import copy
 
 def decompose_affine(affine):
     """Decompose 4x4 affine matrix into scale, rotation, and translation components."""
@@ -45,15 +46,27 @@ def write_image_orientation(affine: np.ndarray,
         orientation_start = {'R':'right', 'L':'left', 'P':'rostral', 'A':'caudal', 'I':'dorsal', 'S':'ventral'}
         orientation_end = {'R':'left',  'L':'right','P':'caudal','A':'rostral','I':'ventral', 'S':'dorsal'}
 
+    updated_axis = copy.deepcopy(axes_metadata)
+
+    # Original axes
+    ax_code_orig = ['R','A','S'] #Default for identity matrix in Nibabel
+    axes_metadata = _update_axis_code(axes_metadata, ax_code_orig, orientation_start, orientation_end)
+
+    # Rotated/Transformed axes
     ax_code = nib.aff2axcodes(affine)
+    updated_axis = _update_axis_code(updated_axis, ax_code, orientation_start, orientation_end)
+
+    return axes_metadata, updated_axis, ax_code
+
+def _update_axis_code(axes_metadata, ax_code, orientation_start, orientation_end):
+
     axis_directions = [f"{orientation_start[val]}-to-{orientation_end[val]}" for val in ax_code]
     axis_directions = list(reversed(axis_directions))
 
     for idx, axis in enumerate(axes_metadata):
         axis.update({"orientation": {"type": "anatomical", "value": axis_directions[idx]}})
-
-    return axes_metadata, ax_code
-
+        
+    return axes_metadata
 
 def correct_coordinate_transforms_rfc5(group, axes, coordinate_system_name="mm"):
     attrs = dict(group.attrs)

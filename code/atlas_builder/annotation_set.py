@@ -442,7 +442,7 @@ def convert_compressed_annotations_to_zarr(compressed_results, output_dir, scale
 
             # Write affine information to axes
             path_str = str(output_dir).lower()
-            axes_orientation, ax_code = write_image_orientation(affine, axes, path_str)
+            axes_orientation, original_orientation, ax_code = write_image_orientation(affine, axes, path_str)
             logging.info(f"Image axis: {ax_code}.\n Axis orientation is set to: {axes_orientation}")
             scale_transforms = []
             if scale_vec is not None:
@@ -465,13 +465,13 @@ def convert_compressed_annotations_to_zarr(compressed_results, output_dir, scale
         write_multiscale(
             arrays,
             group,
-            axes=axes_orientation,
+            axes=original_orientation,
             coordinate_transformations=transforms,
             chunks=(128, 128, 128),  # 3D chunks for compressed data
             compressor=compressor_dict,
         )
 
-        correct_coordinate_transforms_rfc5(group, axes)
+        correct_coordinate_transforms_rfc5(group, axes_orientation)
 
         logging.info(f"OME-Zarr multiscale compressed annotations written to {output_zarr_path}")
     else:
