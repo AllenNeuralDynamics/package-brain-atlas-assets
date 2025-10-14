@@ -18,7 +18,7 @@ from atlas_builder.atlas_asset import AtlasAsset
 from atlas_builder.terminology import Terminology
 from atlas_builder.precomputed import (convert_compressed_annotations_to_precomputed,
                                       write_segment_properties, create_mesh_from_compressed_annotation)
-from utils import decompose_affine
+from utils import decompose_affine, write_image_orientation, correct_coordinate_transforms_rfc5
 
 
 @dataclass
@@ -66,9 +66,7 @@ class AnnotationSet(AtlasAsset):
         logging.info(f"Creating precomputed annotation file using highest resolution scale: {highest_res_scale}μm")
 
         high_res_data, high_res_affine = compressed_results[highest_res_scale]
-        scale_vec, rotation_mat, translation_vec = decompose_affine(
-            high_res_affine
-        )  # Ensure affine is decomposed correctly
+        scale_vec, rotation_mat, translation_vec = decompose_affine(high_res_affine)  # Ensure affine is decomposed correctly
         # Round scale
         scale_vec = [round(1e4*dim)/1e4 for dim in scale_vec]
         logging.info(
@@ -442,11 +440,18 @@ def convert_compressed_annotations_to_zarr(compressed_results, output_dir, scale
             # Extract transformation information from affine matrix
             scale_vec, rotation_mat, translation_vec = decompose_affine(affine)
 
-            transforms.append(
-                [
-                    {"type": "scale", "scale": scale_vec.tolist()},
-                ]
-            )
+            # Write affine information to axes
+            path_str = str(output_dir).lower()
+            axes_orientation, original_orientation, ax_code = write_image_orientation(affine, axes, path_str)
+            logging.info(f"Image axis: {ax_code}.\n Axis orientation is set to: {axes_orientation}")
+            scale_transforms = []
+            if scale_vec is not None:
+                scale_transforms.append({"type": "scale", "scale": scale_vec.tolist()})
+            if translation_vec is not None:
+                scale_transforms.append({"type": "translation", "translation": translation_vec.tolist()})
+            if rotation_mat is not None:
+                scale_transforms.append({"type": "rotation", "rotation": rotation_mat.tolist()})
+            transforms.append(scale_transforms)
         else:
             logging.warning(f"Scale {scale} not found in compressed results, skipping.")
 
@@ -460,11 +465,13 @@ def convert_compressed_annotations_to_zarr(compressed_results, output_dir, scale
         write_multiscale(
             arrays,
             group,
-            axes=axes,
+            axes=original_orientation,
             coordinate_transformations=transforms,
             chunks=(128, 128, 128),  # 3D chunks for compressed data
             compressor=compressor_dict,
         )
+
+        correct_coordinate_transforms_rfc5(group, axes_orientation)
 
         logging.info(f"OME-Zarr multiscale compressed annotations written to {output_zarr_path}")
     else:

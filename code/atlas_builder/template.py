@@ -4,14 +4,14 @@ import logging
 import shutil
 from dataclasses import dataclass
 from pathlib import Path
-
 import nibabel as nib
 import numpy as np
+import re
 import zarr
 from ome_zarr.writer import write_multiscale
 
 from atlas_builder.atlas_asset import AtlasAsset
-from utils import decompose_affine
+from utils import decompose_affine, write_image_orientation, correct_coordinate_transforms_rfc5
 
 
 @dataclass
@@ -77,23 +77,36 @@ class Template(AtlasAsset):
                 f"origin {origin}, affine:\n{img.affine}\n"
                 f"Decomposed: scale={scale_vec}, translation={translation_vec}, rotation=\n{rotation_mat}"
             )
-            transforms.append(
-                [
-                    {"type": "scale", "scale": scale_vec.tolist()},
-                ]
-            )
+            scale_transforms = []
+            if scale_vec is not None:
+                scale_transforms.append({"type": "scale", "scale": scale_vec.tolist()})
+            if translation_vec is not None:
+                scale_transforms.append({"type": "translation", "translation": translation_vec.tolist()})
+            if rotation_mat is not None:
+                scale_transforms.append({"type": "rotation", "rotation": rotation_mat.tolist()})
+            transforms.append(scale_transforms)
+           
+        
+        # Update axis info with orientation
+        path_str = str(fpath).lower()
+        axes_orientation, original_orientation, ax_code = write_image_orientation(img.affine, axes, path_str)
+        logging.info(f"Image axis: {ax_code}.\n Axis orientation is set to: {axes_orientation}")
 
         group = zarr.open(output_zarr_path, mode="w")
         logging.info("Writing OME-Zarr multiscale with affine transforms and chunk size (128, 128, 128)...")
         compressor = {"id": "blosc", "cname": "zstd", "clevel": 3, "shuffle": 1}
+        
         write_multiscale(
             arrays,
             group,
-            axes=axes,
+            axes=original_orientation,
             coordinate_transformations=transforms,
             chunks=(128, 128, 128),
             compressor=compressor,
         )
+
+        correct_coordinate_transforms_rfc5(group, axes_orientation)
+
         logging.info(f"OME-Zarr multiscale with affine transforms written to {output_zarr_path}")
 
     def create(self, input_prefix: Path, output_root: Path):

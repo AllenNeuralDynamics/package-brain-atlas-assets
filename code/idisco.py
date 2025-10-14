@@ -10,7 +10,7 @@ from ome_zarr.writer import write_image, write_multiscale
 from ome_zarr.io import parse_url
 from ome_zarr.format import CurrentFormat
 from atlas_builder.template import Template
-from utils import decompose_affine
+from utils import decompose_affine, correct_coordinate_transforms_rfc5
 
 # Directory containing the multiresolution, multichannel NIfTI files
 IDISCO_DATA_DIR = Path("/root/capsule/data/idisco_template_multichannel_multiresolution")
@@ -85,7 +85,17 @@ def package_idisco_template(results_dir):
             all_channel_names = channel_names
         elif channel_names != all_channel_names:
             logging.warning(f"Channel names at {res}um do not match previous scales!")
-        coordinate_transformations.append([{"type": "scale", "scale": [1.0] + scale_vec.tolist()}])
+
+        per_scale_transforms = []
+        if scale_vec is not None:
+            per_scale_transforms.append({"type": "scale", "scale": [1.0] + scale_vec.tolist()})
+        if translation_vec is not None:
+            per_scale_transforms.append({"type": "translation", "translation": [1.0] + translation_vec.tolist()})
+        if rotation_mat is not None:
+            r = np.identity(4)
+            r[1:4,1:4] = rotation_mat
+            per_scale_transforms.append({"type": "rotation", "rotation": r.tolist()})
+        coordinate_transformations.append(per_scale_transforms)
 
     if not arrays:
         raise RuntimeError("No valid scales found to write OME-Zarr multiscale.")
@@ -106,6 +116,7 @@ def package_idisco_template(results_dir):
         compressor=compressor,
         channel_names=all_channel_names,
     )
+    correct_coordinate_transforms_rfc5(group, axes, coordinate_system_name="micrometer")
     logging.info(f"iDISCO OME-Zarr multiscale pyramid written to {zarr_path}")
 
     # Create and register Template asset

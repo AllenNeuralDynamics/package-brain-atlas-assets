@@ -125,7 +125,7 @@ def _write_ontology_data_description(output_dir: Path, name: str, version: str, 
 
 
 def create_all_anatomical_templates(input_dir: Path, results_dir: Path, library, scales):
-    """Create anatomical templates from CCF 3 atlas data."""
+    """Create anatomical templates from atlas data."""
 
     # Create human HCP template
     average_template_prefix = input_dir / "average_template" / "hcp_template" / "20250829" / "human_hcp_template"
