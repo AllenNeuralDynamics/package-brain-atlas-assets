@@ -86,14 +86,16 @@ def package_idisco_template(results_dir):
         elif channel_names != all_channel_names:
             logging.warning(f"Channel names at {res}um do not match previous scales!")
 
-        scale_transforms = []
+        per_scale_transforms = []
         if scale_vec is not None:
-            scale_transforms.append({"type": "scale", "scale": scale_vec.tolist()})
+            per_scale_transforms.append({"type": "scale", "scale": [1.0] + scale_vec.tolist()})
         if translation_vec is not None:
-            scale_transforms.append({"type": "translation", "translation": translation_vec.tolist()})
+            per_scale_transforms.append({"type": "translation", "translation": [1.0] + translation_vec.tolist()})
         if rotation_mat is not None:
-            scale_transforms.append({"type": "rotation", "rotation": rotation_mat.tolist()})
-        coordinate_transformations.append(scale_transforms)
+            r = np.identity(4)
+            r[1:4,1:4] = rotation_mat
+            per_scale_transforms.append({"type": "rotation", "rotation": r.tolist()})
+        coordinate_transformations.append(per_scale_transforms)
 
     if not arrays:
         raise RuntimeError("No valid scales found to write OME-Zarr multiscale.")
