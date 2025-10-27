@@ -22,17 +22,25 @@ from aind_data_schema.components.identifiers import Person
 HCP_TEMPLATE_CREATION_TIME = datetime.datetime(2025, 8, 11, tzinfo=datetime.timezone.utc)
 MAC25_TEMPLATE_CREATION_TIME = datetime.datetime(2025, 8, 29, tzinfo=datetime.timezone.utc)
 RIKEN25_TEMPLATE_CREATION_TIME = datetime.datetime(2025, 8, 29, tzinfo=datetime.timezone.utc)
+ICBM2009b_TEMPLATE_CREATION_TIME = datetime.datetime(2025, 8, 29, tzinfo=datetime.timezone.utc)
+
 HCP_HOMBA_ANNOTATION_CREATION_TIME = datetime.datetime(2025, 8, 29, tzinfo=datetime.timezone.utc)
 MAC25_HOMBA_ANNOTATION_CREATION_TIME = datetime.datetime(2025, 8, 29, tzinfo=datetime.timezone.utc)
 RIKEN25_HOMBA_ANNOTATION_CREATION_TIME = datetime.datetime(2025, 8, 29, tzinfo=datetime.timezone.utc)
+ICBM_HOMBA_ANNOTATION_CREATION_TIME = datetime.datetime(2025, 8, 29, tzinfo=datetime.timezone.utc)
+
 HOMBA_ONTOLOGY_CREATION_TIME = datetime.datetime(2025, 8, 29, tzinfo=datetime.timezone.utc)
 
 HCP_TEMPLATE_SUMMARY = "The HCP 3T 1071 template is from the HCP-Young Adult 2025 release from the Human Connectome Project and contains an averaged MRI template from 1071 young adult subjects, ages 22-35, imaged at 3T. Full documentation can be found in the HCP release reference manual (https://humanconnectome.org/storage/app/media/documentation/s1200/HCP_S1200_Release_Reference_Manual.pdf)."
 MAC25_TEMPLATE_SUMMARY = "The macaque Mac25Rhesus template is an averaged MRI template from 25 M. mulatta subjects. Full documentation and provenance can be found here in the HMBA 2025 data release."
 RIKEN25_TEMPLATE_SUMMARY = "The marmoset RIKEN25 template is an averaged MRI template from 25 C. jacchus subjects. Full documentation and provenance can be found here in the HMBA 2025 data release."
-HCP_HOMBA_ANNOTATION_DESCRIPTION = "The 2025 and initial release of the human parcellations of the basal ganglia and associated structures described in the Harmonized Ontology of Mammalian Brain Anatomy (HOMBA). Details and process of parcellation are described in Ding et al. 2025. Labeling was performed on the HCP 3T 1071 template resampled to 700 um isotropic voxel resolution.."
+ICBM2009b_TEMPLATE_SUMMARY = "The ICBM 2009b template is one of the standard templates created by the Montreal Neurological Institute (MNI) using data from the International Consortium for Brain Mapping (ICBM). This template is averaged from 152 T1-weighted MRI scans from nomal adult brains and is resampled to 0.5mm isotropic voxel resolution. This template has also been symmetrized in the left-right axis."
+
+HCP_HOMBA_ANNOTATION_DESCRIPTION = "The 2025 and initial release of the human parcellations of the basal ganglia and associated structures described in the Harmonized Ontology of Mammalian Brain Anatomy (HOMBA). Details and process of parcellation are described in Ding et al. 2025. Labeling was performed on the HCP 3T 1071 template resampled to 700 um isotropic voxel resolution."
+ICBM_HOMBA_ANNOTATION_DESCRIPTION = "The 2025 and initial release of the cortical and subcortical structures described in the Harmonized Ontology of Mammalian Brain Anatomy (HOMBA). Cortical structures are labeled with gyral labels. Brodmann areas are not included in this annotation. Details and process of parcellation are described in Ding et al. 2025."
 MAC25_HOMBA_ANNOTATION_DESCRIPTION = "The 2025 and initial release of the macaque parcellations of the basal ganglia and associated structures described in the Harmonized Ontology of Mammalian Brain Anatomy (HOMBA). Details and process of parcellation are described in Ding et al. 2025. Labeling was performed on the Mac25 Rhesus template resampled to 160 um isotropic voxel resolution."
 RIKEN25_HOMBA_ANNOTATION_DESCRIPTION = "The 2025 and initial release of the marmoset parcellations of the basal ganglia and associated structures described in the Harmonized Ontology of Mammalian Brain Anatomy (HOMBA). Details and process of parcellation are described in Ding et al. 2025. Labeling was performed on the RIKEN25 template resampled to 70 um isotropic voxel resolution."
+
 HOMBA_ONTOLOGY_DESCRIPTION = "The 2025 and initial release of the Harmonized Ontology of Mammalian Brain Anatomy (HOMBA). The HOMBA is a harmonized cross-species taxonomy of 2341 brain and spinal cord structures. Derived from the Allen Developing Human Brain Atlas (DHBA) ontology, the HOMBA is hierarchical, allowing users to aggregate structures from fine grain parcellations to broad regions. Terminology is harmonized across human, primate, and rodent structures with synonymous terms and includes transient developmental structures."
 
 
@@ -64,7 +72,7 @@ def _write_template_data_description(
         modalities=modalities,
         data_level="derived",
         creation_time=creation_time,
-        institution=Organization.AIBS,  ### TODO: Need to add HMBA/WUSTL as an organization and BRAIN initiative as a funding organization
+        institution=Organization.AIBS,  ### TODO: Need to add HMBA as an organization and BRAIN initiative as a funding organization
         investigators=[Person(name="Song-Lin Ding", registry_identifier="0000-0002-0007-7935")],
         funding_source=[Funding(funder=Organization.AI)],
         project_name=project_name,
@@ -127,9 +135,27 @@ def _write_ontology_data_description(output_dir: Path, name: str, version: str, 
 def create_all_anatomical_templates(input_dir: Path, results_dir: Path, library, scales):
     """Create anatomical templates from atlas data."""
 
-    # Create human HCP template
+    # Create human ICBM2009b template
+    average_template_prefix = input_dir / "average_template" / "icbm2009b_template" / "20250829" / "human_icbm2009b_template"
+    template = Template(name="hmba-adult-human-icbm2009b-template", version="2025", scales=scales["icbm"])
+    template.create(average_template_prefix, results_dir)
+    library.add(template)
+    logging.info(f"Created average_template: {template.name} {template.version}")
+
+    # Write data description for the ICBM2009b average template
+    _write_template_data_description(
+        output_dir=template.location(results_dir),
+        name=template.name,
+        version=template.version,
+        summary=HCP_TEMPLATE_SUMMARY,
+        project_name="hmba-adult-human-icbm2009b-template",
+        modalities=[Modality.MRI],
+        creation_time=HCP_TEMPLATE_CREATION_TIME,
+    )
+
+    # Create human hcp template
     average_template_prefix = input_dir / "average_template" / "hcp_template" / "20250829" / "human_hcp_template"
-    template = Template(name="hmba-adult-human-mri-template", version="2025", scales=scales["hcp"])
+    template = Template(name="hmba-adult-human-hcp-template", version="2025", scales=scales["hcp"])
     template.create(average_template_prefix, results_dir)
     library.add(template)
     logging.info(f"Created average_template: {template.name} {template.version}")
@@ -140,7 +166,7 @@ def create_all_anatomical_templates(input_dir: Path, results_dir: Path, library,
         name=template.name,
         version=template.version,
         summary=HCP_TEMPLATE_SUMMARY,
-        project_name="hmba-adult-human-mri-template",
+        project_name="hmba-adult-human-hcp-template",
         modalities=[Modality.MRI],
         creation_time=HCP_TEMPLATE_CREATION_TIME,
     )
@@ -193,7 +219,8 @@ def create_all_ccf_annotation_sets(input_dir: Path, results_dir: Path, library, 
     logging.info("Creating all CCF anatomical annotation sets...")
 
     # Get templates and terminology from library
-    template_hcp = library.get_template("hmba-adult-human-mri-template", "2025")
+    template_hcp = library.get_template("hmba-adult-human-hcp-template", "2025")
+    template_icbm = library.get_template("hmba-adult-human-icbm2009b-template", "2025")
     template_mac25 = library.get_template("hmba-adult-macaque-mri-template", "2025")
     template_riken25 = library.get_template("hmba-adult-marmoset-mri-template", "2025")
     terminology = library.get_terminology("hmba-mammalian-homba-terminology", "2025")
@@ -204,10 +231,19 @@ def create_all_ccf_annotation_sets(input_dir: Path, results_dir: Path, library, 
             "directory": "hcp_homba_bg_2025",
             "template": template_hcp,
             "version": "2025",
-            "name": "hmba-adult-human-homba-annotation",
+            "name": "hmba-adult-human-hombabg-annotation",
             "scale": scales["hcp"],
             "summary": HCP_HOMBA_ANNOTATION_DESCRIPTION,
             "creation_time": HCP_HOMBA_ANNOTATION_CREATION_TIME,
+        },
+        {
+            "directory": "icbm2009b_homba_brain_2025",
+            "template": template_icbm,
+            "version": "2025",
+            "name": "hmba-adult-human-homba-annotation",
+            "scale": scales["icbm"],
+            "summary": ICBM_HOMBA_ANNOTATION_DESCRIPTION,
+            "creation_time": ICBM_HOMBA_ANNOTATION_CREATION_TIME,
         },
         {
             "directory": "mac25_homba_bg_2025",
@@ -319,9 +355,16 @@ def package_ccf(input_dir, output_dir, library, scales):
 
     # Create and register anatomical spaces
     anatomical_space = CoordinateSpace(
-        name="hmba-adult-human-mri-space",
+        name="hmba-adult-human-hcp-space",
         version="2025",
-        template=library.get_template("hmba-adult-human-mri-template", "2025"),
+        template=library.get_template("hmba-adult-human-hcp-template", "2025"),
+    )
+    library.add(anatomical_space)
+
+    anatomical_space = CoordinateSpace(
+        name="hmba-adult-human-icbm2009b-space",
+        version="2025",
+        template=library.get_template("hmba-adult-human-icbm2009b-template", "2025"),
     )
     library.add(anatomical_space)
 
@@ -342,9 +385,20 @@ def package_ccf(input_dir, output_dir, library, scales):
     # Create and register parcellation atlas
     atlases = [
         Atlas(
+            name="hmba-adult-human-hombabg-atlas",
+            version="2025",
+            coordinate_space=library.get_coordinate_space(name="hmba-adult-human-hcp-space", version="2025"),
+            annotation_set=library.get_annotation_set(
+                name="hmba-adult-human-hombabg-annotation", version="2025"
+            ),
+            terminology=library.get_terminology(
+                name="hmba-mammalian-homba-terminology", version="2025"
+            ),
+        ),
+        Atlas(
             name="hmba-adult-human-homba-atlas",
             version="2025",
-            coordinate_space=library.get_coordinate_space(name="hmba-adult-human-mri-space", version="2025"),
+            coordinate_space=library.get_coordinate_space(name="hmba-adult-human-icbm2009b-space", version="2025"),
             annotation_set=library.get_annotation_set(
                 name="hmba-adult-human-homba-annotation", version="2025"
             ),

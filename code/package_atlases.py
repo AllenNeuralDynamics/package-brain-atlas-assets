@@ -44,7 +44,7 @@ def main():
     annotation sets, and coordinate transformations.
     """
     scales = (10, 25, 50, 100)
-    hmba_scales = {"hcp": (700,), "mac25": (160,), "riken25": (70,)}
+    hmba_scales = {"hcp": (700,), "mac25": (160,), "riken25": (70,), "icbm": (500,)}
 
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 
