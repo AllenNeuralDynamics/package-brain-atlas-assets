@@ -36,6 +36,7 @@ class AnnotationSet(AtlasAsset):
     scales: tuple
 
     _asset_location = "annotation-sets"
+    schema_version = "0.1.0"
 
     @property
     def manifest(self) -> dict:

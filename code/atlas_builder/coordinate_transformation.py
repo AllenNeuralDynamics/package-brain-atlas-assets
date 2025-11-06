@@ -19,6 +19,7 @@ class CoordinateTransformation(AtlasAsset):
     output_template: Template
 
     _asset_location = "coordinate-transformations"
+    schema_version = "0.1.0"
 
     @classmethod
     def init(

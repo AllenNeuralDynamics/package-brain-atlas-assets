@@ -17,6 +17,7 @@ class Atlas(AtlasAsset):
     terminology: Terminology
 
     _asset_location = "atlases"
+    schema_version = "0.1.0"
 
     @property
     def manifest(self):

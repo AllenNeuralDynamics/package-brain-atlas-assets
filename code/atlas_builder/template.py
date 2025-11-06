@@ -25,6 +25,7 @@ class Template(AtlasAsset):
     scales: tuple
 
     _asset_location = "templates"
+    schema_version = "0.1.0"
 
     def copy_nifti_files(self, prefix, output_root):
         """Copy NIfTI template files with standardized naming."""

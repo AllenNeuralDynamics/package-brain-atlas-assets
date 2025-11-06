@@ -14,20 +14,30 @@ class AtlasAsset:
         name: Asset identifier
         version: Asset version string
         _asset_location: Storage directory name for this asset type
+        schema_version: class-level schema version (required in subclasses)
     """
 
     name: str
     version: str
 
     _asset_location = None
+    schema_version: str = None  # subclasses must override
 
     @property
     def manifest(self) -> dict:
-        """Generate manifest dictionary for this asset."""
+        """Generate manifest dictionary for this asset.
+
+        Raises:
+            ValueError: If subclass did not define schema_version.
+        """
+        schema_version = getattr(self.__class__, "schema_version", None)
+        if not schema_version:
+            raise ValueError(f"{self.__class__.__name__} must define schema_version class attribute")
         return {
             "name": self.name,
             "version": self.version,
             "location": str(self.location(Path("/"))),
+            "schema_version": schema_version,
         }
 
     def location(self, root) -> Path:
