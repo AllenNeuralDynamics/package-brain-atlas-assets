@@ -11,15 +11,15 @@
 			"packages": [
 				{
 					"name": "aind-data-schema",
-					"version": "2.0.1"
+					"version": "2.1.0"
 				},
 				{
 					"name": "awscli",
-					"version": "1.42.32"
+					"version": "1.42.61"
 				},
 				{
 					"name": "cloud-volume",
-					"version": "12.5.0"
+					"version": "12.7.1"
 				},
 				{
 					"name": "nibabel",
@@ -31,11 +31,11 @@
 				},
 				{
 					"name": "pandas",
-					"version": "2.3.2"
+					"version": "2.3.3"
 				},
 				{
 					"name": "pyarrow",
-					"version": "21.0.0"
+					"version": "22.0.0"
 				},
 				{
 					"name": "simpleitk",
@@ -43,11 +43,11 @@
 				},
 				{
 					"name": "tensorstore",
-					"version": "0.1.76"
+					"version": "0.1.78"
 				},
 				{
 					"name": "zmesh",
-					"version": "1.8.0"
+					"version": "1.9.0"
 				}
 			],
 			"options": {},

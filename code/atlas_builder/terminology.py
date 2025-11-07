@@ -19,6 +19,7 @@ class Terminology(AtlasAsset):
     df: pd.DataFrame = None
 
     _asset_location = "terminologies"
+    schema_version = "0.1.0"
 
     def __post_init__(self):
         """Initialize terminology and precompute descendant relationships."""

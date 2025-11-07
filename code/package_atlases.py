@@ -5,6 +5,7 @@
 import logging
 import shutil
 from pathlib import Path
+import argparse
 
 import CCFv3
 import CCFv2020
@@ -35,13 +36,19 @@ def clear_directory(path):
     logging.info(f"Directory cleared: {path}")
 
 
-def main():
+def main(results_dir: str | Path):
     """
     Main function that orchestrates the atlas packaging pipeline.
 
-    Processes multiple atlas datasets including CCF 2020, CCF 3, and SmartSPIM
-    templates, creating standardized data packages with anatomical templates,
-    annotation sets, and coordinate transformations.
+    Processes multiple atlas datasets including CCF 2020, CCF 3, SmartSPIM,
+    iDISCO, HMBA, and DevMouse templates/annotations, creating standardized
+    data packages with anatomical templates, annotation sets, and coordinate
+    transformations.
+
+    Parameters
+    ----------
+    results_dir : str | Path
+        Destination directory for packaged atlas assets.
     """
     scales = (10, 25, 50, 100)
     hmba_scales = {"hcp": (700,), "mac25": (160,), "riken25": (70,)}
@@ -53,7 +60,8 @@ def main():
     smartspim_dir = Path("/data/smartspim_lca_template_opendata")
     devmouse_dir = Path("/data/devmouse-atlas-assets")
     hmba_dir = Path("/data/hmba")
-    results_dir = Path("/results")
+    # Allow caller to override results directory
+    results_dir = Path(results_dir)
 
     # Initialize asset library
     library = AssetLibrary()
@@ -85,5 +93,19 @@ def main():
         a.create_manifest(results_dir)
 
 
+def parse_args():
+    """Parse command line arguments."""
+    parser = argparse.ArgumentParser(description="Package brain atlas data assets.")
+    parser.add_argument(
+        "--results-dir",
+        "-r",
+        type=Path,
+        default=Path("/results"),
+        help="Directory to write packaged atlas assets (default: /results)",
+    )
+    return parser.parse_args()
+
+
 if __name__ == "__main__":
-    main()
+    args = parse_args()
+    main(results_dir=args.results_dir)

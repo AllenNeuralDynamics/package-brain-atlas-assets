@@ -13,6 +13,7 @@ class CoordinateSpace(AtlasAsset):
     template: Template
 
     _asset_location = "coordinate-spaces"
+    schema_version = "0.1.0"
 
     @property
     def manifest(self) -> dict:
