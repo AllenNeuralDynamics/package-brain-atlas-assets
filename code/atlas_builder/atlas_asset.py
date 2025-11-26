@@ -3,6 +3,7 @@
 import json
 import logging
 from dataclasses import dataclass
+from typing import ClassVar
 from pathlib import Path
 
 
@@ -20,8 +21,8 @@ class AtlasAsset:
     name: str
     version: str
 
-    _asset_location = None
-    schema_version: str = None  # subclasses must override
+    _asset_location: ClassVar[str] = None
+    schema_version: ClassVar[str] = None  # subclasses must override
 
     @property
     def manifest(self) -> dict:

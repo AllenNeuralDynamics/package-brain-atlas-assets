@@ -3,6 +3,7 @@
 import logging
 import shutil
 from dataclasses import dataclass
+from typing import ClassVar
 from pathlib import Path
 import nibabel as nib
 import numpy as np
@@ -24,8 +25,8 @@ class Template(AtlasAsset):
 
     scales: tuple
 
-    _asset_location = "templates"
-    schema_version = "0.1.0"
+    _asset_location: ClassVar[str] = "templates"
+    schema_version: ClassVar[str] = "0.1.0"
 
     def copy_nifti_files(self, prefix, output_root):
         """Copy NIfTI template files with standardized naming."""

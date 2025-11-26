@@ -3,6 +3,7 @@
 import logging
 import shutil
 from dataclasses import dataclass
+from typing import ClassVar
 from pathlib import Path
 
 import nibabel as nib
@@ -35,8 +36,8 @@ class AnnotationSet(AtlasAsset):
     terminology: Terminology
     scales: tuple
 
-    _asset_location = "annotation-sets"
-    schema_version = "0.1.0"
+    _asset_location: ClassVar[str] = "annotation-sets"
+    schema_version: ClassVar[str] = "0.1.0"
 
     @property
     def manifest(self) -> dict:
