@@ -1,5 +1,6 @@
 metadata_version: 1
 name: Package Brain Atlas Assets
-description: Testing for meshing
+description: Packaging atlases into the new atlas organization
 authors:
 - name: ashwin.bhandiwad
+- name: David Feng
