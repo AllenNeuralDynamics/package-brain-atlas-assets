@@ -1,6 +1,7 @@
 """Coordinate transformations between anatomical template spaces (moved)."""
 
 from dataclasses import dataclass
+from typing import ClassVar
 
 from atlas_builder.template import Template
 from atlas_builder.atlas_asset import AtlasAsset
@@ -18,8 +19,8 @@ class CoordinateTransformation(AtlasAsset):
     input_template: Template
     output_template: Template
 
-    _asset_location = "coordinate-transformations"
-    schema_version = "0.1.0"
+    _asset_location: ClassVar[str] = "coordinate-transformations"
+    schema_version: ClassVar[str] = "0.1.0"
 
     @classmethod
     def init(

@@ -2,6 +2,7 @@
 
 import logging
 from dataclasses import dataclass
+from typing import ClassVar
 
 import pandas as pd
 
@@ -18,8 +19,8 @@ class Terminology(AtlasAsset):
 
     df: pd.DataFrame = None
 
-    _asset_location = "terminologies"
-    schema_version = "0.1.0"
+    _asset_location: ClassVar[str] = "terminologies"
+    schema_version: ClassVar[str] = "0.1.0"
 
     def __post_init__(self):
         """Initialize terminology and precompute descendant relationships."""
@@ -41,10 +42,13 @@ class Terminology(AtlasAsset):
 
         # Add descendant_identifiers column to DataFrame (includes self)
         self.df["descendant_identifiers"] = self.df["identifier"].apply(self._compute_descendant_identifiers)
-        # Backward-compatible alias
-        self.df["descendants"] = self.df["descendant_identifiers"]
 
         logging.info(f"Pre-computed descendants for {len(self.df)} terms")
+
+        # Precompute root-to-node paths (list of identifiers from root to current term)
+        logging.info("Pre-computing root_identifier_path for all terms in terminology...")
+        self.df["root_identifier_path"] = self.df["identifier"].apply(self._compute_root_identifier_path)
+        logging.info("Pre-computed root_identifier_path for all terms")
 
     def _compute_descendant_identifiers(self, identifier):
         """Recursively compute all descendant identifiers for a given identifier (including self)."""
@@ -72,6 +76,47 @@ class Terminology(AtlasAsset):
                 unique_descendants.append(desc_identifier)
 
         return unique_descendants
+
+    def _compute_root_identifier_path(self, identifier):
+        """Compute the path of identifiers from the root to the provided identifier.
+
+        The path includes the identifier itself as the last element. Root is inferred
+        by walking parent_identifier links until a parent is missing or null.
+        """
+        # Build upward chain: current -> parent -> ... -> root
+        chain = []
+        current = identifier
+
+        # Index for quick lookups
+        id_to_parent = dict(zip(self.df["identifier"], self.df["parent_identifier"]))
+
+        # Guard against cycles: limit to number of rows
+        max_steps = len(self.df) + 1
+        steps = 0
+        while current is not None and steps < max_steps:
+            chain.append(current)
+            parent = id_to_parent.get(current, None)
+            # Treat NaN as no parent
+            if pd.isna(parent):
+                parent = None
+            # If parent not found in id_to_parent, consider current as root
+            if parent is not None and parent not in id_to_parent:
+                # Parent reference points outside known identifiers; stop here
+                parent = None
+            current = parent
+            steps += 1
+
+        # If we exceeded max_steps, we likely hit a cycle; fall back to just the identifier
+        if steps >= max_steps:
+            logging.warning(
+                "Cycle detected or excessive parent chain for identifier %s; falling back to self-only path",
+                identifier,
+            )
+            chain = [identifier]
+
+        # Reverse to be from root -> ... -> identifier
+        chain.reverse()
+        return chain
 
     def get_descendants(self, identifier, include_self=True):
         """

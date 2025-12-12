@@ -1,6 +1,7 @@
 """Complete atlas combining coordinate space, annotations, and terminology."""
 
 from dataclasses import dataclass
+from typing import ClassVar
 
 from atlas_builder.annotation_set import AnnotationSet
 from atlas_builder.coordinate_space import CoordinateSpace
@@ -16,8 +17,8 @@ class Atlas(AtlasAsset):
     annotation_set: AnnotationSet
     terminology: Terminology
 
-    _asset_location = "atlases"
-    schema_version = "0.1.0"
+    _asset_location: ClassVar[str] = "atlases"
+    schema_version: ClassVar[str] = "0.1.0"
 
     @property
     def manifest(self):

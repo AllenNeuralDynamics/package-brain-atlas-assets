@@ -100,6 +100,6 @@ def correct_coordinate_transforms_rfc5(group, axes, coordinate_system_name="mm")
         array_attr["ome"] = ome_attr
         group[array_path].attrs.put(array_attr)
 
-    ome_block["multiscales"] = multiscales
+    ome_block["multiscales"] = [multiscales]
     attrs["ome"] = ome_block
     group.attrs.put(attrs)

@@ -265,7 +265,7 @@ def create_devmouse_terminology(output_dir, library):
     # Descendant annotation values require lookup since identifiers are prefixed
     id_to_ann = dict(zip(terminology.df["identifier"], terminology.df["annotation_value"]))
     terminology.set_descendant_annotation_values(
-        lambda row: [id_to_ann[i] for i in row["descendants"] if i in id_to_ann]
+        lambda row: [id_to_ann[i] for i in row["descendant_identifiers"] if i in id_to_ann]
     )
 
     # Save and add to library

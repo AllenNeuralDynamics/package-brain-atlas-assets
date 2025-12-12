@@ -285,7 +285,7 @@ def create_homba_parcellation_terminology(input_dir, output_dir, library):
     # Build identifier -> annotation_value lookup since identifiers are prefixed
     id_to_ann = dict(zip(terminology.df["identifier"], terminology.df["annotation_value"]))
     terminology.set_descendant_annotation_values(
-        lambda row: [id_to_ann[i] for i in row["descendants"] if i in id_to_ann]
+        lambda row: [id_to_ann[i] for i in row["descendant_identifiers"] if i in id_to_ann]
     )
 
     parcellation_legacy_dir = terminology.location(output_dir) / "legacy_files"
