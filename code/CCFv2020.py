@@ -55,18 +55,23 @@ def create_ccf2020_terminology(input_dir, output_dir, library):
     pt_df = pd.read_csv(metadata_dir / "parcellation_term.csv")
     pptm_df = pd.read_csv(metadata_dir / "parcellation_to_parcellation_term_membership.csv")
 
+    # starting from parcellation_term, construct the annotation value
+    annotation_label = pt.label.apply('')
+
     # 1) Filter membership for 'substructure' term set
-    substructure_membership = pptm_df[pptm_df["parcellation_term_set_name"] == "substructure"].copy()
+    #substructure_membership = pptm_df[pptm_df["parcellation_term_set_name"] == "substructure"].copy()
 
     # 2) Map each parcellation_term_label to parcellation_index (as list)
-    label_to_indices = {}
-    for label in substructure_membership["parcellation_term_label"].unique():
-        idxs = sorted(
-            substructure_membership[substructure_membership["parcellation_term_label"] == label][
-                "parcellation_index"
-            ].unique()
-        )
-        label_to_indices[label] = [int(i) for i in idxs]
+    #label_to_indices = {}
+    #for label in substructure_membership["parcellation_term_label"].unique():
+    #    idxs = sorted(
+    #        substructure_membership[substructure_membership["parcellation_term_label"] == label][
+    #            "parcellation_index"
+    #        ].unique()
+    #    )
+    #    label_to_indices[label] = [int(i) for i in idxs]
+
+    
 
     # 3) Populate annotation_value for each term (no minting yet)
     pt_df = pt_df.copy()
