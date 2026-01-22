@@ -82,7 +82,7 @@ def write_segment_properties(
             name = row.get("name", "")
             abbrev_labels.append(f"{abbr}: {name}".strip(": "))
             if has_term_set:
-                term_set_values.append(row.get("term_set_name") if row.get("term_set_name") else None)
+                term_set_values.append(row.get("term_set_name") if row.get("term_set_name") else [])
 
     properties = [
         {
@@ -93,14 +93,14 @@ def write_segment_properties(
     ]
 
     if has_term_set:
-        unique_term_set_names = sorted({v for v in term_set_values if v})
+        unique_term_set_names = sorted({v for v_list in term_set_values for v in v_list})
         lut = {k: i for i, k in enumerate(unique_term_set_names)}
         properties.append(
             {
                 "id": "term set",
                 "type": "tags",
                 "tags": unique_term_set_names,
-                "values": [[lut[v]] if v in lut else [] for v in term_set_values],
+                "values": [[lut[v] for v in v_list] for v_list in term_set_values],
             }
         )
 

@@ -224,7 +224,6 @@ def create_all_ccf_annotation_sets(input_dir, results_dir, library, scales=(10, 
             "template": template_nissl,
             "version": "2012",
             "name": "allen-dev-mouse-p56-annotation",
-            # No data description requested for devmouse in this change
             "summary": None,
             "creation_time": None,
         },
