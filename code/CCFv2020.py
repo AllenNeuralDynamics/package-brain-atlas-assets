@@ -115,7 +115,7 @@ def create_ccf2020_terminology(input_dir, output_dir, library):
         row["label"] = "ABC-Ontology-2023-unassigned"
         row["acronym"] = "unassigned"
         row["name"] = "unassigned"
-        row["identifier"] = pd.NA
+        row["identifier"] = 'MBA:0'
         row["parcellation_index"] = 0
         row["term_set_name"] = sorted(
             set(
@@ -199,7 +199,7 @@ def create_ccf2020_terminology(input_dir, output_dir, library):
             "color_hex_triplet": pt_df["color_hex_triplet"],
             "abbreviation": pt_df["acronym"],
             "term_set_name": pt_df["term_set_name"],
-            "annotation_value": pt_df["parcellation_index"].apply(lambda v: [int(v)]),
+            "annotation_value": pt_df["parcellation_index"].apply(lambda v: int(v)),
         }
     )
 

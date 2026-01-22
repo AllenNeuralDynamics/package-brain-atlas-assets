@@ -1,11 +1,45 @@
 import json
 import logging
 from pathlib import Path
+import concurrent.futures
+import os
 
 import cloudvolume
 import numpy as np
 import tensorstore as ts
 from zmesh import Mesher
+
+
+def _compute_mesh_for_structure_worker(args):
+    """Worker for multiprocessing: compute a mesh for a single structure.
+
+    Note: Must be defined at module scope to be picklable by multiprocessing.
+    """
+    struct_id, descendants, annotation, voxel_spacing, annotation_ids = args
+    match_ids = set(descendants) & set(annotation_ids)
+    if not match_ids:
+        return None
+
+    pid = os.getpid()
+    logging.info(f"[pid={pid}] Computing mesh for structure ID {struct_id}")
+
+    struct = np.zeros_like(annotation)
+    mask = np.isin(annotation, np.array(list(match_ids)))
+    struct[mask] = struct_id
+
+    mesher = Mesher(voxel_spacing)
+    mesher.mesh(struct, close=True)
+    mesh = mesher.get(
+        struct_id,
+        normals=False,  # whether to calculate normals or not
+        reduction_factor=2,
+        max_error=8,  # Maximum tolerable error in physical space (um)
+        voxel_centered=False,  # Voxel center set to index, eg. [0,0,0]
+    )
+    mesh = mesher.compute_normals(mesh)
+    logging.info(f"[pid={pid}] Finished computing mesh for structure ID {struct_id}")
+
+    return (struct_id, mesh)
 
 
 def append_mesh_to_precomputed(mesh, scale, precomputed_file, identifier):
@@ -200,25 +234,19 @@ def _compute_hierarchical_meshes_from_compressed_annotation(
     - Skips background id 0.
     """
     annotation_ids = np.unique(annotation)[1:]  # Leaving out 0 (background)
-    for struct_id, descendants in terminology_ids:
-        match_ids = set(descendants) & set(annotation_ids)
-        if not match_ids:
-            continue
-        struct = np.zeros_like(annotation)
-        mask = np.isin(annotation, np.array(list(match_ids)))
-        struct[mask] = struct_id
-        mesher = Mesher(voxel_spacing)
-        mesher.mesh(struct, close=True)
-        mesh = mesher.get(
-            struct_id,
-            normals=False,  # whether to calculate normals or not
-            reduction_factor=2,
-            max_error=8,  # Maximum tolerable error in physical space (um)
-            voxel_centered=False,  # Voxel center set to index, eg. [0,0,0]
-        )
-        mesh = mesher.compute_normals(mesh)
 
-        yield struct_id, mesh
+    # Prepare arguments for each structure
+    args_list = [
+        (struct_id, descendants, annotation, voxel_spacing, annotation_ids)
+        for struct_id, descendants in terminology_ids
+    ]
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=32) as executor:
+        futures = [executor.submit(_compute_mesh_for_structure_worker, args) for args in args_list]
+        for fut in concurrent.futures.as_completed(futures):
+            result = fut.result()
+            if result is not None:
+                yield result
 
 def create_mesh_from_compressed_annotation(
     annotation,
