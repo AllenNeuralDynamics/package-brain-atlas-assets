@@ -237,10 +237,19 @@ def create_all_ccf_annotation_sets(input_dir: Path, results_dir: Path, library, 
             "creation_time": HCP_HOMBA_ANNOTATION_CREATION_TIME,
         },
         {
-            "directory": "icbm2009b_homba_brain_2025",
+            "directory": "icbm2009b_homba_gyral_2025",
             "template": template_icbm,
             "version": "2025",
-            "name": "hmba-adult-human-homba-annotation",
+            "name": "hmba-adult-human-hombagyral-annotation",
+            "scale": scales["icbm"],
+            "summary": ICBM_HOMBA_ANNOTATION_DESCRIPTION,
+            "creation_time": ICBM_HOMBA_ANNOTATION_CREATION_TIME,
+        },
+        {
+            "directory": "icbm2009b_homba_brodmann_2025",
+            "template": template_icbm,
+            "version": "2025",
+            "name": "hmba-adult-human-hombabrodmann-annotation",
             "scale": scales["icbm"],
             "summary": ICBM_HOMBA_ANNOTATION_DESCRIPTION,
             "creation_time": ICBM_HOMBA_ANNOTATION_CREATION_TIME,
@@ -396,11 +405,22 @@ def package_ccf(input_dir, output_dir, library, scales):
             ),
         ),
         Atlas(
-            name="hmba-adult-human-homba-atlas",
+            name="hmba-adult-human-hombagyral-atlas",
             version="2025",
             coordinate_space=library.get_coordinate_space(name="hmba-adult-human-icbm2009b-space", version="2025"),
             annotation_set=library.get_annotation_set(
-                name="hmba-adult-human-homba-annotation", version="2025"
+                name="hmba-adult-human-hombagyral-annotation", version="2025"
+            ),
+            terminology=library.get_terminology(
+                name="hmba-mammalian-homba-terminology", version="2025"
+            ),
+        ),
+        Atlas(
+            name="hmba-adult-human-hombabrodmann-atlas",
+            version="2025",
+            coordinate_space=library.get_coordinate_space(name="hmba-adult-human-icbm2009b-space", version="2025"),
+            annotation_set=library.get_annotation_set(
+                name="hmba-adult-human-hombabrodmann-annotation", version="2025"
             ),
             terminology=library.get_terminology(
                 name="hmba-mammalian-homba-terminology", version="2025"
