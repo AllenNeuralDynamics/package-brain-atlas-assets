@@ -45,6 +45,7 @@ def create_smartspim_annotation_set(input_dir, results_dir, library):
     annotation_set.create_from_nifti(
         input_prefix=input_dir / "ccf_annotation_to_template_moved",
         output_root=results_dir,
+        include_meshes=True,
     )
     annotation_set.create_manifest(results_dir)
     library.add(annotation_set)

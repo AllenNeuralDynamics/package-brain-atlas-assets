@@ -55,95 +55,151 @@ def create_ccf2020_terminology(input_dir, output_dir, library):
     pt_df = pd.read_csv(metadata_dir / "parcellation_term.csv")
     pptm_df = pd.read_csv(metadata_dir / "parcellation_to_parcellation_term_membership.csv")
 
-    # 1) Filter membership for 'substructure' term set
-    substructure_membership = pptm_df[pptm_df["parcellation_term_set_name"] == "substructure"].copy()
+    # --- DataFrame construction logic ported from code/ccf2020term.py ---
+    # Load the remaining metadata tables used for enrichment.
+    parcellation_df = pd.read_csv(metadata_dir / "parcellation.csv")
+    ptsm_df = pd.read_csv(metadata_dir / "parcellation_term_set_membership.csv")
+    pts_df = pd.read_csv(metadata_dir / "parcellation_term_set.csv")
 
-    # 2) Map each parcellation_term_label to parcellation_index (as list)
-    label_to_indices = {}
-    for label in substructure_membership["parcellation_term_label"].unique():
-        idxs = sorted(
-            substructure_membership[substructure_membership["parcellation_term_label"] == label][
-                "parcellation_index"
-            ].unique()
-        )
-        label_to_indices[label] = [int(i) for i in idxs]
+    def _to_annotation_label(identifier):
+        if isinstance(identifier, str):
+            suffix = identifier.split(":", 1)[-1]
+            # parcellation.csv label convention includes the year segment
+            return f"AllenCCF-Annotation-2020-{suffix}"
+        return pd.NA
 
-    # 3) Populate annotation_value for each term (no minting yet)
     pt_df = pt_df.copy()
-    pt_df["annotation_value"] = pt_df["label"].map(label_to_indices)
+    pt_df["annotation_label"] = pt_df["identifier"].apply(_to_annotation_label)
 
-    # 3a) Prepare term_set_name mapping from a slimmed membership (drop parcellation columns, dedupe)
-    membership_slim = pptm_df.drop(
-        columns=["parcellation_index", "voxel_count", "volume_mm3"], errors="ignore"
-    ).drop_duplicates()
-    membership_slim_sorted = membership_slim.sort_values(
-        ["parcellation_term_label", "term_set_order"], ascending=[True, False]
+    # Pull term set membership onto pt_df
+    pt_df = pt_df.merge(
+        ptsm_df[["parcellation_term_label", "parcellation_term_set_label"]].drop_duplicates(),
+        how="left",
+        left_on="label",
+        right_on="parcellation_term_label",
     )
-    preferred_term_set = membership_slim_sorted.drop_duplicates(subset=["parcellation_term_label"], keep="first")
-    label_to_term_set = dict(
-        zip(
-            preferred_term_set["parcellation_term_label"],
-            preferred_term_set["parcellation_term_set_name"],
+    pt_df = pt_df.drop(columns=["parcellation_term_label"])
+
+    # Replace term set *labels* with their human-readable term set *names*
+    # (e.g. AllenCCF-Ontology-2017-ORGA -> organ)
+    pt_df = pt_df.merge(
+        pts_df[["label", "name"]].rename(
+            columns={"label": "parcellation_term_set_label", "name": "term_set_name"}
+        ),
+        how="left",
+        on="parcellation_term_set_label",
+    )
+    pt_df = pt_df.drop(columns=["parcellation_term_set_label"])
+
+    # Pull `parcellation_index` onto pt_df (matches are via the derived annotation_label)
+    pt_df = pt_df.merge(
+        parcellation_df[["label", "parcellation_index"]].rename(columns={"label": "annotation_label"}),
+        on="annotation_label",
+        how="left",
+    )
+
+    def _collapse_abc_unassigned(df: pd.DataFrame) -> pd.DataFrame:
+        """Collapse the 5 ABC-Ontology-2023-unassigned-* rows into a single row."""
+        label_s = df["label"].astype(str)
+        unassigned_mask = label_s.str.startswith("ABC-Ontology-2023-unassigned-", na=False)
+
+        unassigned = df[unassigned_mask].copy()
+        others = df[~unassigned_mask].copy()
+
+        # If the source data doesn't contain these rows, do nothing.
+        if unassigned.empty:
+            return df
+
+        # Template row: start from the first unassigned row to preserve expected columns
+        row = unassigned.iloc[0].copy()
+        row["label"] = "ABC-Ontology-2023-unassigned"
+        row["acronym"] = "unassigned"
+        row["name"] = "unassigned"
+        row["identifier"] = 'MBA:0'
+        row["parcellation_index"] = 0
+        row["term_set_name"] = sorted(
+            set(
+                unassigned["term_set_name"]
+                .dropna()
+                .astype(str)
+                .loc[lambda s: s.str.strip() != ""]
+                .tolist()
+            )
         )
-    )
+        row["annotation_label"] = pd.NA
 
-    # 4) Build groups DataFrame, add term_set_name BEFORE dropping 'label'
-    df_group = pt_df.copy()
-    df_group["term_set_name"] = df_group["label"].map(label_to_term_set)
-    df_group = df_group.drop(columns=["label"]).copy()
+        collapsed = pd.DataFrame([row])
+        return pd.concat([others, collapsed], ignore_index=True)
 
-    # Split rows by identifier presence
-    nonnull = df_group[df_group["identifier"].notna()].copy()
-    missing_id_rows = df_group[df_group["identifier"].isna()].copy()
+    pt_df = _collapse_abc_unassigned(pt_df)
 
-    # Representative row (first) for other columns per identifier
-    rep = nonnull.groupby("identifier", as_index=False).first()
+    # Mint new parcellation_index values for any rows missing one
+    pt_df["parcellation_index"] = pd.to_numeric(pt_df["parcellation_index"], errors="coerce")
+    missing_mask = pt_df["parcellation_index"].isna()
+    if missing_mask.any():
+        max_existing = pd.to_numeric(parcellation_df["parcellation_index"], errors="coerce").max()
+        max_existing = int(max_existing) if pd.notna(max_existing) else 0
+        max_current = int(pt_df["parcellation_index"].dropna().max()) if (~missing_mask).any() else 0
+        start = max(max_existing, max_current) + 1
+        new_ids = range(start, start + int(missing_mask.sum()))
+        pt_df.loc[missing_mask, "parcellation_index"] = list(new_ids)
 
-    # Flatten, deduplicate, sort annotation values per identifier
-    agg_ann = nonnull.groupby("identifier", as_index=False)["annotation_value"].agg(
-        lambda s: sorted({x for lst in s if isinstance(lst, list) for x in lst})
-    )
+    pt_df["parcellation_index"] = pt_df["parcellation_index"].astype(int)
 
-    if "annotation_value" in rep.columns:
-        rep = rep.drop(columns=["annotation_value"])
-    grouped = rep.merge(agg_ann, on="identifier", how="left")
+    def _dedupe_by_parcellation_index(df: pd.DataFrame) -> pd.DataFrame:
+        """Deduplicate rows that share the same parcellation_index."""
+        with_index = df.dropna(subset=["parcellation_index"]).copy()
+        without_index = df[df["parcellation_index"].isna()].copy()
 
-    # Ensure missing-identifier rows have deduped/sorted annotation_value
-    if not missing_id_rows.empty:
-        missing_id_rows["annotation_value"] = missing_id_rows["annotation_value"].apply(
-            lambda lst: sorted(set(lst)) if isinstance(lst, list) else lst
-        )
+        def _merge_group(g: pd.DataFrame) -> pd.Series:
+            merged_term_sets = sorted(
+                set(
+                    g["term_set_name"]
+                    .dropna()
+                    .astype(str)
+                    .loc[lambda s: s.str.strip() != ""]
+                    .tolist()
+                )
+            )
+            # Choose the canonical row.
+            mask = g["label"].astype(str).str.startswith("AllenCCF", na=False)
+            row = g.loc[mask].iloc[0].copy()
+            row["term_set_name"] = merged_term_sets
+            return row
 
-    combined = pd.concat([grouped, missing_id_rows], ignore_index=True, sort=False)
+        rows = []
+        for _, g in with_index.groupby("parcellation_index", sort=False, dropna=False):
+            if len(g) == 1:
+                row = g.iloc[0].copy()
+                val = row.get("term_set_name")
+                # Normalize into a list-of-strings column (for Parquet friendliness)
+                if not isinstance(val, list):
+                    if pd.isna(val):
+                        row["term_set_name"] = []
+                    elif isinstance(val, str):
+                        row["term_set_name"] = [val]
+                rows.append(row)
+            else:
+                rows.append(_merge_group(g))
 
-    # 5) Mint new IDs after deduplication/grouping
-    all_existing = []
-    for v in combined["annotation_value"].dropna():
-        if isinstance(v, list):
-            all_existing.extend(v)
-    # include membership indices as well
-    all_existing.extend(int(x) for x in pptm_df["parcellation_index"].unique() if pd.notna(x))
-    max_existing = max(all_existing) if all_existing else 0
-    next_new_id = max_existing + 1
+        deduped = pd.DataFrame(rows)
+        return pd.concat([deduped, without_index], ignore_index=True)
 
-    # Assign new IDs to rows with missing/empty annotation_value
-    need_ids_mask = combined["annotation_value"].isna() | combined["annotation_value"].apply(
-        lambda v: isinstance(v, list) and len(v) == 0
-    )
-    for i in combined[need_ids_mask].index:
-        combined.at[i, "annotation_value"] = [next_new_id]
-        next_new_id += 1
+    pt_df = _dedupe_by_parcellation_index(pt_df)
 
+    # Confirm the column is consistently list-typed
+    assert pt_df["term_set_name"].apply(lambda x: isinstance(x, list)).all()
+    
     # Build DataFrame expected by Terminology (include term_set_name)
     filtered_df = pd.DataFrame(
         {
-            "identifier": combined["identifier"],  # preserve NaN
-            "parent_identifier": combined["parent_identifier"].map(lambda x: str(x) if not pd.isna(x) else ""),
-            "name": combined["name"],
-            "color_hex_triplet": combined["color_hex_triplet"],
-            "abbreviation": combined["acronym"],
-            "term_set_name": combined["term_set_name"],
-            "annotation_value": combined["annotation_value"],
+            "identifier": pt_df["identifier"],  # preserve NaN
+            "parent_identifier": pt_df["parent_identifier"].map(lambda x: str(x) if not pd.isna(x) else ""),
+            "name": pt_df["name"],
+            "color_hex_triplet": pt_df["color_hex_triplet"],
+            "abbreviation": pt_df["acronym"],
+            "term_set_name": pt_df["term_set_name"],
+            "annotation_value": pt_df["parcellation_index"].apply(lambda v: int(v)),
         }
     )
 

@@ -387,7 +387,11 @@ def package_age_group(age, base_dir, results_dir, asset_library, terminology):
     )
 
     # Create annotation set using the MHD file directly
-    annotation_set.create_from_mhd(annotation_mhd, results_dir)
+    annotation_set.create_from_mhd(
+        annotation_mhd, 
+        results_dir,
+        include_meshes=True,
+    )
 
     annotation_set.create_manifest(results_dir)
     asset_library.add(annotation_set)

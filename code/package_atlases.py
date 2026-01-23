@@ -75,16 +75,16 @@ def main(results_dir: str | Path):
     # Package CCF 3 legacy annotations and templates
     CCFv3.package_ccf(ccf3_dir, results_dir, library, scales=scales)
 
+    # Package CCF 2020 annotations
+    CCFv2020.package_ccf2020(abc_dir, results_dir, library, scales=(10,)) 
+
     # Package SmartSPIM template (uses library for assets)
     SmartSPIM.package_smartspim_template(
         smartspim_dir, results_dir, library, scales=scales
     )
 
     # Package iDISCO template
-    idisco.package_idisco_template(results_dir)
-
-    # Package CCF 2020 annotations
-    CCFv2020.package_ccf2020(abc_dir, results_dir, library, scales=(10,))    
+    idisco.package_idisco_template(results_dir)       
 
     # Package HMBA atlases
     HMBA.package_ccf(hmba_dir, results_dir, library, scales=hmba_scales)

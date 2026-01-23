@@ -82,7 +82,8 @@ class Terminology(AtlasAsset):
 
         The path includes the identifier itself as the last element. Root is inferred
         by walking parent_identifier links until a parent is missing or null.
-        """
+        """        
+
         # Build upward chain: current -> parent -> ... -> root
         chain = []
         current = identifier
