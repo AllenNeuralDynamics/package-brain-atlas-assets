@@ -346,6 +346,7 @@ def package_ccf(input_dir, output_dir, library, scales=(10, 25, 50, 100)):
             "allen-adult-mouse-stpt-template", "2015"
         ),
     )
+    coordinate_space.create_manifest(output_dir)
     library.add(coordinate_space)
 
     coordinate_space = CoordinateSpace(
@@ -355,6 +356,7 @@ def package_ccf(input_dir, output_dir, library, scales=(10, 25, 50, 100)):
             "allen-adult-mouse-nissl-template", "2011"
         ),
     )
+    coordinate_space.create_manifest(output_dir)
     library.add(coordinate_space)
 
     # Create and register parcellation atlas
