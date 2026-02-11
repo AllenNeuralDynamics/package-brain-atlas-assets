@@ -1,6 +1,6 @@
 {
 	"version": 1,
-	"base_image": "codeocean/code-server-python-extensions-pack:code-server4.104.3python3.12.4aind-metadata-mcp0.5.2withDOTFILES_REPOsupport",
+	"base_image": "codeocean/code-server-python-extensions-pack:code-server4.108.2python3.12.4aind-metadata-mcp0.5.2withDOTFILES_REPOsupport",
 	"options": {
 		"registry_host_arg": true,
 		"git_ask_pass": true,
@@ -11,19 +11,19 @@
 			"packages": [
 				{
 					"name": "aind-data-schema",
-					"version": "2.2.0"
+					"version": "2.4.0"
 				},
 				{
 					"name": "awscli",
-					"version": "1.43.4"
+					"version": "1.44.32"
 				},
 				{
 					"name": "cloud-volume",
-					"version": "12.8.0"
+					"version": "12.9.2"
 				},
 				{
 					"name": "nibabel",
-					"version": "5.3.2"
+					"version": "5.3.3"
 				},
 				{
 					"name": "ome-zarr",
@@ -31,11 +31,11 @@
 				},
 				{
 					"name": "pandas",
-					"version": "2.3.3"
+					"version": "3.0.0"
 				},
 				{
 					"name": "pyarrow",
-					"version": "22.0.0"
+					"version": "23.0.0"
 				},
 				{
 					"name": "simpleitk",
@@ -43,7 +43,7 @@
 				},
 				{
 					"name": "tensorstore",
-					"version": "0.1.79"
+					"version": "0.1.80"
 				},
 				{
 					"name": "zmesh",
