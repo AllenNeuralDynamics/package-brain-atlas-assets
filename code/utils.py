@@ -68,7 +68,7 @@ def _update_axis_code(axes_metadata, ax_code, orientation_start, orientation_end
         
     return axes_metadata
 
-def correct_coordinate_transforms_rfc5(group, axes, coordinate_system_name="mm", rfc_neuroglancer=False):
+def correct_coordinate_transforms_rfc5(group, axes, coordinate_system_name="mm"):
     attrs = dict(group.attrs)
     ome_block = attrs.get("ome")
     ome_block["coordinateSystems"] = [
@@ -82,30 +82,20 @@ def correct_coordinate_transforms_rfc5(group, axes, coordinate_system_name="mm",
         array_path = _array.get("path", str(idx))
         
         # this is being written as a list of transformations. 
-        # for RFC5, we want to save a "sequence" of transformations. However, neuroglancer-demo 
-        # doesn't support RFC5 yet, so we'll keep the spec from v0.5 (https://ngff.openmicroscopy.org/latest/index.html#trafo-md) for now.
-        coord_transforms = _array.get("coordinateTransformations", [])
-        if rfc_neuroglancer:
-            coordinate_transform_metadata = {
-                "type": "sequence",
-                "input": array_path,
-                "output": "mm",
-                "transformations": coord_transforms
-            }
-            _array["coordinateTransformations"] = [coordinate_transform_metadata]
-        else:
-            coord_transforms_20251010_spec = [xform for xform in coord_transforms if xform["type"] != "rotation"]
-            _array["coordinateTransformations"] = coord_transforms_20251010_spec
-
+        # for RFC5, we want to save a "sequence" of transformations. 
+        coordinate_transform_metadata = {
+            "type": "sequence",
+            "input": array_path,
+            "output": "mm",
+            "transformations": coord_transforms
+        }
+        _array["coordinateTransformations"] = [coordinate_transform_metadata]
+        
         # Apply same coordinate transform to all zarr arrays
         array_attr = group[array_path].attrs
         ome_attr = array_attr.get("ome", {})
-        if rfc_neuroglancer:
-            ome_attr["coordinateTransformations"] = [coordinate_transform_metadata]
-        else:
-            coord_transforms_20251010_spec = [xform for xform in coord_transforms if xform["type"] != "rotation"]
-            ome_attr["coordinateTransformations"] = coord_transforms_20251010_spec
-
+        ome_attr["coordinateTransformations"] = [coordinate_transform_metadata]
+        
         logging.info(f"OME attr: {ome_attr}")
         array_attr["ome"] = ome_attr
         group[array_path].attrs.put(array_attr)
