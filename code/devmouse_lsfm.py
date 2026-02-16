@@ -290,7 +290,7 @@ def package_devmouse(base_dir, results_dir, library):
     terminology = create_devmouse_terminology(results_dir, library)
 
     # Define age groups to process (excluding gridAnnotation and P56_Mouse files)
-    age_groups = ["e11p5", "e13p5", "e15p5",  "e18p5", "p04", "p14"]
+    age_groups = ["e11pt5", "e13pt5", "e15pt5",  "e18pt5", "p4", "p14"]
 
     # Process each age group (creates templates, annotations, spaces, and atlases)
     for age in age_groups:
