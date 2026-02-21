@@ -23,6 +23,7 @@ from atlas_builder import (
     Atlas,
     Terminology,
 )
+from atlas_builder.annotation_set import uncompress_annotations_to_zarr
 import datetime
 from aind_data_schema.core.data_description import DataDescription, Funding
 from aind_data_schema_models.data_name_patterns import build_data_name
@@ -388,10 +389,19 @@ def package_age_group(age, base_dir, results_dir, asset_library, terminology):
 
     # Create annotation set using the MHD file directly
     annotation_set.create_from_mhd(
-        annotation_mhd, 
+        annotation_mhd,
         results_dir,
-        include_meshes=True,
+        include_meshes=False,
     )
+
+    # Create uncompressed (hierarchical) annotation set
+    annotation_output_dir = annotation_set.location(results_dir)
+    #uncompress_annotations_to_zarr(
+    #    input_dir=annotation_output_dir,
+    #    terminology=terminology,
+    #    output_dir=annotation_output_dir,
+    #    scales=annotation_set.scales,
+   #)
 
     annotation_set.create_manifest(results_dir)
     asset_library.add(annotation_set)
@@ -433,13 +443,8 @@ def package_devmouse(base_dir, results_dir, library):
 
     # Process each age group (creates templates, annotations, spaces, and atlases)
     for age in age_groups:
-        try:
-            package_age_group(age, str(base_dir), results_dir, library, terminology)
-        except Exception as e:
-            logging.error(f"Error processing DevMouse age {age}: {e}")
-            traceback.print_exc()
-            continue
-
+        package_age_group(age, str(base_dir), results_dir, library, terminology)
+        
     logging.info("DevMouse atlas packaging complete!")
 
     # Log summary

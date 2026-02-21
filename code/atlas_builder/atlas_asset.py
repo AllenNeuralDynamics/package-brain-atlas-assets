@@ -3,8 +3,11 @@
 import json
 import logging
 from dataclasses import dataclass
-from typing import ClassVar
+from typing import ClassVar, TypeVar
 from pathlib import Path
+
+
+TAtlasAsset = TypeVar("TAtlasAsset", bound="AtlasAsset")
 
 
 @dataclass
@@ -44,6 +47,30 @@ class AtlasAsset:
     def location(self, root) -> Path:
         """Get file system location for this asset."""
         return Path(root) / self._asset_location / f"{self.name}" / self.version
+
+    @staticmethod
+    def resolve_manifest_location(manifest: dict, root: Path | None = None) -> Path:
+        """Resolve a manifest location against an optional root path."""
+        location = Path(manifest["location"])
+        if root is None:
+            return location
+        if location.is_absolute():
+            return Path(root) / location.relative_to("/")
+        return Path(root) / location
+
+    @classmethod
+    def from_manifest(cls: type[TAtlasAsset], manifest: dict, root: Path | None = None) -> TAtlasAsset:
+        """Rehydrate an asset from its manifest."""
+        return cls(name=manifest["name"], version=manifest["version"])
+
+    @classmethod
+    def from_manifest_file(
+        cls: type[TAtlasAsset], manifest_path: Path, root: Path | None = None
+    ) -> TAtlasAsset:
+        """Rehydrate an asset from a manifest.json file on disk."""
+        with open(manifest_path, "r") as f:
+            manifest = json.load(f)
+        return cls.from_manifest(manifest, root=root)
 
     def create_manifest(self, output_root: Path):
         """Create and write manifest.json file for this asset."""

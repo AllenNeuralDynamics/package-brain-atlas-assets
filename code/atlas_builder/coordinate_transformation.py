@@ -2,6 +2,7 @@
 
 from dataclasses import dataclass
 from typing import ClassVar
+from pathlib import Path
 
 from atlas_builder.template import Template
 from atlas_builder.atlas_asset import AtlasAsset
@@ -54,3 +55,16 @@ class CoordinateTransformation(AtlasAsset):
             "input_template": self.input_template.manifest,
             "output_template": self.output_template.manifest,
         }
+
+    @classmethod
+    def from_manifest(
+        cls, manifest: dict, root: Path | None = None
+    ) -> "CoordinateTransformation":
+        input_template = Template.from_manifest(manifest["input_template"], root=root)
+        output_template = Template.from_manifest(manifest["output_template"], root=root)
+        return cls(
+            name=manifest["name"],
+            version=manifest["version"],
+            input_template=input_template,
+            output_template=output_template,
+        )

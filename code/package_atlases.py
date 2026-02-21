@@ -2,10 +2,12 @@
 
 # Requirements: nibabel, ome-zarr, zarr
 
+import argparse
+import atexit
 import logging
 import shutil
+import sys
 from pathlib import Path
-import argparse
 
 import CCFv3
 import CCFv2020
@@ -16,16 +18,22 @@ import idisco
 from atlas_builder import AssetLibrary
 
 
-def clear_directory(path):
+def clear_directory(path, keep_files=None):
     """Clear out the contents of the specified directory."""
+    keep_files = set(keep_files or [])
     logging.info(f"Clearing contents of directory: {path}")
     if path.exists():
         # Remove the contents of the directory, but not the directory itself
         for item in path.iterdir():
             if item.is_file():
+                if item.name in keep_files:
+                    logging.info(f"Keeping file: {item}")
+                    continue
+                logging.info(f"Removing file: {item}")
                 item.unlink()
                 logging.info(f"Removed file: {item}")
             elif item.is_dir():
+                logging.info(f"Removing directory (may take a while): {item}")
                 shutil.rmtree(item)
                 logging.info(f"Removed directory: {item}")
     else:
@@ -34,6 +42,41 @@ def clear_directory(path):
         logging.info(f"Created directory: {path}")
 
     logging.info(f"Directory cleared: {path}")
+
+
+def configure_output_logging(results_dir: Path) -> Path:
+    """Redirect stdout/stderr and logging output to results_dir/output.log."""
+    results_dir.mkdir(parents=True, exist_ok=True)
+    log_path = results_dir / "output.log"
+    log_file = open(log_path, "w", buffering=1)
+    atexit.register(log_file.close)
+
+    class _TeeStream:
+        def __init__(self, *streams):
+            self.streams = streams
+
+        def write(self, data):
+            for stream in self.streams:
+                stream.write(data)
+                stream.flush()
+
+        def flush(self):
+            for stream in self.streams:
+                stream.flush()
+
+    tee_stdout = _TeeStream(sys.stdout, log_file)
+    tee_stderr = _TeeStream(sys.stderr, log_file)
+
+    sys.stdout = tee_stdout
+    sys.stderr = tee_stderr
+
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s %(levelname)s %(message)s",
+        handlers=[logging.StreamHandler(tee_stdout)],
+        force=True,
+    )
+    return log_path
 
 
 def main(results_dir: str | Path):
@@ -53,8 +96,6 @@ def main(results_dir: str | Path):
     scales = (10, 25, 50, 100)
     hmba_scales = {"hcp": (700,), "mac25": (160,), "riken25": (70,)}
 
-    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
-
     abc_dir = Path("/data/abc_atlas")
     ccf3_dir = Path("/data/allen_mouse_ccf")
     smartspim_dir = Path("/data/smartspim_lca_template_opendata")
@@ -63,11 +104,13 @@ def main(results_dir: str | Path):
     # Allow caller to override results directory
     results_dir = Path(results_dir)
 
+    configure_output_logging(results_dir)
+
     # Initialize asset library
     library = AssetLibrary()
 
     # Clear the entire results directory
-    clear_directory(results_dir)
+    clear_directory(results_dir, keep_files={"output.log"})
 
     # Package DevMouse atlas assets first
     devmouse.package_devmouse(devmouse_dir, results_dir, library)

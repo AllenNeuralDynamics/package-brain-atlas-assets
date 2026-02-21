@@ -16,6 +16,7 @@ from atlas_builder import (
 )
 from atlas_builder.mesh import Mesh
 from atlas_builder.precomputed import append_meshes_to_precomputed
+from atlas_builder.annotation_set import uncompress_annotations_to_zarr
 
 import datetime
 from aind_data_schema.core.data_description import DataDescription, Funding
@@ -252,6 +253,14 @@ def create_all_ccf_annotation_sets(input_dir, results_dir, library, scales=(10, 
             input_prefix=annotation_dir / "annotation",
             output_root=results_dir,
             include_meshes=False,  # handling meshes separately
+        )
+
+        annotation_output_dir = annotation_set.location(results_dir)
+        uncompress_annotations_to_zarr(
+            input_dir=annotation_output_dir,
+            terminology=terminology,
+            output_dir=annotation_output_dir,
+            scales=annotation_set.scales,
         )
 
         # Write data description only for specified CCF 2015-2017 annotation sets

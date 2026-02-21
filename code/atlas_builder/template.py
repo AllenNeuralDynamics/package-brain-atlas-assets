@@ -28,6 +28,22 @@ class Template(AtlasAsset):
     _asset_location: ClassVar[str] = "templates"
     schema_version: ClassVar[str] = "0.1.0"
 
+    @property
+    def manifest(self) -> dict:
+        return super().manifest | {
+            "scales": list(self.scales),
+        }
+
+    @classmethod
+    def from_manifest(cls, manifest: dict, root: Path | None = None) -> "Template":
+        scales = manifest.get("scales")
+        
+        return cls(
+            name=manifest["name"],
+            version=manifest["version"],
+            scales=tuple(scales),
+        )
+
     def copy_nifti_files(self, prefix, output_root):
         """Copy NIfTI template files with standardized naming."""
         template_dir = self.location(output_root)

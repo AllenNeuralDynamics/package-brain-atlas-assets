@@ -10,6 +10,7 @@ import pandas as pd
 from atlas_builder import (AnnotationSet, CoordinateSpace,
                           Template, Atlas,
                           Terminology)
+from atlas_builder.annotation_set import uncompress_annotations_to_zarr
 
 import datetime
 from aind_data_schema.core.data_description import DataDescription, Funding
@@ -242,6 +243,14 @@ def create_all_ccf_annotation_sets(input_dir: Path, results_dir: Path, library, 
         annotation_set.create_from_nifti(
             input_prefix=annotation_dir / "annotation",
             output_root=results_dir,
+        )
+
+        annotation_output_dir = annotation_set.location(results_dir)
+        uncompress_annotations_to_zarr(
+            input_dir=annotation_output_dir,
+            terminology=terminology,
+            output_dir=annotation_output_dir,
+            scales=annotation_set.scales,
         )
 
         # Write data description only for specified CCF 2015-2017 annotation sets

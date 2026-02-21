@@ -11,6 +11,8 @@ import numpy as np
 import pandas as pd
 import tensorstore as ts
 import zarr
+
+
 from ome_zarr.writer import write_multiscale, write_multiscales_metadata
 import SimpleITK as sitk
 
@@ -45,7 +47,21 @@ class AnnotationSet(AtlasAsset):
         return super().manifest | {
             "template": self.template.manifest,
             "terminology": self.terminology.manifest,
+            "scales": list(self.scales),
         }
+
+    @classmethod
+    def from_manifest(cls, manifest: dict, root: Path | None = None) -> "AnnotationSet":
+        template = Template.from_manifest(manifest["template"], root=root)
+        terminology = Terminology.from_manifest(manifest["terminology"], root=root)
+        scales = tuple(manifest.get("scales", ()))
+        return cls(
+            name=manifest["name"],
+            version=manifest["version"],
+            template=template,
+            terminology=terminology,
+            scales=scales,
+        )
 
     def create(self, compressed_results, output_root, include_meshes=True):
         """Create annotation set from compressed annotation data at multiple scales.
@@ -327,7 +343,7 @@ def uncompress_single_scale(
     terminology,
     zarr_group,
     zarr_dataset_name,
-    zarr_chunks=(4, 128, 128, 128),
+    zarr_chunks=(1, 128, 128, 128),
 ):
     """Decompress compressed annotation data into hierarchical annotations for a single scale."""
     # Check if terminology has descendant_annotation_values column
@@ -344,9 +360,16 @@ def uncompress_single_scale(
     logging.info(f"Found {len(data_annotation_values)} unique annotation values in data")
 
     # Process all identifiers in the terminology
+    if "annotation_value" not in terminology.df.columns:
+        raise ValueError(
+            "Terminology does not have 'annotation_value' column. "
+            "Please ensure annotation values are present in the terminology."
+        )
+
     identifiers_with_data = []
     for _, row in terminology.df.iterrows():
         identifier = row["identifier"]
+        annotation_value = row["annotation_value"]
         descendant_values = row["descendant_annotation_values"]
 
         # Check which descendant values are present in the data
@@ -355,12 +378,13 @@ def uncompress_single_scale(
         else:
             present_descendants = []
         # Include all identifiers for consistent dimensions (will be all zeros if no descendants present)
-        identifiers_with_data.append((identifier, present_descendants))
+        identifiers_with_data.append((identifier, annotation_value, present_descendants))
 
     logging.info(f"Processing {len(identifiers_with_data)} identifiers from terminology")
 
     # Create uncompressed array: (identifiers, z, y, x)
     identifiers = [s[0] for s in identifiers_with_data]
+    annotation_values = [s[1] for s in identifiers_with_data]
     uncompressed_shape = (len(identifiers),) + compressed_data.shape
 
     # Create affine matrix for 4D data
@@ -371,13 +395,12 @@ def uncompress_single_scale(
     logging.info(f"Creating zarr array and writing annotations in batches for scale {scale}")
 
     # Create zarr array
-    compressor = zarr.Blosc(cname="zstd", clevel=3, shuffle=1)
     zarr_array = zarr_group.create_dataset(
         zarr_dataset_name,
         shape=uncompressed_shape,
         chunks=zarr_chunks,
         dtype=compressed_data.dtype,
-        compressor=compressor,
+        compressors=(zarr.codecs.Blosc(cname="zstd", clevel=3, shuffle=1),),
     )
 
     # Process identifiers in batches to manage memory
@@ -389,7 +412,7 @@ def uncompress_single_scale(
         # Create batch array
         batch_annotations = np.zeros((len(batch_identifiers),) + compressed_data.shape, dtype=np.uint8)
 
-        for i, (identifier, descendant_values) in enumerate(batch_identifiers):
+        for i, (identifier, _, descendant_values) in enumerate(batch_identifiers):
             logging.info(
                 f"Creating annotation for identifier {identifier} with {len(descendant_values)} descendant values"
             )
@@ -407,7 +430,7 @@ def uncompress_single_scale(
         # Clear batch from memory
         del batch_annotations
 
-    return (zarr_array, new_affine, np.array(identifiers))
+    return (zarr_array, new_affine, np.array(annotation_values))
 
 
 def convert_compressed_annotations_to_zarr(compressed_results, output_dir, scales=(10, 25, 50, 100)):
@@ -528,7 +551,7 @@ def uncompress_annotations_to_zarr(input_dir, terminology, output_dir, scales=(1
     # Process each scale and create zarr arrays directly
     zarr_arrays = []
     transforms = []
-    terminology_ids = None  # Will be set from the first scale processed
+    annotation_values = None  # Will be set from the first scale processed
 
     axes = [
         {"name": "c", "type": "channel"},
@@ -536,6 +559,9 @@ def uncompress_annotations_to_zarr(input_dir, terminology, output_dir, scales=(1
         {"name": "y", "type": "space", "unit": "micrometer"},
         {"name": "x", "type": "space", "unit": "micrometer"},
     ]
+
+    axes_orientation = None
+    original_orientation = None
 
     scale_index = 0
     for scale in scales:
@@ -558,32 +584,51 @@ def uncompress_annotations_to_zarr(input_dir, terminology, output_dir, scales=(1
             terminology,
             zarr_group=group,
             zarr_dataset_name=f"{scale_index}",
-            zarr_chunks=(4, 128, 128, 128),
+            zarr_chunks=(1, 128, 128, 128),
         )
 
         if result is None:
             continue
 
-        zarr_array, new_affine, identifiers = result
+        zarr_array, new_affine, values = result
         zarr_arrays.append(zarr_array)
 
-        # Set terminology_ids from the first scale processed (all scales have same identifiers)
-        if terminology_ids is None:
-            terminology_ids = identifiers
+        # Set annotation_values from the first scale processed (all scales have same values)
+        if annotation_values is None:
+            annotation_values = values
 
         # Extract transformation information from affine matrix
         scale_vec, rotation_mat, translation_vec = decompose_affine(new_affine)
 
-        # For 4D data, we need to handle the channel dimension
-        channel_scale = [1.0]  # Identity scaling for channel dimension
-        spatial_scale = scale_vec.tolist()
-        full_scale = channel_scale + spatial_scale
+        # Update axes orientation metadata once using spatial axes
+        if axes_orientation is None or original_orientation is None:
+            path_str = str(output_dir).lower()
+            spatial_axes = [dict(axes[1]), dict(axes[2]), dict(axes[3])]
+            spatial_axes_orientation, spatial_original_orientation, _ = write_image_orientation(
+                new_affine,
+                spatial_axes,
+                path_str,
+            )
+            axes_orientation = [axes[0]] + spatial_axes_orientation
+            original_orientation = [axes[0]] + spatial_original_orientation
 
-        transforms.append(
-            [
-                {"type": "scale", "scale": full_scale},
-            ]
-        )
+        scale_transforms = []
+
+        # For 4D data, prepend identity for channel dimension
+        if scale_vec is not None:
+            full_scale = [1.0] + scale_vec.tolist()
+            scale_transforms.append({"type": "scale", "scale": full_scale})
+
+        if translation_vec is not None:
+            full_translation = [0.0] + translation_vec.tolist()
+            scale_transforms.append({"type": "translation", "translation": full_translation})
+
+        if rotation_mat is not None:
+            rotation_4d = np.eye(4)
+            rotation_4d[1:, 1:] = rotation_mat
+            scale_transforms.append({"type": "rotation", "rotation": rotation_4d.tolist()})
+
+        transforms.append(scale_transforms)
 
         scale_index += 1
 
@@ -603,17 +648,21 @@ def uncompress_annotations_to_zarr(input_dir, terminology, output_dir, scales=(1
             }
             for i in range(len(zarr_arrays))
         ],
-        axes=axes,
+        axes=original_orientation if original_orientation is not None else axes,
     )
 
-    # Store terminology_ids as a separate array in the zarr group
-    if terminology_ids is not None:
+    if axes_orientation is not None:
+        correct_coordinate_transforms_rfc5(group, axes_orientation)
+
+    # Store annotation_values as a separate array in the zarr group
+    if annotation_values is not None:
         group.create_dataset(
-            "terminology_ids",
-            data=terminology_ids,
-            dtype=terminology_ids.dtype,
-            compressor=zarr.Blosc(cname="zstd", clevel=3, shuffle=1),
+            "annotation_values",
+            shape=annotation_values.shape,
+            data=annotation_values,
+            dtype=annotation_values.dtype,
+            compressors=(zarr.codecs.Blosc(cname="zstd", clevel=3, shuffle=1),),
         )
-        logging.info(f"Stored {len(terminology_ids)} terminology IDs")
+        logging.info(f"Stored {len(annotation_values)} annotation values")
 
     logging.info(f"Memory-optimized OME-Zarr multiscale annotations written to {output_zarr_path}")
