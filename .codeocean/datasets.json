@@ -2,6 +2,10 @@
 	"version": 1,
 	"attached_datasets": [
 		{
+			"id": "1a0970c7-713d-4941-93f5-67f283ec785f",
+			"mount": "devmouse-lsfm"
+		},
+		{
 			"id": "30bf0bcc-6467-4b49-a177-a1a1424ff1f6",
 			"mount": "smartspim_lca_template"
 		},
