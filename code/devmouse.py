@@ -391,7 +391,7 @@ def package_age_group(age, base_dir, results_dir, asset_library, terminology):
     annotation_set.create_from_mhd(
         annotation_mhd,
         results_dir,
-        include_meshes=True,
+        include_meshes=False,
     )
 
     # Create uncompressed (hierarchical) annotation set
