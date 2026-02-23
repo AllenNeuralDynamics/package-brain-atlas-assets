@@ -13,6 +13,7 @@ import CCFv3
 import CCFv2020
 import HMBA
 import devmouse
+import devmouse_lsfm
 import SmartSPIM
 import idisco
 from atlas_builder import AssetLibrary
@@ -94,12 +95,13 @@ def main(results_dir: str | Path):
         Destination directory for packaged atlas assets.
     """
     scales = (10, 25, 50, 100)
-    hmba_scales = {"hcp": (700,), "mac25": (160,), "riken25": (70,)}
+    hmba_scales = {"hcp": (700,), "mac25": (160,), "riken25": (70,), "icbm": (500,)}
 
     abc_dir = Path("/data/abc_atlas")
     ccf3_dir = Path("/data/allen_mouse_ccf")
     smartspim_dir = Path("/data/smartspim_lca_template_opendata")
     devmouse_dir = Path("/data/devmouse-atlas-assets")
+    devmouse_lsfm_dir = Path("/data/devmouse-lsfm")
     hmba_dir = Path("/data/hmba")
     # Allow caller to override results directory
     results_dir = Path(results_dir)
@@ -112,8 +114,9 @@ def main(results_dir: str | Path):
     # Clear the entire results directory
     clear_directory(results_dir, keep_files={"output.log"})
 
-    # Package DevMouse atlas assets first
+    ## Package DevMouse atlas assets first
     devmouse.package_devmouse(devmouse_dir, results_dir, library)
+    devmouse_lsfm.package_devmouse(devmouse_lsfm_dir, results_dir, library)
 
     # Package CCF 3 legacy annotations and templates
     CCFv3.package_ccf(ccf3_dir, results_dir, library, scales=scales)
