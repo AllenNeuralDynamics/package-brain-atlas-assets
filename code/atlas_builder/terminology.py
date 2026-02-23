@@ -3,6 +3,7 @@
 import logging
 from dataclasses import dataclass
 from typing import ClassVar
+from pathlib import Path
 
 import pandas as pd
 
@@ -49,6 +50,27 @@ class Terminology(AtlasAsset):
         logging.info("Pre-computing root_identifier_path for all terms in terminology...")
         self.df["root_identifier_path"] = self.df["identifier"].apply(self._compute_root_identifier_path)
         logging.info("Pre-computed root_identifier_path for all terms")
+
+    @classmethod
+    def from_manifest(cls, manifest: dict, root: Path | None = None) -> "Terminology":
+        location = cls.resolve_manifest_location(manifest, root=root)
+        parquet_path = location / "terminology.parquet"
+        csv_path = location / "terminology.csv"
+
+        if parquet_path.exists():
+            df = pd.read_parquet(parquet_path)
+        elif csv_path.exists():
+            df = pd.read_csv(csv_path)
+        else:
+            raise FileNotFoundError(
+                f"Terminology files not found at {location} (expected terminology.parquet or terminology.csv)"
+            )
+
+        return cls(
+            name=manifest["name"],
+            version=manifest["version"],
+            df=df,
+        )
 
     def _compute_descendant_identifiers(self, identifier):
         """Recursively compute all descendant identifiers for a given identifier (including self)."""

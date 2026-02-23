@@ -2,6 +2,7 @@
 
 from dataclasses import dataclass
 from typing import ClassVar
+from pathlib import Path
 
 from atlas_builder.template import Template
 from atlas_builder.atlas_asset import AtlasAsset
@@ -21,3 +22,12 @@ class CoordinateSpace(AtlasAsset):
         return super().manifest | {
             "template": self.template.manifest,
         }
+
+    @classmethod
+    def from_manifest(cls, manifest: dict, root: Path | None = None) -> "CoordinateSpace":
+        template = Template.from_manifest(manifest["template"], root=root)
+        return cls(
+            name=manifest["name"],
+            version=manifest["version"],
+            template=template,
+        )

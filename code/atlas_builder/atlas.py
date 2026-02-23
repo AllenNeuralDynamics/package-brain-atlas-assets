@@ -2,6 +2,7 @@
 
 from dataclasses import dataclass
 from typing import ClassVar
+from pathlib import Path
 
 from atlas_builder.annotation_set import AnnotationSet
 from atlas_builder.coordinate_space import CoordinateSpace
@@ -27,3 +28,20 @@ class Atlas(AtlasAsset):
             "annotation_set": self.annotation_set.manifest,
             "terminology": self.terminology.manifest,
         }
+
+    @classmethod
+    def from_manifest(cls, manifest: dict, root: Path | None = None) -> "Atlas":
+        coordinate_space = CoordinateSpace.from_manifest(
+            manifest["coordinate_space"], root=root
+        )
+        annotation_set = AnnotationSet.from_manifest(
+            manifest["annotation_set"], root=root
+        )
+        terminology = Terminology.from_manifest(manifest["terminology"], root=root)
+        return cls(
+            name=manifest["name"],
+            version=manifest["version"],
+            coordinate_space=coordinate_space,
+            annotation_set=annotation_set,
+            terminology=terminology,
+        )
