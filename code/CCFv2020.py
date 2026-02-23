@@ -28,12 +28,12 @@ CCF2020_TERMINOLOGY_DESCRIPTION = "The 2020 release of the Allen Mouse Reference
 CCF2020_TEMPLATE_DESCRIPTION = "The 2020 release of the anatomical template is the same as the 2017 Allen adult mouse template, however the coordinate system moved. The origin of the space this template defines is now located near the anterior commissure."
 
 
-def create_ccf2020_template(input_dir, results_dir, library, scales=(10,)):
+def create_ccf2020_template(input_dir, results_dir, library, scales=(10,25)):
     """Create CCF 2020 anatomical template from ABC Atlas data."""
     logging.info("Creating CCF 2020 anatomical template...")
 
     # Create anatomical template from the ABC Atlas average template
-    template_dir = input_dir / "image_volumes" / "Allen-CCF-2020" / "20230630"
+    template_dir = input_dir / "image_volumes" / "Allen-CCF-2020" / "20250331"
     template = Template(
         name="allen-adult-mouse-stpt-template", version="2020", scales=scales
     )
@@ -297,7 +297,7 @@ def _write_ccf2020_template_data_description(output_dir: Path):
     logging.info(f"Wrote data_description.json for 2020 template to {output_dir}")
 
 
-def create_ccf2020_annotation_set(input_dir, results_dir, library, scales=(10,)):
+def create_ccf2020_annotation_set(input_dir, results_dir, library, scales=(10,25)):
     """Create CCF 2020 anatomical annotation set with updated brain region labels."""
     logging.info("Creating CCF 2020 anatomical annotation set...")
 
