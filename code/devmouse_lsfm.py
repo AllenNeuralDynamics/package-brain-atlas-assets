@@ -253,7 +253,7 @@ def package_age_group(age: str, base_dir: Path, results_dir: Path, asset_library
     annotation_set.create_from_nifti(
             input_prefix=annotation_dir / "annotation",
             output_root=results_dir,
-            include_meshes=False
+            include_meshes=True
         )
     annotation_set.create_manifest(results_dir)
     asset_library.add(annotation_set)

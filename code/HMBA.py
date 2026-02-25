@@ -288,6 +288,7 @@ def create_all_ccf_annotation_sets(input_dir: Path, results_dir: Path, library, 
         annotation_set.create_from_nifti(
             input_prefix=annotation_dir / "annotation",
             output_root=results_dir,
+            include_meshes=True
         )
 
         annotation_output_dir = annotation_set.location(results_dir)
