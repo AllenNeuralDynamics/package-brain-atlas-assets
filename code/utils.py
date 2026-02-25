@@ -78,18 +78,28 @@ def correct_coordinate_transforms_rfc5(group, axes, coordinate_system_name="mm")
     array_data = multiscales.get("datasets", []) 
     for idx in range(len(array_data)):
         _array = array_data[idx]
-        
+
         array_path = _array.get("path", str(idx))
+
+        # this is being written as a list of transformations. 
+        # for RFC5, we want to save a "sequence" of transformations
+        coord_transforms = _array.get("coordinateTransformations", [])
+        coordinate_transform_metadata = {
+            "type": "sequence",
+            "input": array_path,
+            "output": "mm",
+            "transformations": coord_transforms
+        }
+        _array["coordinateTransformations"] = [coordinate_transform_metadata]
 
         # Apply same coordinate transform to all zarr arrays
         array_attr = group[array_path].attrs
         ome_attr = array_attr.get("ome", {})
-        ome_attr["coordinateTransformations"] = _array.get("coordinateTransformations")
-        
+        ome_attr["coordinateTransformations"] = [coordinate_transform_metadata]
         logging.info(f"OME attr: {ome_attr}")
         array_attr["ome"] = ome_attr
         group[array_path].attrs.put(array_attr)
 
-    ome_block["multiscales"] = [multiscales]
+    ome_block["multiscales"] = multiscales
     attrs["ome"] = ome_block
     group.attrs.put(attrs)
