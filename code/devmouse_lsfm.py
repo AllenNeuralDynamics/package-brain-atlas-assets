@@ -51,7 +51,7 @@ DEVMOUSE_TEMPLATE_DATA = [
         "Specimen": "Whole embryo",
         "sample number": "9",
         "number female": "4",
-    },
+    },   
     {
         "Age (days)": "E18.5",
         "Specimen": "Dissected brain",
