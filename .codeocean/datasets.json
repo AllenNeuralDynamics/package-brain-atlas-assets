@@ -6,6 +6,10 @@
 			"mount": "smartspim_lca_template"
 		},
 		{
+			"id": "446bd3a9-18da-4b16-8e52-13641b33f326",
+			"mount": "hmba"
+		},
+		{
 			"id": "673fe731-3a2b-42eb-b8f7-bde82d79e371",
 			"mount": "ccf_meshes"
 		},
@@ -32,10 +36,6 @@
 		{
 			"id": "c540aef9-d6f7-4b05-8706-b034f61544b0",
 			"mount": "brain_explorer"
-		},
-		{
-			"id": "f541abf9-da39-44b6-bda3-6ae083377b17",
-			"mount": "hmba"
 		},
 		{
 			"id": "fbbd6907-696e-43e5-9cb9-a3542fe3ecfb",
