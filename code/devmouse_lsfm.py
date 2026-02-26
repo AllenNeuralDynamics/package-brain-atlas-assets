@@ -218,7 +218,7 @@ def package_age_group(age: str, base_dir: Path, results_dir: Path, asset_library
 
     # Define paths
     template_dir = base_dir / f"templates/allen-dev-mouse-{age}-lsfm-template/2024"
-    annotation_dir = base_dir / f"annotation-sets/allen-dev-mouse-{age}-annotation/2024"
+    annotation_dir = base_dir / f"annotation-sets/allen-dev-mouse-{age}-lsfm-annotation/2024"
 
     # Check if directories exist
     if not os.path.exists(template_dir):
