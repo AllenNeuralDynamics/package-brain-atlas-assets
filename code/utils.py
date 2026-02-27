@@ -27,6 +27,16 @@ def decompose_affine(affine):
     
     return scale_out, rotation_out, translation_out
 
+
+def round_transform_values(values, decimals=6):
+    """Round transform values to avoid floating point precision artifacts."""
+    if values is None:
+        return None
+    arr = np.array(values, dtype=float)
+    arr = np.round(arr, decimals=decimals)
+    arr = np.where(np.isclose(arr, 0.0), 0.0, arr)
+    return arr
+
 def write_image_orientation(affine: np.ndarray,
                           axes_metadata: List,
                           path_str: str,

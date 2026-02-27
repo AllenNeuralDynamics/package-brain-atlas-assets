@@ -21,7 +21,12 @@ from atlas_builder.atlas_asset import AtlasAsset
 from atlas_builder.terminology import Terminology
 from atlas_builder.precomputed import (convert_compressed_annotations_to_precomputed,
                                       write_segment_properties, create_mesh_from_compressed_annotation)
-from utils import decompose_affine, write_image_orientation, correct_coordinate_transforms_rfc5
+from utils import (
+    decompose_affine,
+    write_image_orientation,
+    correct_coordinate_transforms_rfc5,
+    round_transform_values,
+)
 
 
 @dataclass
@@ -464,6 +469,9 @@ def convert_compressed_annotations_to_zarr(compressed_results, output_dir, scale
 
             # Extract transformation information from affine matrix
             scale_vec, rotation_mat, translation_vec = decompose_affine(affine)
+            scale_vec = round_transform_values(scale_vec, decimals=6)
+            translation_vec = round_transform_values(translation_vec, decimals=6)
+            rotation_mat = round_transform_values(rotation_mat, decimals=8)
 
             # Write affine information to axes
             path_str = str(output_dir).lower()
@@ -599,6 +607,9 @@ def uncompress_annotations_to_zarr(input_dir, terminology, output_dir, scales=(1
 
         # Extract transformation information from affine matrix
         scale_vec, rotation_mat, translation_vec = decompose_affine(new_affine)
+        scale_vec = round_transform_values(scale_vec, decimals=6)
+        translation_vec = round_transform_values(translation_vec, decimals=6)
+        rotation_mat = round_transform_values(rotation_mat, decimals=8)
 
         # Update axes orientation metadata once using spatial axes
         if axes_orientation is None or original_orientation is None:
