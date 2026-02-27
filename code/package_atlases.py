@@ -130,7 +130,8 @@ def main(results_dir: str | Path):
     )
 
     # Package iDISCO template
-    idisco.package_idisco_template(results_dir)       
+    # no idisco for now
+    # idisco.package_idisco_template(results_dir)       
 
     # Package HMBA atlases
     HMBA.package_ccf(hmba_dir, results_dir, library, scales=hmba_scales)
