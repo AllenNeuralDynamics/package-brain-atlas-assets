@@ -69,17 +69,6 @@ DEVMOUSE_TEMPLATE_DATA = [
         "# Annotated images": 16,
     },
     {
-        "Age (days)": "E16.5",
-        "Theiler stage": "TS24.5",
-        "Gender": "male",
-        "Plane": "sagittal",
-        "Stain": "HP Yellow",
-        "Specimen": "Whole embryo",
-        "Section width": "20 µm",
-        "Annotated hemisphere": "Right",
-        "# Annotated images": 16,
-    },
-    {
         "Age (days)": "E18.5",
         "Theiler stage": "TS26",
         "Gender": "male",
