@@ -12,7 +12,12 @@ import zarr
 from ome_zarr.writer import write_multiscale
 
 from atlas_builder.atlas_asset import AtlasAsset
-from utils import decompose_affine, write_image_orientation, correct_coordinate_transforms_rfc5
+from utils import (
+    decompose_affine,
+    write_image_orientation,
+    correct_coordinate_transforms_rfc5,
+    round_transform_values,
+)
 
 
 @dataclass
@@ -90,6 +95,9 @@ class Template(AtlasAsset):
             spacing = img.header.get_zooms()[:3]
             origin = img.affine[:3, 3]
             scale_vec, rotation_mat, translation_vec = decompose_affine(img.affine)
+            scale_vec = round_transform_values(scale_vec, decimals=6)
+            translation_vec = round_transform_values(translation_vec, decimals=6)
+            rotation_mat = round_transform_values(rotation_mat, decimals=8)
             logging.info(
                 f"Scale {scale}: data shape {data.shape}, dtype {data.dtype}, spacing {spacing}, "
                 f"origin {origin}, affine:\n{img.affine}\n"

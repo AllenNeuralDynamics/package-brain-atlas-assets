@@ -297,7 +297,7 @@ def _write_ccf2020_template_data_description(output_dir: Path):
     logging.info(f"Wrote data_description.json for 2020 template to {output_dir}")
 
 
-def create_ccf2020_annotation_set(input_dir, results_dir, library, scales=(10,25)):
+def create_ccf2020_annotation_set(input_dir, results_dir, library, scales=(10, 25)):
     """Create CCF 2020 anatomical annotation set with updated brain region labels."""
     logging.info("Creating CCF 2020 anatomical annotation set...")
 

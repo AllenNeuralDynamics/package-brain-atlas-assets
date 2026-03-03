@@ -118,6 +118,9 @@ def main(results_dir: str | Path):
     devmouse.package_devmouse(devmouse_dir, results_dir, library)
     devmouse_lsfm.package_devmouse(devmouse_lsfm_dir, results_dir, library)
 
+    # devmouse only build
+    return
+
     # Package CCF 3 legacy annotations and templates
     CCFv3.package_ccf(ccf3_dir, results_dir, library, scales=scales)
 
@@ -130,7 +133,8 @@ def main(results_dir: str | Path):
     )
 
     # Package iDISCO template
-    idisco.package_idisco_template(results_dir)       
+    # no idisco for now
+    # idisco.package_idisco_template(results_dir)       
 
     # Package HMBA atlases
     HMBA.package_ccf(hmba_dir, results_dir, library, scales=hmba_scales)

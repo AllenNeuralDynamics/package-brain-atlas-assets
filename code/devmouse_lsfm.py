@@ -51,7 +51,7 @@ DEVMOUSE_TEMPLATE_DATA = [
         "Specimen": "Whole embryo",
         "sample number": "9",
         "number female": "4",
-    },
+    },   
     {
         "Age (days)": "E18.5",
         "Specimen": "Dissected brain",
@@ -241,7 +241,7 @@ def package_age_group(age: str, base_dir: Path, results_dir: Path, asset_library
     _write_devmouse_template_data_description(template.location(results_dir), age)
 
     # Create annotation set
-    annotation_name = f"allen-dev-mouse-{age.lower()}-annotation"
+    annotation_name = f"allen-dev-mouse-{age.lower()}-lsfm-annotation"
     annotation_set = AnnotationSet(
         name=annotation_name,
         template=template,
@@ -253,13 +253,14 @@ def package_age_group(age: str, base_dir: Path, results_dir: Path, asset_library
     annotation_set.create_from_nifti(
             input_prefix=annotation_dir / "annotation",
             output_root=results_dir,
+            include_meshes=True
         )
     annotation_set.create_manifest(results_dir)
     asset_library.add(annotation_set)
     print(f"  Added annotation set: {annotation_name}")
 
     # Create coordinate space for this developmental stage
-    space_name = f"allen-dev-mouse-{age.lower()}-space"
+    space_name = f"allen-dev-mouse-{age.lower()}-lsfm-space"
     coordinate_space = CoordinateSpace(
         name=space_name, version="2024", template=template
     )
@@ -268,7 +269,7 @@ def package_age_group(age: str, base_dir: Path, results_dir: Path, asset_library
     print(f"  Created coordinate space: {space_name}")
 
     # Create parcellation atlas
-    atlas_name = f"allen-dev-mouse-{age.lower()}-atlas"
+    atlas_name = f"allen-dev-mouse-{age.lower()}-lsfm-atlas"
     atlas = Atlas(
         name=atlas_name,
         version="2024",

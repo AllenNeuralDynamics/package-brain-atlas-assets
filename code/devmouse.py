@@ -157,7 +157,7 @@ def _write_devmouse_template_data_description(output_dir: Path, age_token: str):
     subject_id = f"dev-mouse-{age_token.lower()}"
     dd = DataDescription(
         name=build_data_name(
-            f"allen-dev-mouse-{age_token.lower()}-template",
+            f"allen-dev-mouse-{age_token.lower()}-nissl-template",
             DEVMOUSE_TEMPLATE_CREATION_TIME,
         ),
         data_summary=summary.strip(),
@@ -378,7 +378,7 @@ def package_age_group(age, base_dir, results_dir, asset_library, terminology):
     _write_devmouse_template_data_description(template.location(results_dir), age)
 
     # Create annotation set
-    annotation_name = f"allen-dev-mouse-{age.lower()}-annotation"
+    annotation_name = f"allen-dev-mouse-{age.lower()}-nissl-annotation"
     annotation_set = AnnotationSet(
         name=annotation_name,
         template=template,
@@ -408,7 +408,7 @@ def package_age_group(age, base_dir, results_dir, asset_library, terminology):
     print(f"  Added annotation set: {annotation_name}")
 
     # Create coordinate space for this developmental stage
-    space_name = f"allen-dev-mouse-{age.lower()}-space"
+    space_name = f"allen-dev-mouse-{age.lower()}-nissl-space"
     coordinate_space = CoordinateSpace(
         name=space_name, version="2012", template=template
     )
@@ -417,7 +417,7 @@ def package_age_group(age, base_dir, results_dir, asset_library, terminology):
     print(f"  Created coordinate space: {space_name}")
 
     # Create parcellation atlas
-    atlas_name = f"allen-dev-mouse-{age.lower()}-atlas"
+    atlas_name = f"allen-dev-mouse-{age.lower()}-nissl-atlas"
     atlas = Atlas(
         name=atlas_name,
         version="2012",
@@ -439,7 +439,7 @@ def package_devmouse(base_dir, results_dir, library):
     terminology = create_devmouse_terminology(results_dir, library)
 
     # Define age groups to process (excluding gridAnnotation and P56_Mouse files)
-    age_groups = ["E11pt5", "E13pt5", "E15pt5", "E16pt5", "E18pt5", "P4", "P14", "P28"]
+    age_groups = ["E11pt5", "E13pt5", "E15pt5", "E18pt5", "P4", "P14", "P28"]
 
     # Process each age group (creates templates, annotations, spaces, and atlases)
     for age in age_groups:

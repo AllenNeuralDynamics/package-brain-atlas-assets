@@ -193,6 +193,9 @@ def create_all_ccf_annotation_sets(input_dir, results_dir, library, scales=(10, 
     terminology = library.get_terminology(
         "allen-adult-mouse-terminology", "2017"
     )
+    devmouse_terminology = library.get_terminology(
+        "allen-dev-mouse-terminology", "2012"
+    )
 
     # Define annotation configurations for different CCF versions
     annotations = [
@@ -203,6 +206,7 @@ def create_all_ccf_annotation_sets(input_dir, results_dir, library, scales=(10, 
             "name": "allen-adult-mouse-annotation",
             "summary": CCF3_2015_ANNOTATION_DESCRIPTION,
             "creation_time": CCF3_2015_ANNOTATION_CREATION_TIME,
+            "terminology": terminology,
         },
         {
             "directory": "ccf_2016",
@@ -211,6 +215,7 @@ def create_all_ccf_annotation_sets(input_dir, results_dir, library, scales=(10, 
             "name": "allen-adult-mouse-annotation",
             "summary": CCF3_2016_ANNOTATION_DESCRIPTION,
             "creation_time": CCF3_2016_ANNOTATION_CREATION_TIME,
+            "terminology": terminology,
         },
         {
             "directory": "ccf_2017",
@@ -219,6 +224,7 @@ def create_all_ccf_annotation_sets(input_dir, results_dir, library, scales=(10, 
             "name": "allen-adult-mouse-annotation",
             "summary": CCF3_2017_ANNOTATION_DESCRIPTION,
             "creation_time": CCF3_2017_ANNOTATION_CREATION_TIME,
+            "terminology": terminology,
         },
         {
             "directory": "devmouse_2012",
@@ -227,6 +233,7 @@ def create_all_ccf_annotation_sets(input_dir, results_dir, library, scales=(10, 
             "name": "allen-dev-mouse-p56-annotation",
             "summary": None,
             "creation_time": None,
+            "terminology": devmouse_terminology,
         },
         {
             "directory": "mouse_2011",
@@ -236,6 +243,7 @@ def create_all_ccf_annotation_sets(input_dir, results_dir, library, scales=(10, 
             # No data description requested for 2011 in this change
             "summary": None,
             "creation_time": None,
+            "terminology": terminology,
         },
     ]
 
@@ -244,7 +252,7 @@ def create_all_ccf_annotation_sets(input_dir, results_dir, library, scales=(10, 
         annotation_set = AnnotationSet(
             name=annotation["name"],
             template=annotation["template"],
-            terminology=terminology,
+            terminology=annotation["terminology"],
             version=annotation["version"],
             scales=scales,
         )
@@ -426,7 +434,7 @@ def package_ccf(input_dir, output_dir, library, scales=(10, 25, 50, 100)):
             name="allen-dev-mouse-p56-atlas",
             version="2012",
             coordinate_space=library.get_coordinate_space(
-                name="allen-adult-mouse-ccf-space", version="2015"
+                name="allen-adult-mouse-ccf-space", version="2011"
             ),
             annotation_set=library.get_annotation_set(
                 name="allen-dev-mouse-p56-annotation", version="2012"
