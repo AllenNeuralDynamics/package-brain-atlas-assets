@@ -42,10 +42,6 @@
 			"mount": "brain_explorer"
 		},
 		{
-			"id": "f541abf9-da39-44b6-bda3-6ae083377b17",
-			"mount": "hmba"
-		},
-		{
 			"id": "fbbd6907-696e-43e5-9cb9-a3542fe3ecfb",
 			"mount": "idisco_template_multichannel_multiresolution"
 		}
