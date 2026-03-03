@@ -10,6 +10,10 @@
 			"mount": "smartspim_lca_template"
 		},
 		{
+			"id": "446bd3a9-18da-4b16-8e52-13641b33f326",
+			"mount": "hmba"
+		},
+		{
 			"id": "673fe731-3a2b-42eb-b8f7-bde82d79e371",
 			"mount": "ccf_meshes"
 		},

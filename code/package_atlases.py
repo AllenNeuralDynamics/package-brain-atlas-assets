@@ -97,6 +97,8 @@ def main(results_dir: str | Path):
     scales = (10, 25, 50, 100)
     hmba_scales = {"hcp": (700,), "mac25": (160,), "riken25": (70,), "icbm": (500,)}
 
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
+
     abc_dir = Path("/data/abc_atlas")
     ccf3_dir = Path("/data/allen_mouse_ccf")
     smartspim_dir = Path("/data/smartspim_lca_template_opendata")
