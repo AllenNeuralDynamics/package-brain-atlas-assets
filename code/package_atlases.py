@@ -13,7 +13,7 @@ import CCFv3
 import CCFv2020
 import HMBA
 import devmouse
-import devmouse_lsfm
+import devmouse_spim
 import SmartSPIM
 import idisco
 from atlas_builder import AssetLibrary
@@ -118,7 +118,7 @@ def main(results_dir: str | Path):
 
     ## Package DevMouse atlas assets first
     devmouse.package_devmouse(devmouse_dir, results_dir, library)
-    devmouse_lsfm.package_devmouse(devmouse_lsfm_dir, results_dir, library)
+    devmouse_spim.package_devmouse(devmouse_lsfm_dir, results_dir, library)
 
     # devmouse only build
     return
