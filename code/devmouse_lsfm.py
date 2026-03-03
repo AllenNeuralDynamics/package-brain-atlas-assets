@@ -3,8 +3,8 @@
 Package DevMouse atlas assets using AssetLibrary.
 
 This script packages the developmental mouse atlas assets from the Allen Institute
-into the AssetLibrary format, handling MHD files and creating proper anatomical
-templates and annotation sets.
+and Kim Lab into the AssetLibrary format from input anatomical
+templates and annotation set volumes.
 """
 
 import logging
@@ -23,7 +23,6 @@ from atlas_builder import (
     Atlas,
     Terminology,
 )
-from atlas_builder.annotation_set import uncompress_annotations_to_zarr
 import datetime
 from aind_data_schema.core.data_description import DataDescription, Funding
 from aind_data_schema_models.data_name_patterns import build_data_name
@@ -33,90 +32,55 @@ from aind_data_schema.components.identifiers import Person
 
 
 DEVMOUSE_ONTOLOGY_DESCRIPTION = "The Allen Developing Mouse Brain Atlas ontology, authored by Professor Luis Puelles, M.D., Ph.D., organizes mouse brain structures developmentally from the earliest embryonic stage to adulthood using a topological rather than fixed-coordinate approach, enabling applicability to both developing and mature forms. Beginning at Level 00 with the unpatterned neural plate, it progresses through 13 hierarchical levels defined by permanent early boundaries, internal landmarks, and gene expression patterns. Early levels (01–05) capture broad divisions—forebrain, midbrain, hindbrain, spinal cord—followed by neuromeric and dorsoventral partitioning. Intermediate levels (06–08) refine subdivisions, especially in the telencephalon, while Levels 09–10 address radial layering of the neural wall. The final stages (11–13) classify nuclei and subnuclei, largely following The Mouse Brain in Stereotaxic Coordinates by Franklin and Paxinos (2008), with refinements from the ontology’s planar framework. This developmental, topology-based classification facilitates consistent mapping across stages and species, linking embryonic and adult brain data."
-DEVMOUSE_TEMPLATE_DESCRIPTION = "For this developmental atlas (Age: {Age (days)}, Theiler stage: {Theiler stage}, Gender: {Gender}), a reference set of tissue preparations was generated in the {Plane} plane with a histological stain ({Stain}) to aid identification of anatomical structures for atlas drawing. The specimen used was a {Specimen}, sectioned at {Section width} thickness. Annotation was performed on the {Annotated hemisphere} hemisphere, with {# Annotated images} images annotated. Embryonic (E) specimen age is provided relative to days after conception, with birth expected at approximately 19 days post-conception. Postnatal (P) specimen age is given relative to birth (P0). Theiler stages were determined on the basis of external features identified during dissection and embedding (Theiler, 1989). HP Yellow, a nuclear stain, was used for whole embryo reference sets to allow visualization of all tissues and cells; this stain is also used as a counterstain for the ISH in the Allen Developing Mouse Brain Atlas. Nissl stains were used for all dissected brains to provide additional morphological information of maturing neurons. To make a coherent 3D volume, section images were coregistered to each other."
+DEVMOUSE_TEMPLATE_DESCRIPTION = "For this developmental atlas (Age: {Age (days)}, a reference lightsheet template was created from {sample number} individuals ({number female} female) using {Specimen} fixed samples. Individual samples were co-registered using a landmark-assisted multimodal registration method, registered to an MRI template space, and resampled to 20 µm isotropic voxel resolution. Annotation was performed manually using terminology from the Allen Developing Mouse Brain Atlas ontology. Embryonic (E) specimen age is provided relative to days after conception, with birth expected at approximately 19 days post-conception. Postnatal (P) specimen age is given relative to birth (P0). A full description of atlas creation is published in Kronman et al. (2024), https://doi.org/10.1038/s41467-024-53254-w"
 DEVMOUSE_TEMPLATE_DATA = [
     {
         "Age (days)": "E11.5",
-        "Theiler stage": "TS19",
-        "Gender": "N.D.",
-        "Plane": "sagittal",
-        "Stain": "HP Yellow",
         "Specimen": "Whole embryo",
-        "Section width": "20 µm",
-        "Annotated hemisphere": "Right",
-        "# Annotated images": 28,
+        "sample number": "10",
+        "number female": "5",
     },
     {
         "Age (days)": "E13.5",
-        "Theiler stage": "TS21",
-        "Gender": "N.D.",
-        "Plane": "sagittal",
-        "Stain": "HP Yellow",
         "Specimen": "Whole embryo",
-        "Section width": "20 µm",
-        "Annotated hemisphere": "Right",
-        "# Annotated images": 15,
+        "sample number": "10",
+        "number female": "5",
     },
     {
         "Age (days)": "E15.5",
-        "Theiler stage": "TS24",
-        "Gender": "male",
-        "Plane": "sagittal",
-        "Stain": "HP Yellow",
         "Specimen": "Whole embryo",
-        "Section width": "20 µm",
-        "Annotated hemisphere": "Right",
-        "# Annotated images": 16,
-    },
+        "sample number": "9",
+        "number female": "4",
+    },   
     {
         "Age (days)": "E18.5",
-        "Theiler stage": "TS26",
-        "Gender": "male",
-        "Plane": "sagittal",
-        "Stain": "Nissl (cresyl violet)",
         "Specimen": "Dissected brain",
-        "Section width": "20 µm",
-        "Annotated hemisphere": "Left",
-        "# Annotated images": 19,
+        "sample number": "9",
+        "number female": "4",
     },
     {
         "Age (days)": "P4",
-        "Theiler stage": "-",
-        "Gender": "male",
-        "Plane": "sagittal",
-        "Stain": "Nissl (cresyl violet)",
         "Specimen": "Dissected brain",
-        "Section width": "20 µm",
-        "Annotated hemisphere": "Left",
-        "# Annotated images": 23,
+        "sample number": "7",
+        "number female": "4",
     },
     {
         "Age (days)": "P14",
-        "Theiler stage": "-",
-        "Gender": "male",
-        "Plane": "sagittal",
-        "Stain": "Nissl (thionin)",
         "Specimen": "Dissected brain",
-        "Section width": "25 µm",
-        "Annotated hemisphere": "Left",
-        "# Annotated images": 39,
+        "sample number": "10",
+        "number female": "5",
     },
     {
         "Age (days)": "P56",
-        "Theiler stage": "-",
-        "Gender": "male",
-        "Plane": "sagittal",
-        "Stain": "Nissl (thionin)",
         "Specimen": "Dissected brain",
-        "Section width": "25 µm",
-        "Annotated hemisphere": "Left",
-        "# Annotated images": 21,
+        "sample number": "6",
+        "number female": "3",
     },
 ]
 
 # Creation time constants
-DEVMOUSE_ONTOLOGY_CREATION_TIME = datetime.datetime(2012, 1, 1, tzinfo=datetime.timezone.utc)
-DEVMOUSE_TEMPLATE_CREATION_TIME = datetime.datetime(2012, 1, 1, tzinfo=datetime.timezone.utc)
+DEVMOUSE_ONTOLOGY_CREATION_TIME = datetime.datetime(2024, 10, 1, tzinfo=datetime.timezone.utc)
+DEVMOUSE_TEMPLATE_CREATION_TIME = datetime.datetime(2024, 10, 1, tzinfo=datetime.timezone.utc)
 
 
 def _write_devmouse_ontology_data_description(output_dir: Path):
@@ -126,12 +90,12 @@ def _write_devmouse_ontology_data_description(output_dir: Path):
         name=build_data_name("allen-dev-mouse-terminology", DEVMOUSE_ONTOLOGY_CREATION_TIME),
         data_summary=DEVMOUSE_ONTOLOGY_DESCRIPTION.strip(),
         subject_id="developing-mouse",
-        modalities=[Modality.BRIGHTFIELD],  # Source modalities (histological stains)
+        modalities=[Modality.SPIM],  # Source modalities (histological stains)
         data_level="derived",
         creation_time=DEVMOUSE_ONTOLOGY_CREATION_TIME,
-        institution=Organization.AIBS,
-        investigators=[Person(name="Lydia Ng", registry_identifier="0000-0002-7499-3514")],
-        funding_source=[Funding(funder=Organization.AI)],
+        institution=Organization.AIBS, # Need to add new organization to aind-data-schema-models
+        investigators=[Person(name="Yongsoo Kim", registry_identifier="0000-0002-2995-2131")],
+        funding_source=[Funding(funder=Organization.NINDS)],
         project_name="Allen Developing Mouse Brain Atlas",
     )
     dd.write_standard_file(output_directory=output_dir)
@@ -140,7 +104,7 @@ def _write_devmouse_ontology_data_description(output_dir: Path):
 
 def _lookup_template_row(age_token: str):
     """Return row dict from DEVMOUSE_TEMPLATE_DATA matching age token like 'E11pt5'."""
-    age_display = age_token.replace("pt", ".")  # Convert E11pt5 -> E11.5
+    age_display = age_token.replace("p", ".")  # Convert E11pt5 -> E11.5
     for row in DEVMOUSE_TEMPLATE_DATA:
         if row.get("Age (days)") == age_display:
             return row
@@ -157,78 +121,22 @@ def _write_devmouse_template_data_description(output_dir: Path, age_token: str):
     subject_id = f"dev-mouse-{age_token.lower()}"
     dd = DataDescription(
         name=build_data_name(
-            f"allen-dev-mouse-{age_token.lower()}-nissl-template",
+            f"allen-dev-mouse-{age_token.lower()}-template",
             DEVMOUSE_TEMPLATE_CREATION_TIME,
         ),
         data_summary=summary.strip(),
         subject_id=subject_id,
-        modalities=[Modality.BRIGHTFIELD],
+        modalities=[Modality.SPIM],
         data_level="derived",
         creation_time=DEVMOUSE_TEMPLATE_CREATION_TIME,
         institution=Organization.AIBS,
-        investigators=[Person(name="Lydia Ng", registry_identifier="0000-0002-7499-3514")],
-        funding_source=[Funding(funder=Organization.AI)],
+        investigators=[Person(name="Yongsoo Kim", registry_identifier="0000-0002-2995-2131")],
+        funding_source=[Funding(funder=Organization.NINDS)],
         project_name="Allen Developing Mouse Brain Atlas",
     )
     output_dir.mkdir(parents=True, exist_ok=True)
     dd.write_standard_file(output_directory=output_dir)
     logging.info(f"Wrote template data_description.json for age {age_token} to {output_dir}")
-
-
-def read_mhd_metadata(mhd_path):
-    """
-    Read metadata from an MHD file using SimpleITK.
-
-    Parameters
-    ----------
-    mhd_path : str
-        Path to the MHD file
-
-    Returns
-    -------
-    tuple
-        (spacing, origin, direction)
-    """
-    # Read the image using SimpleITK (metadata only)
-    image = sitk.ReadImage(str(mhd_path))
-
-    # Get metadata
-    spacing = image.GetSpacing()  # (x, y, z)
-    origin = image.GetOrigin()  # (x, y, z)
-    direction = image.GetDirection()  # 9-element tuple for 3D
-
-    return spacing, origin, direction
-
-
-def convert_mhd_to_nifti(mhd_path, output_path):
-    """
-    Convert an MHD file to NIfTI format.
-
-    Converts units from microns (MHD) to millimeters (NIfTI standard).
-
-    Parameters
-    ----------
-    mhd_path : str
-        Path to the input MHD file
-    output_path : str
-        Path for the output NIfTI file
-    """
-    # Read the MHD file
-    image = sitk.ReadImage(str(mhd_path))
-
-    # Convert spacing from microns to millimeters (divide by 1000)
-    spacing_microns = image.GetSpacing()
-    spacing_mm = tuple(s / 1000.0 for s in spacing_microns)
-    image.SetSpacing(spacing_mm)
-
-    # Convert origin from microns to millimeters (divide by 1000)
-    origin_microns = image.GetOrigin()
-    origin_mm = tuple(o / 1000.0 for o in origin_microns)
-    image.SetOrigin(origin_mm)
-
-    # Write as NIfTI
-    sitk.WriteImage(image, str(output_path))
-    print(f"Converted {mhd_path} to {output_path} (units converted from microns to mm)")
 
 
 def create_devmouse_terminology(output_dir, library):
@@ -242,25 +150,25 @@ def create_devmouse_terminology(output_dir, library):
     library : AssetLibrary
         Asset library to add the terminology to
     """
-    structures_path = Path("/root/capsule/data/devmouse-atlas-assets/devmouse_structures.csv")
+    structures_path = Path("/root/capsule/data/devmouse-lsfm/terminology/2024/allen-dev-mouse-terminology-v004.csv")
 
     df = pd.read_csv(structures_path)
 
     # Create DataFrame with required columns for Terminology
     structures_df = pd.DataFrame(
         {
-            "identifier": df["id"].map(lambda x: f"DMBA:{int(x)}"),
-            "annotation_value": df["id"].astype(int),
-            "parent_identifier": df["parent_structure_id"].map(lambda x: f"DMBA:{int(x)}" if not pd.isna(x) else ""),
+            "identifier": df["identifier"],
+            "annotation_value": df["annotation_value"].astype(int),
+            "parent_identifier": df["parent_identifier"],
             "name": df["name"],
-            "abbreviation": df["acronym"],
-            "color_hex_triplet": df["color_hex_triplet"].map(lambda x: f"#{x}"),
+            "abbreviation": df["abbreviation"],
+            "color_hex_triplet": df["color_hex_triplet"],
         }
     )
 
     # Create the terminology
     terminology = Terminology(
-        name="allen-dev-mouse-terminology", version="2012", df=structures_df
+        name="allen-dev-mouse-terminology", version="2024", df=structures_df
     )
 
     # Descendant annotation values require lookup since identifiers are prefixed
@@ -284,14 +192,14 @@ def create_devmouse_terminology(output_dir, library):
     return terminology
 
 
-def package_age_group(age, base_dir, results_dir, asset_library, terminology):
+def package_age_group(age: str, base_dir: Path, results_dir: Path, asset_library, terminology):
     """
     Package atlas assets for a specific age group.
 
     Parameters
     ----------
     age : str
-        Age identifier (e.g., 'E11pt5', 'P14')
+        Age identifier (e.g., 'E11p5', 'P14')
     base_dir : str
         Base directory containing the devmouse assets
     results_dir : Path
@@ -304,13 +212,13 @@ def package_age_group(age, base_dir, results_dir, asset_library, terminology):
     print(f"\nProcessing age group: {age}")
 
     # Skip P56_Mouse files as requested
-    if age.startswith("P56_Mouse"):
+    if age.startswith("P56"):
         print(f"Skipping {age} as requested")
         return
 
     # Define paths
-    template_dir = os.path.join(base_dir, f"{age}_atlasVolume")
-    annotation_dir = os.path.join(base_dir, f"{age}_DevMouse2012_annotation")
+    template_dir = base_dir / f"templates/allen-dev-mouse-{age}-lsfm-template/2024"
+    annotation_dir = base_dir / f"annotation-sets/allen-dev-mouse-{age}-annotation/2024"
 
     # Check if directories exist
     if not os.path.exists(template_dir):
@@ -321,56 +229,11 @@ def package_age_group(age, base_dir, results_dir, asset_library, terminology):
         print(f"Annotation directory not found: {annotation_dir}")
         return
 
-    # Find MHD files
-    template_mhd = None
-    annotation_mhd = None
-
-    for root, dirs, files in os.walk(template_dir):
-        for file in files:
-            if file.endswith(".mhd"):
-                template_mhd = os.path.join(root, file)
-                break
-        if template_mhd:
-            break
-
-    for root, dirs, files in os.walk(annotation_dir):
-        for file in files:
-            if file.endswith(".mhd"):
-                annotation_mhd = os.path.join(root, file)
-                break
-        if annotation_mhd:
-            break
-
-    if not template_mhd:
-        print(f"No MHD file found in {template_dir}")
-        return
-
-    if not annotation_mhd:
-        print(f"No MHD file found in {annotation_dir}")
-        return
-
-    print(f"  Template: {template_mhd}")
-    print(f"  Annotation: {annotation_mhd}")
-
-    # Get voxel spacing from MHD file to determine appropriate scale
-    spacing, _, _ = read_mhd_metadata(template_mhd)
-    # Spacing is already in microns, so just round to nearest integer
-    scale = int(round(max(spacing)))
 
     # Create anatomical template
-    template_name = f"allen-dev-mouse-{age.lower()}-nissl-template"
-    template = Template(name=template_name, version="2012", scales=(scale,))
-
-    # Create template directory and convert MHD to NIfTI with correct naming
-    template_dir = template.location(results_dir)
-    template_dir.mkdir(parents=True, exist_ok=True)
-
-    template_nii = template_dir / f"template_{scale}.nii.gz"
-    convert_mhd_to_nifti(template_mhd, template_nii)
-
-    # Convert NIfTI to OME-Zarr and create manifest
-    template.convert_nifti_to_omezarr_multiscale(results_dir)
-    template.create_manifest(results_dir)
+    template_name = f"allen-dev-mouse-{age.lower()}-lsfm-template"
+    template = Template(name=template_name, version="2024", scales=(20,))
+    template.create(input_prefix = template_dir / "template", output_root = results_dir)
     asset_library.add(template)
     print(f"  Added template: {template_name}")
 
@@ -378,49 +241,38 @@ def package_age_group(age, base_dir, results_dir, asset_library, terminology):
     _write_devmouse_template_data_description(template.location(results_dir), age)
 
     # Create annotation set
-    annotation_name = f"allen-dev-mouse-{age.lower()}-nissl-annotation"
+    annotation_name = f"allen-dev-mouse-{age.lower()}-lsfm-annotation"
     annotation_set = AnnotationSet(
         name=annotation_name,
         template=template,
         terminology=terminology,
-        version="2012",
-        scales=(scale,),
+        version="2024",
+        scales=(20,),
     )
 
-    # Create annotation set using the MHD file directly
-    annotation_set.create_from_mhd(
-        annotation_mhd,
-        results_dir,
-        include_meshes=True,
-    )
-
-    # Create uncompressed (hierarchical) annotation set
-    annotation_output_dir = annotation_set.location(results_dir)
-    uncompress_annotations_to_zarr(
-        input_dir=annotation_output_dir,
-        terminology=terminology,
-        output_dir=annotation_output_dir,
-        scales=annotation_set.scales,
-    )
-
+    annotation_set.create_from_nifti(
+            input_prefix=annotation_dir / "annotation",
+            output_root=results_dir,
+            include_meshes=True
+        )
     annotation_set.create_manifest(results_dir)
     asset_library.add(annotation_set)
     print(f"  Added annotation set: {annotation_name}")
 
     # Create coordinate space for this developmental stage
-    space_name = f"allen-dev-mouse-{age.lower()}-nissl-space"
+    space_name = f"allen-dev-mouse-{age.lower()}-lsfm-space"
     coordinate_space = CoordinateSpace(
-        name=space_name, version="2012", template=template
+        name=space_name, version="2024", template=template
     )
     coordinate_space.create_manifest(results_dir)
     asset_library.add(coordinate_space)
     print(f"  Created coordinate space: {space_name}")
 
     # Create parcellation atlas
-    atlas_name = f"allen-dev-mouse-{age.lower()}-nissl-atlas"
+    atlas_name = f"allen-dev-mouse-{age.lower()}-lsfm-atlas"
     atlas = Atlas(
         name=atlas_name,
-        version="2012",
+        version="2024",
         coordinate_space=coordinate_space,
         annotation_set=annotation_set,
         terminology=terminology,
@@ -439,12 +291,17 @@ def package_devmouse(base_dir, results_dir, library):
     terminology = create_devmouse_terminology(results_dir, library)
 
     # Define age groups to process (excluding gridAnnotation and P56_Mouse files)
-    age_groups = ["E11pt5", "E13pt5", "E15pt5", "E18pt5", "P4", "P14", "P28"]
+    age_groups = ["e11pt5", "e13pt5", "e15pt5",  "e18pt5", "p4", "p14"]
 
     # Process each age group (creates templates, annotations, spaces, and atlases)
     for age in age_groups:
-        package_age_group(age, str(base_dir), results_dir, library, terminology)
-        
+        try:
+            package_age_group(age, base_dir, results_dir, library, terminology)
+        except Exception as e:
+            logging.error(f"Error processing DevMouse age {age}: {e}")
+            traceback.print_exc()
+            continue
+
     logging.info("DevMouse atlas packaging complete!")
 
     # Log summary

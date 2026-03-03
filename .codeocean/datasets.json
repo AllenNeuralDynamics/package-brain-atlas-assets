@@ -2,6 +2,10 @@
 	"version": 1,
 	"attached_datasets": [
 		{
+			"id": "1a0970c7-713d-4941-93f5-67f283ec785f",
+			"mount": "devmouse-lsfm"
+		},
+		{
 			"id": "30bf0bcc-6467-4b49-a177-a1a1424ff1f6",
 			"mount": "smartspim_lca_template"
 		},
@@ -36,6 +40,10 @@
 		{
 			"id": "c540aef9-d6f7-4b05-8706-b034f61544b0",
 			"mount": "brain_explorer"
+		},
+		{
+			"id": "f541abf9-da39-44b6-bda3-6ae083377b17",
+			"mount": "hmba"
 		},
 		{
 			"id": "fbbd6907-696e-43e5-9cb9-a3542fe3ecfb",

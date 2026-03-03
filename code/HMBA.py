@@ -10,6 +10,7 @@ import pandas as pd
 from atlas_builder import (AnnotationSet, CoordinateSpace,
                           Template, Atlas,
                           Terminology)
+from atlas_builder.annotation_set import uncompress_annotations_to_zarr
 
 import datetime
 from aind_data_schema.core.data_description import DataDescription, Funding
@@ -227,13 +228,13 @@ def create_all_ccf_annotation_sets(input_dir: Path, results_dir: Path, library, 
     template_riken25 = library.get_template("hmba-adult-marmoset-mri-template", "2025")
     terminology = library.get_terminology("hmba-mammalian-homba-terminology", "2025")
 
-    # Define annotation configurations for different CCF versions
+# Define annotation configurations for different CCF versions
     annotations = [
         {
             "directory": "hcp_homba_bg_2025",
             "template": template_hcp,
             "version": "2025",
-            "name": "hmba-adult-human-homba-annotation",
+            "name": "hmba-adult-human-hombabg-annotation",
             "scale": scales["hcp"],
             "summary": HCP_HOMBA_ANNOTATION_DESCRIPTION,
             "creation_time": HCP_HOMBA_ANNOTATION_CREATION_TIME,
@@ -298,6 +299,15 @@ def create_all_ccf_annotation_sets(input_dir: Path, results_dir: Path, library, 
         annotation_set.create_from_nifti(
             input_prefix=annotation_dir / "annotation",
             output_root=results_dir,
+            include_meshes=True
+        )
+
+        annotation_output_dir = annotation_set.location(results_dir)
+        uncompress_annotations_to_zarr(
+            input_dir=annotation_output_dir,
+            terminology=terminology,
+            output_dir=annotation_output_dir,
+            scales=annotation_set.scales,
         )
 
         # Write data description only for specified CCF 2015-2017 annotation sets
@@ -341,7 +351,7 @@ def create_homba_parcellation_terminology(input_dir, output_dir, library):
     # Build identifier -> annotation_value lookup since identifiers are prefixed
     id_to_ann = dict(zip(terminology.df["identifier"], terminology.df["annotation_value"]))
     terminology.set_descendant_annotation_values(
-        lambda row: [id_to_ann[i] for i in row["descendants"] if i in id_to_ann]
+        lambda row: [id_to_ann[i] for i in row["descendant_identifiers"] if i in id_to_ann]
     )
 
     parcellation_legacy_dir = terminology.location(output_dir) / "legacy_files"
@@ -409,7 +419,7 @@ def package_ccf(input_dir, output_dir, library, scales):
             version="2025",
             coordinate_space=library.get_coordinate_space(name="hmba-adult-human-hcp-space", version="2025"),
             annotation_set=library.get_annotation_set(
-                name="hmba-adult-human-homba-annotation", version="2025"
+                name="hmba-adult-human-hombabg-annotation", version="2025"
             ),
             terminology=library.get_terminology(
                 name="hmba-mammalian-homba-terminology", version="2025"

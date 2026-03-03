@@ -16,6 +16,7 @@ from atlas_builder import (
 )
 from atlas_builder.mesh import Mesh
 from atlas_builder.precomputed import append_meshes_to_precomputed
+from atlas_builder.annotation_set import uncompress_annotations_to_zarr
 
 import datetime
 from aind_data_schema.core.data_description import DataDescription, Funding
@@ -192,6 +193,9 @@ def create_all_ccf_annotation_sets(input_dir, results_dir, library, scales=(10, 
     terminology = library.get_terminology(
         "allen-adult-mouse-terminology", "2017"
     )
+    devmouse_terminology = library.get_terminology(
+        "allen-dev-mouse-terminology", "2012"
+    )
 
     # Define annotation configurations for different CCF versions
     annotations = [
@@ -202,6 +206,7 @@ def create_all_ccf_annotation_sets(input_dir, results_dir, library, scales=(10, 
             "name": "allen-adult-mouse-annotation",
             "summary": CCF3_2015_ANNOTATION_DESCRIPTION,
             "creation_time": CCF3_2015_ANNOTATION_CREATION_TIME,
+            "terminology": terminology,
         },
         {
             "directory": "ccf_2016",
@@ -210,6 +215,7 @@ def create_all_ccf_annotation_sets(input_dir, results_dir, library, scales=(10, 
             "name": "allen-adult-mouse-annotation",
             "summary": CCF3_2016_ANNOTATION_DESCRIPTION,
             "creation_time": CCF3_2016_ANNOTATION_CREATION_TIME,
+            "terminology": terminology,
         },
         {
             "directory": "ccf_2017",
@@ -218,15 +224,16 @@ def create_all_ccf_annotation_sets(input_dir, results_dir, library, scales=(10, 
             "name": "allen-adult-mouse-annotation",
             "summary": CCF3_2017_ANNOTATION_DESCRIPTION,
             "creation_time": CCF3_2017_ANNOTATION_CREATION_TIME,
+            "terminology": terminology,
         },
         {
             "directory": "devmouse_2012",
             "template": template_nissl,
             "version": "2012",
             "name": "allen-dev-mouse-p56-annotation",
-            # No data description requested for devmouse in this change
             "summary": None,
             "creation_time": None,
+            "terminology": devmouse_terminology,
         },
         {
             "directory": "mouse_2011",
@@ -236,6 +243,7 @@ def create_all_ccf_annotation_sets(input_dir, results_dir, library, scales=(10, 
             # No data description requested for 2011 in this change
             "summary": None,
             "creation_time": None,
+            "terminology": terminology,
         },
     ]
 
@@ -244,7 +252,7 @@ def create_all_ccf_annotation_sets(input_dir, results_dir, library, scales=(10, 
         annotation_set = AnnotationSet(
             name=annotation["name"],
             template=annotation["template"],
-            terminology=terminology,
+            terminology=annotation["terminology"],
             version=annotation["version"],
             scales=scales,
         )
@@ -253,6 +261,14 @@ def create_all_ccf_annotation_sets(input_dir, results_dir, library, scales=(10, 
             input_prefix=annotation_dir / "annotation",
             output_root=results_dir,
             include_meshes=False,  # handling meshes separately
+        )
+
+        annotation_output_dir = annotation_set.location(results_dir)
+        uncompress_annotations_to_zarr(
+            input_dir=annotation_output_dir,
+            terminology=terminology,
+            output_dir=annotation_output_dir,
+            scales=annotation_set.scales,
         )
 
         # Write data description only for specified CCF 2015-2017 annotation sets
@@ -308,7 +324,7 @@ def create_ccf3_terminology(input_dir, output_dir, library):
     # Build identifier -> annotation_value lookup since identifiers are prefixed
     id_to_ann = dict(zip(terminology.df["identifier"], terminology.df["annotation_value"]))
     terminology.set_descendant_annotation_values(
-        lambda row: [id_to_ann[i] for i in row["descendants"] if i in id_to_ann]
+        lambda row: [id_to_ann[i] for i in row["descendant_identifiers"] if i in id_to_ann]
     )
 
     parcellation_legacy_dir = terminology.location(output_dir) / "legacy_files"
@@ -347,6 +363,7 @@ def package_ccf(input_dir, output_dir, library, scales=(10, 25, 50, 100)):
             "allen-adult-mouse-stpt-template", "2015"
         ),
     )
+    coordinate_space.create_manifest(output_dir)
     library.add(coordinate_space)
 
     coordinate_space = CoordinateSpace(
@@ -356,6 +373,7 @@ def package_ccf(input_dir, output_dir, library, scales=(10, 25, 50, 100)):
             "allen-adult-mouse-nissl-template", "2011"
         ),
     )
+    coordinate_space.create_manifest(output_dir)
     library.add(coordinate_space)
 
     # Create and register parcellation atlas
@@ -416,7 +434,7 @@ def package_ccf(input_dir, output_dir, library, scales=(10, 25, 50, 100)):
             name="allen-dev-mouse-p56-atlas",
             version="2012",
             coordinate_space=library.get_coordinate_space(
-                name="allen-adult-mouse-ccf-space", version="2015"
+                name="allen-adult-mouse-ccf-space", version="2011"
             ),
             annotation_set=library.get_annotation_set(
                 name="allen-dev-mouse-p56-annotation", version="2012"

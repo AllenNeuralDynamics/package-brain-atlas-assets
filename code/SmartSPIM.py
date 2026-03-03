@@ -17,6 +17,7 @@ from atlas_builder import (
     Template,
     CoordinateTransformation,
 )
+from atlas_builder.annotation_set import uncompress_annotations_to_zarr
 
 
 def create_smartspim_annotation_set(input_dir, results_dir, library):
@@ -45,6 +46,15 @@ def create_smartspim_annotation_set(input_dir, results_dir, library):
     annotation_set.create_from_nifti(
         input_prefix=input_dir / "ccf_annotation_to_template_moved",
         output_root=results_dir,
+        include_meshes=True,
+    )
+
+    annotation_output_dir = annotation_set.location(results_dir)
+    uncompress_annotations_to_zarr(
+        input_dir=annotation_output_dir,
+        terminology=terminology,
+        output_dir=annotation_output_dir,
+        scales=annotation_set.scales,
     )
     annotation_set.create_manifest(results_dir)
     library.add(annotation_set)
