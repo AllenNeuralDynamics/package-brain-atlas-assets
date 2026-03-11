@@ -25,7 +25,10 @@ CCF2020_TEMPLATE_CREATION_TIME = datetime.datetime(2020, 4, 17, tzinfo=datetime.
 
 CCF2020_ANNOTATION_DESCRIPTION = "The 2020 release of the Allen Mouse Common Coordinate Framework, Annotation The process of parcellating the average template of the CCF is detailed in Wang et al, 2020. For any given structure, the process starts with a review of previously published atlases and literature and visual analyses of the average template and multimodal reference datasets. Data types include (1) transgenic expression data imaged with two-photon serial tomography, (2) axonal projection data from the Allen Mouse Connectivity Atlas, (3) immunohistochemical and (4) cytoarchitectural stains, including antibodies against NeuN, NF-160, SMI-32, parvalbumin, SMI-99, and calbindin, as well as stains for DAPI, Nissl, and AChE; and (5) in situ hybridization (ISH) gene expression data from the Allen Mouse Brain Atlas. Specific datasets used for the delineation of brain structures are listed in supplementary table Table S3 of Wang et. al., 2020. The format of the annotation is a 10 µm resolution image volume of the same size and orientation as the average brain template. Each voxel in the brain is labeled with a structure from the Allen Mouse Reference Atlas, Ontology. Voxels are annotated with the label for the most specific (finest) structure that it is a part of. It is inferred the voxel is also a part of any enclosing/parent structures as defined in the hierarchical tree of the ontology. The 2020 release adds new annotations for layers of the Ammon’s horn (CA), main olfactory bulb (MOB) and minor modification of surrounding fiber tracts."
 CCF2020_TERMINOLOGY_DESCRIPTION = "The 2020 release of the Allen Mouse Reference Atlas, Ontology. The Allen Mouse Reference Atlas, Ontology defines a hierarchical partonomy of the anatomical structures of the adult mouse brain. At the top level, the brain is divided into gray matter, fiber tracts and ventricular systems. Gray matter is subdivided into three large regions (cerebrum, brain stem, and cerebellum), which are themselves organized into subregions in a hierarchical tree. The Allen Mouse Reference Atlas, Ontology was developed for the Allen Reference Atlas (Dong, 2008) and follows terminology from “Brain Maps: Structure for the Rat Brain” (Swanson, 2004, 2018). The ontology has been subsequently extended and revised to also serve as the structure ontology for the Allen Mouse Common Coordinate Framework (Wang et al, 2020). The 2020 release introduces a new concept of a 'term set', which is a collection of parcellation terms that share a common set of properties, in this case organizing the ontology in 'organ', 'category', 'division', 'structure', and 'substructure' levels. This release also changed the identifier scheme of the ontology, separating the annotation index from a new string-based label, to allow for more compact data types to be used for annotation. The 2020 onotology was produced to support the relesae of the Allen Brain Cell Atlas."
-CCF2020_TEMPLATE_DESCRIPTION = "The 2020 release of the anatomical template is the same as the 2017 Allen adult mouse template, however the coordinate system moved. The origin of the space this template defines is now located near the anterior commissure."
+CCF2026_TERMINOLOGY_DESCRIPTION = (
+    "The 2026 revision of the Allen Mouse Reference Atlas, Ontology matches the 2020 release, "
+    "with two additional rows for hemispheric labels (Left hemisphere and Right hemisphere)."
+)
 
 
 def create_ccf2020_template(input_dir, results_dir, library, scales=(10,25)):
@@ -48,10 +51,8 @@ def create_ccf2020_template(input_dir, results_dir, library, scales=(10,25)):
     return template
 
 
-def create_ccf2020_terminology(input_dir, output_dir, library):
-    """Create parcellation terminology from CCF 2020 metadata."""
-    metadata_dir = Path(input_dir) / "metadata" / "Allen-CCF-2020" / "20230630"
-
+def _build_ccf2020_terminology_dataframe(metadata_dir: Path) -> pd.DataFrame:
+    """Build the CCF 2020 terminology DataFrame from metadata CSVs."""
     # Load inputs
     pt_df = pd.read_csv(metadata_dir / "parcellation_term.csv")
     pptm_df = pd.read_csv(metadata_dir / "parcellation_to_parcellation_term_membership.csv")
@@ -116,7 +117,7 @@ def create_ccf2020_terminology(input_dir, output_dir, library):
         row["label"] = "ABC-Ontology-2023-unassigned"
         row["acronym"] = "unassigned"
         row["name"] = "unassigned"
-        row["identifier"] = 'MBA:0'
+        row["identifier"] = "MBA:0"
         row["parcellation_index"] = 0
         row["term_set_name"] = sorted(
             set(
@@ -190,7 +191,7 @@ def create_ccf2020_terminology(input_dir, output_dir, library):
 
     # Confirm the column is consistently list-typed
     assert pt_df["term_set_name"].apply(lambda x: isinstance(x, list)).all()
-    
+
     # Build DataFrame expected by Terminology (include term_set_name)
     filtered_df = pd.DataFrame(
         {
@@ -203,6 +204,15 @@ def create_ccf2020_terminology(input_dir, output_dir, library):
             "annotation_value": pt_df["parcellation_index"].apply(lambda v: int(v)),
         }
     )
+
+    return filtered_df
+
+
+def create_ccf2020_terminology(input_dir, output_dir, library):
+    """Create parcellation terminology from CCF 2020 metadata."""
+    metadata_dir = Path(input_dir) / "metadata" / "Allen-CCF-2020" / "20230630"
+
+    filtered_df = _build_ccf2020_terminology_dataframe(metadata_dir)
 
     pt = Terminology(
         df=filtered_df,
@@ -235,6 +245,76 @@ def create_ccf2020_terminology(input_dir, output_dir, library):
     _write_ccf2020_terminology_data_description(pt.location(output_dir))
 
     return pt
+
+
+def create_ccf2026_terminology(input_dir, output_dir, library):
+    """Create the 2026 revision of the CCF 2020 terminology with hemisphere rows."""
+    metadata_dir = Path(input_dir) / "metadata" / "Allen-CCF-2020" / "20230630"
+
+    filtered_df = _build_ccf2020_terminology_dataframe(metadata_dir)
+
+    max_ann = pd.to_numeric(filtered_df["annotation_value"], errors="coerce").max()
+    max_ann = int(max_ann) if pd.notna(max_ann) else 0
+
+    row_template = {col: pd.NA for col in filtered_df.columns}
+    row_template.update(
+        {
+            "parent_identifier": "MBA:997",
+            "term_set_name": [],
+        }
+    )
+
+    hemisphere_rows = [
+        {
+            **row_template,
+            "identifier": f"MBA:{max_ann + 1}",
+            "name": "Left hemisphere",
+            "abbreviation": "LH",
+            "annotation_value": max_ann + 1,
+            "color_hex_triplet": "#666666",
+        },
+        {
+            **row_template,
+            "identifier": f"MBA:{max_ann + 2}",
+            "name": "Right hemisphere",
+            "abbreviation": "RH",
+            "annotation_value": max_ann + 2,
+            "color_hex_triplet": "#888888",
+        },
+    ]
+
+    filtered_df = pd.concat([filtered_df, pd.DataFrame(hemisphere_rows)], ignore_index=True)
+
+    terminology = Terminology(
+        df=filtered_df,
+        name="allen-adult-mouse-terminology",
+        version="2026",
+    )
+
+    # Compute descendant_annotation_values using descendant_identifiers
+    id_to_ann = {
+        ident: (vals if isinstance(vals, list) else ([vals] if pd.notna(vals) else []))
+        for ident, vals in zip(terminology.df["identifier"], terminology.df["annotation_value"])
+    }
+    terminology.df["descendant_annotation_values"] = terminology.df["descendant_identifiers"].apply(
+        lambda ids: sorted({x for ident in ids for x in (id_to_ann.get(ident) or [])})
+    )
+
+    # Copy all metadata files to the terminology directory
+    parcellation_legacy_dir = terminology.location(output_dir) / "legacy_files"
+
+    for input_path in metadata_dir.glob("*.csv"):
+        output_path = parcellation_legacy_dir / input_path.name
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(input_path, output_path)
+
+    terminology.write_terminology(output_dir)
+    terminology.create_manifest(output_dir)
+    library.add(terminology)
+
+    _write_ccf2026_terminology_data_description(terminology.location(output_dir))
+
+    return terminology
 
 
 def _write_ccf2020_annotation_data_description(output_dir: Path):
@@ -276,6 +356,25 @@ def _write_ccf2020_terminology_data_description(output_dir: Path):
     )
     dd.write_standard_file(output_directory=output_dir)
     logging.info(f"Wrote data_description.json for 2020 terminology to {output_dir}")
+
+
+def _write_ccf2026_terminology_data_description(output_dir: Path):
+    """Write data_description.json for the 2026 terminology (ontology)."""
+    output_dir.mkdir(parents=True, exist_ok=True)
+    dd = DataDescription(
+        name=build_data_name("allen-adult-mouse-terminology-2026", CCF2020_TERMINOLOGY_CREATION_TIME),
+        data_summary=CCF2026_TERMINOLOGY_DESCRIPTION.strip(),
+        subject_id="adult-mouse-population-average",
+        modalities=[Modality.STPT],  # Derived from STPT population data & multimodal sources
+        data_level="derived",
+        creation_time=CCF2020_TERMINOLOGY_CREATION_TIME,
+        institution=Organization.AIBS,
+        investigators=[Person(name="Quanxin Wang", registry_identifier="0000-0002-0007-7935")],
+        funding_source=[Funding(funder=Organization.AI)],
+        project_name="Allen Mouse Brain Common Coordinate Framework",
+    )
+    dd.write_standard_file(output_directory=output_dir)
+    logging.info(f"Wrote data_description.json for 2026 terminology to {output_dir}")
 
 
 def _write_ccf2020_template_data_description(output_dir: Path):
@@ -368,6 +467,7 @@ def package_ccf2020(input_dir, output_dir, library, scales=(10,)):
 
     # Create and register terminology
     create_ccf2020_terminology(input_dir, output_dir, library)
+    create_ccf2026_terminology(input_dir, output_dir, library)
 
     # Create and register annotation set
     create_ccf2020_annotation_set(input_dir, output_dir, library, scales)
