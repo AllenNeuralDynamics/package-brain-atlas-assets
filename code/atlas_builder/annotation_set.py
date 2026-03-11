@@ -489,7 +489,10 @@ def convert_compressed_annotations_to_zarr(compressed_results, output_dir, scale
             logging.warning(f"Scale {scale} not found in compressed results, skipping.")
 
     if arrays:
-        group = zarr.open(str(output_zarr_path), mode="w")
+        group = zarr.open(str(output_zarr_path), mode="w")        
+        labels_grp = group.require_group("labels")
+        annotations_grp = labels_grp.require_group("annotations_compressed")
+
         logging.info("Writing OME-Zarr multiscale compressed annotations with chunk size (128, 128, 128)...")
 
         # Dictionary format for ome-zarr write_multiscale
@@ -497,14 +500,14 @@ def convert_compressed_annotations_to_zarr(compressed_results, output_dir, scale
 
         write_multiscale(
             arrays,
-            group,
+            annotations_grp,
             axes=original_orientation,
             coordinate_transformations=transforms,
             chunks=(128, 128, 128),  # 3D chunks for compressed data
             compressor=compressor_dict,
         )
 
-        correct_coordinate_transforms_rfc5(group, axes_orientation)
+        correct_coordinate_transforms_rfc5(annotations_grp, axes_orientation)
 
         logging.info(f"OME-Zarr multiscale compressed annotations written to {output_zarr_path}")
     else:
@@ -555,6 +558,8 @@ def uncompress_annotations_to_zarr(input_dir, terminology, output_dir, scales=(1
 
     # Create zarr group
     group = zarr.open(str(output_zarr_path), mode="w")
+    labels_grp = group.require_group("labels")
+    annotations_grp = labels_grp.require_group("annotations")
 
     # Process each scale and create zarr arrays directly
     zarr_arrays = []
@@ -590,7 +595,7 @@ def uncompress_annotations_to_zarr(input_dir, terminology, output_dir, scales=(1
             img.affine,
             scale,
             terminology,
-            zarr_group=group,
+            zarr_group=annotations_grp,
             zarr_dataset_name=f"{scale_index}",
             zarr_chunks=(1, 128, 128, 128),
         )
@@ -651,7 +656,7 @@ def uncompress_annotations_to_zarr(input_dir, terminology, output_dir, scales=(1
 
     # Write metadata
     write_multiscales_metadata(
-        group,
+        annotations_grp,
         datasets=[
             {
                 "path": str(i),
@@ -663,11 +668,11 @@ def uncompress_annotations_to_zarr(input_dir, terminology, output_dir, scales=(1
     )
 
     if axes_orientation is not None:
-        correct_coordinate_transforms_rfc5(group, axes_orientation)
+        correct_coordinate_transforms_rfc5(annotations_grp, axes_orientation)
 
     # Store annotation_values as a separate array in the zarr group
     if annotation_values is not None:
-        group.create_dataset(
+        annotations_grp.create_dataset(
             "annotation_values",
             shape=annotation_values.shape,
             data=annotation_values,

@@ -14,7 +14,6 @@ import traceback
 from pathlib import Path
 
 import pandas as pd
-import SimpleITK as sitk
 
 from atlas_builder import (
     AnnotationSet,
@@ -22,7 +21,9 @@ from atlas_builder import (
     Template,
     Atlas,
     Terminology,
+    
 )
+from atlas_builder.annotation_set import uncompress_annotations_to_zarr
 import datetime
 from aind_data_schema.core.data_description import DataDescription, Funding
 from aind_data_schema_models.data_name_patterns import build_data_name
@@ -251,10 +252,20 @@ def package_age_group(age: str, base_dir: Path, results_dir: Path, asset_library
     )
 
     annotation_set.create_from_nifti(
-            input_prefix=annotation_dir / "annotation",
-            output_root=results_dir,
-            include_meshes=True
-        )
+        input_prefix=annotation_dir / "annotation",
+        output_root=results_dir,
+        include_meshes=True
+    )
+
+    # Create uncompressed (hierarchical) annotation set
+    annotation_output_dir = annotation_set.location(results_dir)
+    uncompress_annotations_to_zarr(
+        input_dir=annotation_output_dir,
+        terminology=terminology,
+        output_dir=annotation_output_dir,
+        scales=annotation_set.scales,
+    )
+    
     annotation_set.create_manifest(results_dir)
     asset_library.add(annotation_set)
     print(f"  Added annotation set: {annotation_name}")
