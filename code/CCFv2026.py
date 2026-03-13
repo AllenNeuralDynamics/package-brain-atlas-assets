@@ -37,8 +37,8 @@ CCF2026_TERMINOLOGY_DESCRIPTION = (
     "release, with two additional rows for hemispheric labels (Left hemisphere and Right hemisphere)."
 )
 
-CCF2026_TERMINOLOGY_CREATION_TIME = datetime.datetime(2026, 3, 1, tzinfo=datetime.timezone.utc)
-CCF2026_ANNOTATION_CREATION_TIME = datetime.datetime(2026, 3, 1, tzinfo=datetime.timezone.utc)
+CCF2026_TERMINOLOGY_CREATION_TIME = datetime.datetime(2026, 3, 13, tzinfo=datetime.timezone.utc)
+CCF2026_ANNOTATION_CREATION_TIME = datetime.datetime(2026, 3, 13, tzinfo=datetime.timezone.utc)
 
 CCF2026_ANNOTATION_DESCRIPTION = (
     "The 2026-03 revision of the Allen Mouse Common Coordinate Framework annotation matches the "
