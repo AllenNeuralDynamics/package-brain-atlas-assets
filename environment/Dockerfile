@@ -1,19 +1,20 @@
-# hash:sha256:e9346f18369561035bfeec6e14762af614b4c3aa0360bf75f2960c7a0533fa63
+# hash:sha256:770fdbc24d992cf9a282c41aa0039a9c5f2cba081139916e1ac50ab4d72465ab
 ARG REGISTRY_HOST
 FROM $REGISTRY_HOST/codeocean/code-server-python-extensions-pack:code-server4.108.2python3.12.4aind-metadata-mcp0.5.2withDOTFILES_REPOsupport
 
 ARG DEBIAN_FRONTEND=noninteractive
 ARG GIT_ASKPASS
-COPY git-askpass /
+COPY git-ask-pass /
 
 RUN pip install -U --no-cache-dir \
-    aind-data-schema==2.4.0 \
-    awscli==1.44.32 \
-    cloud-volume==12.9.2 \
-    nibabel==5.3.3 \
-    ome-zarr==0.12.2 \
-    pandas==3.0.0 \
-    pyarrow==23.0.0 \
+    aind-data-schema==2.6.0 \
+    awscli==1.44.58 \
+    brainglobe-atlasapi==2.3.0 \
+    cloud-volume==12.12.0 \
+    nibabel==5.4.2 \
+    ome-zarr==0.14.0 \
+    pandas==3.0.1 \
+    pyarrow==23.0.1 \
     simpleitk==2.5.3 \
-    tensorstore==0.1.80 \
-    zmesh==1.9.0
+    tensorstore==0.1.82 \
+    zmesh==1.11.0

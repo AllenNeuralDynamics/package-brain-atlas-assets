@@ -11,6 +11,7 @@ from pathlib import Path
 
 import CCFv3
 import CCFv2020
+import CCFv2026
 import HMBA
 import devmouse
 import devmouse_spim
@@ -126,6 +127,9 @@ def main(results_dir: str | Path):
 
     # Package CCF 2020 annotations
     CCFv2020.package_ccf2020(abc_dir, results_dir, library, scales=(10, 25)) 
+
+    # Package CCF 2026-03 terminology and annotations (hemisphere masks)
+    CCFv2026.package_ccf2026(abc_dir, results_dir, library, scales=scales)
 
     # Package SmartSPIM template (uses library for assets)
     SmartSPIM.package_smartspim_template(

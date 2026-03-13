@@ -1,0 +1,397 @@
+"""Allen CCF 2026 annotation packaging with hemisphere masks."""
+
+
+import logging
+import os
+from collections.abc import Callable, Iterable
+from pathlib import Path
+from typing import Protocol, cast
+
+import datetime
+import shutil
+
+import numpy as np
+import pandas as pd  # type: ignore[import-not-found]
+import zarr
+from bg_atlasapi import BrainGlobeAtlas  # type: ignore[import-not-found]
+
+from CCFv3 import load_ccf3_meshes  # type: ignore[import-not-found]
+from atlas_builder import AnnotationSet, Terminology  # type: ignore[import-not-found]
+from atlas_builder.annotation_set import uncompress_annotations_to_zarr  # type: ignore[import-not-found]
+from atlas_builder.precomputed import append_meshes_to_precomputed  # type: ignore[import-not-found]
+
+
+from aind_data_schema.core.data_description import DataDescription, Funding  # type: ignore[import-not-found]
+from aind_data_schema_models.data_name_patterns import build_data_name  # type: ignore[import-not-found]
+from aind_data_schema_models.modalities import Modality  # type: ignore[import-not-found]
+from aind_data_schema_models.organizations import Organization  # type: ignore[import-not-found]
+from aind_data_schema.components.identifiers import Person  # type: ignore[import-not-found]
+
+from CCFv2020 import _build_ccf2020_terminology_dataframe  # type: ignore[import-not-found]
+
+
+BRAINGLOBE_DATA_DIR = Path("/data/.brainglobe")
+
+CCF2026_TERMINOLOGY_DESCRIPTION = (
+    "The 2026-03 revision of the Allen Mouse Reference Atlas, Ontology matches the 2020 "
+    "release, with two additional rows for hemispheric labels (Left hemisphere and Right hemisphere)."
+)
+
+CCF2026_TERMINOLOGY_CREATION_TIME = datetime.datetime(2026, 3, 1, tzinfo=datetime.timezone.utc)
+CCF2026_ANNOTATION_CREATION_TIME = datetime.datetime(2026, 3, 1, tzinfo=datetime.timezone.utc)
+
+CCF2026_ANNOTATION_DESCRIPTION = (
+    "The 2026-03 revision of the Allen Mouse Common Coordinate Framework annotation matches the "
+    "2020 release, with two additional uncompressed masks for left and right hemisphere labels. "
+    "No changes were made to the compressed annotation values or geometry; the update only adds "
+    "explicit hemisphere masks in the uncompressed annotation layers."
+)
+
+
+def _write_ccf2026_terminology_data_description(output_dir: Path):
+    """Write data_description.json for the 2026 terminology (ontology)."""
+    output_dir.mkdir(parents=True, exist_ok=True)
+    dd = DataDescription(
+        name=build_data_name("allen-adult-mouse-terminology-2026-03", CCF2026_TERMINOLOGY_CREATION_TIME),
+        data_summary=CCF2026_TERMINOLOGY_DESCRIPTION.strip(),
+        subject_id="adult-mouse-population-average",
+        modalities=[Modality.STPT],  # Derived from STPT population data & multimodal sources
+        data_level="derived",
+        creation_time=CCF2026_TERMINOLOGY_CREATION_TIME,
+        institution=Organization.AIBS,
+        investigators=[Person(name="Quanxin Wang", registry_identifier="0000-0002-0007-7935")],
+        funding_source=[Funding(funder=Organization.AI)],
+        project_name="Allen Mouse Brain Common Coordinate Framework",
+    )
+    dd.write_standard_file(output_directory=output_dir)
+    logging.info(f"Wrote data_description.json for 2026 terminology to {output_dir}")
+
+
+def _write_ccf2026_annotation_data_description(output_dir: Path):
+    """Write data_description.json for the 2026-03 stereotaxic annotation set."""
+    output_dir.mkdir(parents=True, exist_ok=True)
+    dd = DataDescription(
+        name=build_data_name(
+            "allen-adult-mouse-stereotaxic-annotation-2026-03",
+            CCF2026_ANNOTATION_CREATION_TIME,
+        ),
+        data_summary=CCF2026_ANNOTATION_DESCRIPTION.strip(),
+        subject_id="adult-mouse-population-average",
+        modalities=[Modality.STPT],
+        data_level="derived",
+        creation_time=CCF2026_ANNOTATION_CREATION_TIME,
+        institution=Organization.AIBS,
+        investigators=[Person(name="Quanxin Wang", registry_identifier="0000-0002-0007-7935")],
+        funding_source=[Funding(funder=Organization.AI)],
+        project_name="Allen Mouse Brain Common Coordinate Framework",
+    )
+    dd.write_standard_file(output_directory=output_dir)
+    logging.info(f"Wrote data_description.json for 2026 annotation to {output_dir}")
+
+
+def create_ccf2026_terminology(input_dir, output_dir, library):
+    """Create the 2026-03 revision of the CCF 2020 terminology with hemisphere rows."""
+    metadata_dir = Path(input_dir) / "metadata" / "Allen-CCF-2020" / "20230630"
+
+    filtered_df = _build_ccf2020_terminology_dataframe(metadata_dir)
+
+    max_ann = pd.to_numeric(filtered_df["annotation_value"], errors="coerce").max()
+    max_ann = int(max_ann) if pd.notna(max_ann) else 0
+
+    row_template = {col: pd.NA for col in filtered_df.columns}
+    row_template.update(
+        {
+            "parent_identifier": "MBA:997",
+            "term_set_name": [],
+        }
+    )
+
+    hemisphere_rows = [
+        {
+            **row_template,
+            "identifier": f"MBA:{max_ann + 1}",
+            "name": "Left hemisphere",
+            "abbreviation": "LH",
+            "annotation_value": max_ann + 1,
+            "color_hex_triplet": "#666666",
+        },
+        {
+            **row_template,
+            "identifier": f"MBA:{max_ann + 2}",
+            "name": "Right hemisphere",
+            "abbreviation": "RH",
+            "annotation_value": max_ann + 2,
+            "color_hex_triplet": "#888888",
+        },
+    ]
+
+    filtered_df = pd.concat([filtered_df, pd.DataFrame(hemisphere_rows)], ignore_index=True)
+
+    terminology = Terminology(
+        df=filtered_df,
+        name="allen-adult-mouse-terminology",
+        version="2026-03",
+    )
+
+    id_to_ann = {
+        ident: (vals if isinstance(vals, list) else ([vals] if pd.notna(vals) else []))
+        for ident, vals in zip(terminology.df["identifier"], terminology.df["annotation_value"])
+    }
+    terminology.df["descendant_annotation_values"] = terminology.df["descendant_identifiers"].apply(
+        lambda ids: sorted({x for ident in ids for x in (id_to_ann.get(ident) or [])})
+    )
+
+    parcellation_legacy_dir = terminology.location(output_dir) / "legacy_files"
+
+    for input_path in metadata_dir.glob("*.csv"):
+        output_path = parcellation_legacy_dir / input_path.name
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(input_path, output_path)
+
+    terminology.write_terminology(output_dir)
+    terminology.create_manifest(output_dir)
+    library.add(terminology)
+
+    _write_ccf2026_terminology_data_description(terminology.location(output_dir))
+
+    return terminology
+
+
+class TerminologyLike(Protocol):
+    """Protocol for terminology objects with a DataFrame."""
+
+    df: "pd.DataFrame"
+
+
+def _load_brainglobe_atlas(atlas_name: str, data_dir: Path) -> object:
+    """Load a BrainGlobe atlas, preferring the provided data directory."""
+    _ = os.environ.setdefault("BRAINGLOBE_DIR", str(data_dir))
+    for kwargs in (
+        {"data_dir": str(data_dir)},
+        {"base_dir": str(data_dir)},
+        {"local_path": str(data_dir)},
+        {},
+    ):
+        try:
+            return BrainGlobeAtlas(atlas_name, **kwargs)
+        except TypeError:
+            continue
+    return BrainGlobeAtlas(atlas_name)
+
+
+def _extract_hemispheres(atlas: object) -> np.ndarray:
+    """Extract hemisphere labels from a BrainGlobe atlas instance."""
+    for attr in ("hemispheres", "hemisphere"):
+        if hasattr(atlas, attr):
+            value = cast(object, getattr(atlas, attr))
+            if callable(value):
+                data = cast(Callable[[], object], value)()
+            else:
+                data = value
+            return np.asarray(data)
+    if hasattr(atlas, "get_hemispheres"):
+        getter = cast(Callable[[], object], getattr(atlas, "get_hemispheres"))
+        data = getter()
+        return np.asarray(data)
+    raise ValueError("BrainGlobe atlas does not expose hemisphere labels")
+
+
+def _hemisphere_masks_from_brainglobe(resolution: int, data_dir: Path) -> tuple[np.ndarray, np.ndarray]:
+    """Load left/right hemisphere masks for a specific resolution."""
+    atlas_name = f"allen_mouse_{resolution}um"
+    atlas = _load_brainglobe_atlas(atlas_name, data_dir)
+
+    hemispheres = np.asarray(_extract_hemispheres(atlas))
+    values = set(np.unique(hemispheres).tolist())
+
+    if {1, 2}.issubset(values):
+        left_mask = hemispheres == 1
+        right_mask = hemispheres == 2
+    else:
+        raise ValueError(
+            f"Unexpected hemisphere label values {sorted(values)} for atlas {atlas_name}."
+        )
+
+    return left_mask.astype(np.uint8), right_mask.astype(np.uint8)
+
+
+def _get_hemisphere_annotation_values(terminology: TerminologyLike) -> tuple[int, int]:
+    """Return annotation values for left/right hemispheres from terminology."""
+    df = terminology.df
+
+    def _find_value(name: str, abbreviation: str):
+        name_mask = df["name"].astype(str).str.lower() == name
+        if name_mask.any():
+            return int(df.loc[name_mask, "annotation_value"].iloc[0])
+        abbr_mask = df["abbreviation"].astype(str).str.upper() == abbreviation
+        if abbr_mask.any():
+            return int(df.loc[abbr_mask, "annotation_value"].iloc[0])
+        raise ValueError(f"Could not locate hemisphere term '{name}' in terminology")
+
+    left_value = _find_value("left hemisphere", "LH")
+    right_value = _find_value("right hemisphere", "RH")
+    return left_value, right_value
+
+
+def _scale_to_dataset_index(
+    annotation_output_dir: Path,
+    scales: Iterable[int],
+    annotations_grp: zarr.Group,
+) -> dict[int, str]:
+    """Map each scale to its dataset index in annotations.ome.zarr."""
+    scale_to_index = {}
+    scale_index = 0
+    for scale in scales:
+        src_fname = annotation_output_dir / f"annotations_compressed_{scale}.nii.gz"
+        if not src_fname.exists():
+            continue
+        dataset_name = str(scale_index)
+        if dataset_name in annotations_grp:
+            scale_to_index[scale] = dataset_name
+        scale_index += 1
+    return scale_to_index
+
+
+def _add_hemisphere_masks_to_uncompressed(
+    annotation_output_dir: Path,
+    terminology,
+    scales,
+    brainglobe_dir: Path,
+):
+    """Add left/right hemisphere masks into the uncompressed OME-Zarr."""
+    zarr_path = annotation_output_dir / "annotations.ome.zarr"
+    if not zarr_path.exists():
+        raise FileNotFoundError(f"Missing uncompressed annotations at {zarr_path}")
+
+    group = zarr.open(str(zarr_path), mode="r+")
+    annotations_grp = cast(zarr.Group, group["labels"]["annotations"])
+
+    left_value, right_value = _get_hemisphere_annotation_values(terminology)
+    scale_to_index: dict[int, str] = _scale_to_dataset_index(
+        annotation_output_dir, scales, annotations_grp
+    )
+
+    annotation_values_ds = cast(zarr.Array, annotations_grp["annotation_values"])
+    annotation_values = np.asarray(annotation_values_ds[:])
+
+    def _append_annotation_value(value: int):
+        nonlocal annotation_values
+        if value in annotation_values:
+            return
+        new_len = len(annotation_values) + 1
+        _ = annotation_values_ds.resize((new_len,))
+        annotation_values_ds[new_len - 1] = value
+        annotation_values = np.append(annotation_values, value)
+
+        for dataset_name in scale_to_index.values():
+            zarr_array = cast(zarr.Array, annotations_grp[dataset_name])
+            new_shape = (new_len,) + zarr_array.shape[1:]
+            _ = zarr_array.resize(new_shape)
+            zarr_array[new_len - 1, :, :, :] = 0
+
+    _append_annotation_value(left_value)
+    _append_annotation_value(right_value)
+
+    left_idx = np.where(annotation_values == left_value)[0]
+    right_idx = np.where(annotation_values == right_value)[0]
+
+    if left_idx.size != 1 or right_idx.size != 1:
+        raise ValueError(
+            "Hemisphere annotation values not found uniquely in annotation_values"
+        )
+
+    for scale, dataset_name in scale_to_index.items():
+        left_mask, right_mask = _hemisphere_masks_from_brainglobe(scale, brainglobe_dir)
+
+        zarr_array = annotations_grp[dataset_name]
+        if zarr_array.shape[1:] != left_mask.shape:
+            raise ValueError(
+                f"Hemisphere mask shape {left_mask.shape} does not match "
+                f"annotation shape {zarr_array.shape[1:]} for scale {scale}"
+            )
+
+        logging.info(f"Writing hemisphere masks for scale {scale} into dataset {dataset_name}")
+        zarr_array[left_idx[0], :, :, :] = left_mask
+        zarr_array[right_idx[0], :, :, :] = right_mask
+
+
+def create_ccf2026_annotation_set(
+    input_dir,
+    results_dir,
+    library,
+    scales=(10, 25, 50, 100),
+    brainglobe_dir: Path = BRAINGLOBE_DATA_DIR,
+):
+    """Create the 2026 CCF annotation set and add hemisphere masks."""
+    logging.info("Creating CCF 2026 anatomical annotation set...")
+
+    template = library.get_template("allen-adult-mouse-stpt-template", "2020")
+    terminology = library.get_terminology("allen-adult-mouse-terminology", "2026-03")
+
+    annotation_set = AnnotationSet(
+        name="allen-adult-mouse-stereotaxic-annotation",
+        template=template,
+        terminology=terminology,
+        version="2026-03",
+        scales=scales,
+    )
+
+    annotation_dir = Path(input_dir) / "image_volumes" / "Allen-CCF-2020" / "20250331"
+    annotation_set.create_from_nifti(
+        input_prefix=annotation_dir / "annotation",
+        output_root=results_dir,
+        include_meshes=False,
+    )
+
+    annotation_output_dir = annotation_set.location(results_dir)
+    uncompress_annotations_to_zarr(
+        input_dir=annotation_output_dir,
+        terminology=terminology,
+        output_dir=annotation_output_dir,
+        scales=annotation_set.scales,
+    )
+
+    _write_ccf2026_annotation_data_description(annotation_set.location(results_dir))
+
+    _add_hemisphere_masks_to_uncompressed(
+        annotation_output_dir=annotation_output_dir,
+        terminology=terminology,
+        scales=annotation_set.scales,
+        brainglobe_dir=brainglobe_dir,
+    )
+
+    annotation_set.create_manifest(results_dir)
+
+    def map_obj_id_to_annotation_value(obj_id):
+        """Map object IDs to file IDs."""
+        val = terminology.df.loc[
+            terminology.df["identifier"] == f"MBA:{obj_id}", "annotation_value"
+        ].values[0]
+        return val[0] if isinstance(val, list) else val
+
+    meshes = load_ccf3_meshes(Path("/data/ccf_meshes/mcc/annotation/ccf_2017/structure_meshes"))
+
+    append_meshes_to_precomputed(
+        ((m, map_obj_id_to_annotation_value(obj_id)) for m, obj_id in meshes),
+        results_dir
+        / "annotation-sets"
+        / "allen-adult-mouse-stereotaxic-annotation"
+        / "2026-03"
+        / "annotations.precomputed",
+        scale=1000,
+        map_annotation_value=lambda v: v[0] if isinstance(v, list) else v,
+    )
+
+    library.add(annotation_set)
+    logging.info("CCF 2026 anatomical annotation set created successfully")
+
+
+def package_ccf2026(
+    input_dir: str | Path,
+    output_dir: str | Path,
+    library: object,
+    scales: tuple[int, ...] = (10, 25, 50, 100),
+):
+    """Package the 2026-03 terminology and annotation set."""
+    _ = create_ccf2026_terminology(input_dir, output_dir, library)
+    create_ccf2026_annotation_set(input_dir, output_dir, library, scales=scales)

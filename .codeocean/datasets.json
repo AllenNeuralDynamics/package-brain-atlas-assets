@@ -48,6 +48,10 @@
 		{
 			"id": "fbbd6907-696e-43e5-9cb9-a3542fe3ecfb",
 			"mount": "idisco_template_multichannel_multiresolution"
+		},
+		{
+			"id": "fdd6dcbf-0917-4349-ae18-20f687b0089c",
+			"mount": ".brainglobe"
 		}
 	]
 }
