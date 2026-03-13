@@ -404,7 +404,7 @@ def uncompress_single_scale(
         zarr_dataset_name,
         shape=uncompressed_shape,
         chunks=zarr_chunks,
-        dtype=compressed_data.dtype,
+        dtype=np.uint8,
         compressors=(zarr.codecs.Blosc(cname="zstd", clevel=3, shuffle=1),),
     )
 
