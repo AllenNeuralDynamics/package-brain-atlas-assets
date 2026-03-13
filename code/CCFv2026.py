@@ -13,7 +13,7 @@ import shutil
 import numpy as np
 import pandas as pd  # type: ignore[import-not-found]
 import zarr
-from bg_atlasapi import BrainGlobeAtlas  # type: ignore[import-not-found]
+from brainglobe_atlasapi import BrainGlobeAtlas 
 
 from CCFv3 import load_ccf3_meshes  # type: ignore[import-not-found]
 from atlas_builder import AnnotationSet, Terminology  # type: ignore[import-not-found]
