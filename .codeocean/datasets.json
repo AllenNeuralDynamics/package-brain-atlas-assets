@@ -2,6 +2,10 @@
 	"version": 1,
 	"attached_datasets": [
 		{
+			"id": "042ee274-9739-4813-ac0e-227bcaf29031",
+			"mount": "remapped_ccf_labels_on_spim_LCA_template"
+		},
+		{
 			"id": "1a0970c7-713d-4941-93f5-67f283ec785f",
 			"mount": "devmouse-lsfm"
 		},

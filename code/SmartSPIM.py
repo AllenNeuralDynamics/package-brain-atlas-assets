@@ -24,7 +24,7 @@ def create_smartspim_annotation_set(input_dir, results_dir, library):
     """Create SmartSPIM anatomical annotation set with CCF labels mapped to SmartSPIM space.
 
     Args:
-        input_dir (Path): Path to input directory containing ccf_annotation_to_template_moved_25.nii.gz
+        input_dir (Path): Path to remapped labels directory
         results_dir (Path): Path to results directory for output
         library (AssetLibrary): Asset library to get template and terminology from
     """
@@ -44,7 +44,7 @@ def create_smartspim_annotation_set(input_dir, results_dir, library):
         scales=(25,),
     )
     annotation_set.create_from_nifti(
-        input_prefix=input_dir / "ccf_annotation_to_template_moved",
+        input_prefix=input_dir / "warped_annotation",
         output_root=results_dir,
         include_meshes=True,
     )
@@ -179,11 +179,12 @@ def copy_processing(input_dir, output_dir):
     logging.info(f"Validated and copied processing.json to {output_dir}")
 
 
-def package_smartspim_template(input_dir, results_dir, library, scales):
+def package_smartspim_template(input_dir, remapped_annotation_dir, results_dir, library, scales):
     """Complete SmartSPIM template packaging workflow.
 
     Args:
         input_dir (Path): Path to input directory containing SmartSPIM template data
+        remapped_annotation_dir (Path): Path to remapped labels directory
         results_dir (Path): Path to results directory for output
         library (AssetLibrary): Asset library to register created assets
         scales (tuple): Scales to process (micrometers per voxel)
@@ -206,7 +207,7 @@ def package_smartspim_template(input_dir, results_dir, library, scales):
     copy_processing(input_dir, template_dir)
 
     # Create annotation sets with CCF labels mapped to SmartSPIM space
-    create_smartspim_annotation_set(input_dir, results_dir, library)
+    create_smartspim_annotation_set(remapped_annotation_dir, results_dir, library)
 
     # Create coordinate transformations between SmartSPIM and CCF spaces
     create_smartspim_coordinate_transformations(input_dir, results_dir, library)

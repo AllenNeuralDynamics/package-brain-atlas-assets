@@ -102,6 +102,7 @@ def main(results_dir: str | Path):
     abc_dir = Path("/data/abc_atlas")
     ccf3_dir = Path("/data/allen_mouse_ccf")
     smartspim_dir = Path("/data/smartspim_lca_template_opendata")
+    smartspim_remapped_dir = Path("/data/remapped_ccf_labels_on_spim_LCA_template")
     devmouse_dir = Path("/data/devmouse-atlas-assets")
     devmouse_lsfm_dir = Path("/data/devmouse-lsfm")
     hmba_dir = Path("/data/hmba")
@@ -128,7 +129,7 @@ def main(results_dir: str | Path):
 
     # Package SmartSPIM template (uses library for assets)
     SmartSPIM.package_smartspim_template(
-        smartspim_dir, results_dir, library, scales=scales
+        smartspim_dir, smartspim_remapped_dir, results_dir, library, scales=scales
     )
 
     # Package iDISCO template
