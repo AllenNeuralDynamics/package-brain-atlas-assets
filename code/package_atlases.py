@@ -129,7 +129,7 @@ def main(results_dir: str | Path):
     CCFv2020.package_ccf2020(abc_dir, results_dir, library, scales=(10, 25)) 
 
     # Package CCF 2026-03 terminology and annotations (hemisphere masks)
-    CCFv2026.package_ccf2026(abc_dir, results_dir, library, scales=scales)
+    CCFv2026.package_ccf2026(abc_dir, results_dir, library, scales=(10, 25))
 
     # Package SmartSPIM template (uses library for assets)
     SmartSPIM.package_smartspim_template(
