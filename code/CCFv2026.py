@@ -1,6 +1,7 @@
 """Allen CCF 2026 annotation packaging with hemisphere masks."""
 
 
+import argparse
 import logging
 import os
 from collections.abc import Callable, Iterable
@@ -15,8 +16,9 @@ import pandas as pd  # type: ignore[import-not-found]
 import zarr
 from brainglobe_atlasapi import BrainGlobeAtlas 
 
+import CCFv2020
 from CCFv3 import load_ccf3_meshes  # type: ignore[import-not-found]
-from atlas_builder import AnnotationSet, Terminology  # type: ignore[import-not-found]
+from atlas_builder import AnnotationSet, AssetLibrary, Terminology  # type: ignore[import-not-found]
 from atlas_builder.annotation_set import uncompress_annotations_to_zarr  # type: ignore[import-not-found]
 from atlas_builder.precomputed import append_meshes_to_precomputed  # type: ignore[import-not-found]
 
@@ -31,10 +33,11 @@ from CCFv2020 import _build_ccf2020_terminology_dataframe  # type: ignore[import
 
 
 BRAINGLOBE_DATA_DIR = Path("/data/.brainglobe")
+DEFAULT_CCF2026_SCALES = (10, 25)
 
 CCF2026_TERMINOLOGY_DESCRIPTION = (
     "The 2026-03 revision of the Allen Mouse Reference Atlas, Ontology matches the 2020 "
-    "release, with two additional rows for hemispheric labels (Left hemisphere and Right hemisphere)."
+    "release, with two additional rows for hemispheric labels (Left of midline and Right of midline)."
 )
 
 CCF2026_TERMINOLOGY_CREATION_TIME = datetime.datetime(2026, 3, 13, tzinfo=datetime.timezone.utc)
@@ -42,9 +45,8 @@ CCF2026_ANNOTATION_CREATION_TIME = datetime.datetime(2026, 3, 13, tzinfo=datetim
 
 CCF2026_ANNOTATION_DESCRIPTION = (
     "The 2026-03 revision of the Allen Mouse Common Coordinate Framework annotation matches the "
-    "2020 release, with two additional uncompressed masks for left and right hemisphere labels. "
-    "No changes were made to the compressed annotation values or geometry; the update only adds "
-    "explicit hemisphere masks in the uncompressed annotation layers."
+    "2020 release, with two additional uncompressed masks for left and right of midline. "
+    "No changes were made to the compressed annotation values or meshes."
 )
 
 
@@ -110,16 +112,16 @@ def create_ccf2026_terminology(input_dir, output_dir, library):
         {
             **row_template,
             "identifier": f"MBA:{max_ann + 1}",
-            "name": "Left hemisphere",
-            "abbreviation": "LH",
+            "name": "Left of midline",
+            "abbreviation": "LMid",
             "annotation_value": max_ann + 1,
             "color_hex_triplet": "#666666",
         },
         {
             **row_template,
             "identifier": f"MBA:{max_ann + 2}",
-            "name": "Right hemisphere",
-            "abbreviation": "RH",
+            "name": "Right of midline",
+            "abbreviation": "RMid",
             "annotation_value": max_ann + 2,
             "color_hex_triplet": "#888888",
         },
@@ -165,18 +167,18 @@ class TerminologyLike(Protocol):
 
 def _load_brainglobe_atlas(atlas_name: str, data_dir: Path) -> object:
     """Load a BrainGlobe atlas, preferring the provided data directory."""
-    _ = os.environ.setdefault("BRAINGLOBE_DIR", str(data_dir))
-    for kwargs in (
-        {"data_dir": str(data_dir)},
-        {"base_dir": str(data_dir)},
-        {"local_path": str(data_dir)},
-        {},
-    ):
-        try:
-            return BrainGlobeAtlas(atlas_name, **kwargs)
-        except TypeError:
-            continue
-    return BrainGlobeAtlas(atlas_name)
+    atlas_dir = Path(data_dir)
+    if not atlas_dir.exists():
+        raise FileNotFoundError(f"BrainGlobe data directory does not exist: {atlas_dir}")
+
+    os.environ["BRAINGLOBE_CONFIG_DIR"] = str(atlas_dir)
+
+    return BrainGlobeAtlas(
+        atlas_name,
+        brainglobe_dir=atlas_dir,
+        interm_download_dir=atlas_dir,
+        check_latest=False,
+    )
 
 
 def _extract_hemispheres(atlas: object) -> np.ndarray:
@@ -220,16 +222,16 @@ def _get_hemisphere_annotation_values(terminology: TerminologyLike) -> tuple[int
     df = terminology.df
 
     def _find_value(name: str, abbreviation: str):
-        name_mask = df["name"].astype(str).str.lower() == name
+        name_mask = df["name"].astype(str).str.lower() == name.lower()
         if name_mask.any():
             return int(df.loc[name_mask, "annotation_value"].iloc[0])
-        abbr_mask = df["abbreviation"].astype(str).str.upper() == abbreviation
+        abbr_mask = df["abbreviation"].astype(str).str.lower() == abbreviation.lower()
         if abbr_mask.any():
             return int(df.loc[abbr_mask, "annotation_value"].iloc[0])
         raise ValueError(f"Could not locate hemisphere term '{name}' in terminology")
 
-    left_value = _find_value("left hemisphere", "LH")
-    right_value = _find_value("right hemisphere", "RH")
+    left_value = _find_value("Left of midline", "LMid")
+    right_value = _find_value("Right of midline", "RMid")
     return left_value, right_value
 
 
@@ -319,7 +321,7 @@ def create_ccf2026_annotation_set(
     input_dir,
     results_dir,
     library,
-    scales=(10, 25, 50, 100),
+    scales=DEFAULT_CCF2026_SCALES,
     brainglobe_dir: Path = BRAINGLOBE_DATA_DIR,
 ):
     """Create the 2026 CCF annotation set and add hemisphere masks."""
@@ -390,8 +392,115 @@ def package_ccf2026(
     input_dir: str | Path,
     output_dir: str | Path,
     library: object,
-    scales: tuple[int, ...] = (10, 25, 50, 100),
+    scales: tuple[int, ...] = DEFAULT_CCF2026_SCALES,
 ):
     """Package the 2026-03 terminology and annotation set."""
     _ = create_ccf2026_terminology(input_dir, output_dir, library)
     create_ccf2026_annotation_set(input_dir, output_dir, library, scales=scales)
+
+
+def run_ccf2026_standalone(
+    input_dir: str | Path,
+    output_dir: str | Path,
+    scales: tuple[int, ...] = DEFAULT_CCF2026_SCALES,
+    brainglobe_dir: str | Path = BRAINGLOBE_DATA_DIR,
+    include_annotation: bool = True,
+    include_terminology: bool = True,
+) -> AssetLibrary:
+    """Run the minimal dependency chain required to package CCF 2026 on its own."""
+    input_path = Path(input_dir)
+    output_path = Path(output_dir)
+    brainglobe_path = Path(brainglobe_dir)
+
+    logging.info("Running standalone CCF 2026 packaging")
+    library = AssetLibrary()
+
+    CCFv2020.create_ccf2020_template(input_path, output_path, library, scales=scales)
+
+    if include_terminology:
+        create_ccf2026_terminology(input_path, output_path, library)
+
+    if include_annotation:
+        if not include_terminology:
+            _ = create_ccf2026_terminology(input_path, output_path, library)
+        create_ccf2026_annotation_set(
+            input_path,
+            output_path,
+            library,
+            scales=scales,
+            brainglobe_dir=brainglobe_path,
+        )
+
+    return library
+
+
+def _parse_scales(value: str) -> tuple[int, ...]:
+    """Parse a comma-separated list of integer scales."""
+    try:
+        return tuple(int(part.strip()) for part in value.split(",") if part.strip())
+    except ValueError as exc:
+        raise argparse.ArgumentTypeError("Scales must be a comma-separated list of integers") from exc
+
+
+def parse_args() -> argparse.Namespace:
+    """Parse command line arguments for standalone CCF 2026 packaging."""
+    parser = argparse.ArgumentParser(description="Package the CCF 2026 atlas assets only.")
+    parser.add_argument(
+        "--input-dir",
+        type=Path,
+        default=Path("/data/abc_atlas"),
+        help="ABC Atlas input directory (default: /data/abc_atlas)",
+    )
+    parser.add_argument(
+        "--output-dir",
+        "-o",
+        type=Path,
+        default=Path("/results"),
+        help="Directory to write CCF 2026 outputs (default: /results)",
+    )
+    parser.add_argument(
+        "--brainglobe-dir",
+        type=Path,
+        default=BRAINGLOBE_DATA_DIR,
+        help="BrainGlobe atlas cache directory (default: /data/.brainglobe)",
+    )
+    parser.add_argument(
+        "--scales",
+        type=_parse_scales,
+        default=DEFAULT_CCF2026_SCALES,
+        help="Comma-separated voxel scales to package (default: 10,25)",
+    )
+    parser.add_argument(
+        "--terminology-only",
+        action="store_true",
+        help="Only build the 2026 terminology and skip the annotation set.",
+    )
+    parser.add_argument(
+        "--log-level",
+        default="INFO",
+        choices=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
+        help="Logging level (default: INFO)",
+    )
+    return parser.parse_args()
+
+
+def main() -> None:
+    """CLI entrypoint for standalone CCF 2026 packaging."""
+    args = parse_args()
+    logging.basicConfig(
+        level=getattr(logging, args.log_level),
+        format="%(asctime)s %(levelname)s %(message)s",
+    )
+
+    _ = run_ccf2026_standalone(
+        input_dir=args.input_dir,
+        output_dir=args.output_dir,
+        scales=args.scales,
+        brainglobe_dir=args.brainglobe_dir,
+        include_annotation=not args.terminology_only,
+        include_terminology=True,
+    )
+
+
+if __name__ == "__main__":
+    main()

@@ -405,7 +405,7 @@ def uncompress_single_scale(
         shape=uncompressed_shape,
         chunks=zarr_chunks,
         dtype=np.uint8,
-        compressors=(zarr.codecs.Blosc(cname="zstd", clevel=3, shuffle=1),),
+        compressors=(zarr.codecs.BloscCodec(cname="zstd", clevel=3, shuffle=zarr.codecs.BloscShuffle.bitshuffle),),
     )
 
     # Process identifiers in batches to manage memory
@@ -677,7 +677,7 @@ def uncompress_annotations_to_zarr(input_dir, terminology, output_dir, scales=(1
             shape=annotation_values.shape,
             data=annotation_values,
             dtype=annotation_values.dtype,
-            compressors=(zarr.codecs.Blosc(cname="zstd", clevel=3, shuffle=1),),
+            compressors=(zarr.codecs.BloscCodec(cname="zstd", clevel=3, shuffle=zarr.codecs.BloscShuffle.shuffle),),
         )
         logging.info(f"Stored {len(annotation_values)} annotation values")
 
