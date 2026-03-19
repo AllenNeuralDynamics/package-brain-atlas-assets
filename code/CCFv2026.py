@@ -103,7 +103,7 @@ def create_ccf2026_terminology(input_dir, output_dir, library):
     row_template = {col: pd.NA for col in filtered_df.columns}
     row_template.update(
         {
-            "parent_identifier": "MBA:997",
+            "parent_identifier": "",
             "term_set_name": [],
         }
     )
