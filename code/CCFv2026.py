@@ -1,4 +1,4 @@
-"""Allen CCF 2026 annotation packaging with hemisphere masks."""
+"""Allen CCF 2026 annotation packaging with midline masks and hemisphere terms."""
 
 
 import argparse
@@ -37,7 +37,8 @@ DEFAULT_CCF2026_SCALES = (10, 25)
 
 CCF2026_TERMINOLOGY_DESCRIPTION = (
     "The 2026-03 revision of the Allen Mouse Reference Atlas, Ontology matches the 2020 "
-    "release, with two additional rows for hemispheric labels (Left of midline and Right of midline)."
+    "release, with four additional rows for hemispheric labels (Left of midline, Right of "
+    "midline, Left hemisphere, and Right hemisphere)."
 )
 
 CCF2026_TERMINOLOGY_CREATION_TIME = datetime.datetime(2026, 3, 13, tzinfo=datetime.timezone.utc)
@@ -45,7 +46,7 @@ CCF2026_ANNOTATION_CREATION_TIME = datetime.datetime(2026, 3, 13, tzinfo=datetim
 
 CCF2026_ANNOTATION_DESCRIPTION = (
     "The 2026-03 revision of the Allen Mouse Common Coordinate Framework annotation matches the "
-    "2020 release, with two additional uncompressed masks for left and right of midline. "
+    "2020 release, with four additional annotations for left and right of midline and the left and right hemispheres. "
     "No changes were made to the compressed annotation values or meshes."
 )
 
@@ -92,7 +93,7 @@ def _write_ccf2026_annotation_data_description(output_dir: Path):
 
 
 def create_ccf2026_terminology(input_dir, output_dir, library):
-    """Create the 2026-03 revision of the CCF 2020 terminology with hemisphere rows."""
+    """Create the 2026-03 revision of the CCF 2020 terminology with midline and hemisphere rows."""
     metadata_dir = Path(input_dir) / "metadata" / "Allen-CCF-2020" / "20230630"
 
     filtered_df = _build_ccf2020_terminology_dataframe(metadata_dir)
@@ -103,7 +104,6 @@ def create_ccf2026_terminology(input_dir, output_dir, library):
     row_template = {col: pd.NA for col in filtered_df.columns}
     row_template.update(
         {
-            "parent_identifier": "",
             "term_set_name": [],
         }
     )
@@ -112,6 +112,7 @@ def create_ccf2026_terminology(input_dir, output_dir, library):
         {
             **row_template,
             "identifier": f"MBA:{max_ann + 1}",
+            "parent_identifier": "",
             "name": "Left of midline",
             "abbreviation": "LMid",
             "annotation_value": max_ann + 1,
@@ -120,9 +121,28 @@ def create_ccf2026_terminology(input_dir, output_dir, library):
         {
             **row_template,
             "identifier": f"MBA:{max_ann + 2}",
+            "parent_identifier": "",
             "name": "Right of midline",
             "abbreviation": "RMid",
             "annotation_value": max_ann + 2,
+            "color_hex_triplet": "#888888",
+        },
+        {
+            **row_template,
+            "identifier": f"MBA:{max_ann + 3}",
+            "parent_identifier": "MBA:997",
+            "name": "Left hemisphere",
+            "abbreviation": "LHem",
+            "annotation_value": max_ann + 3,
+            "color_hex_triplet": "#666666",
+        },
+        {
+            **row_template,
+            "identifier": f"MBA:{max_ann + 4}",
+            "parent_identifier": "MBA:997",
+            "name": "Right hemisphere",
+            "abbreviation": "RHem",
+            "annotation_value": max_ann + 4,
             "color_hex_triplet": "#888888",
         },
     ]
@@ -165,7 +185,7 @@ class TerminologyLike(Protocol):
     df: "pd.DataFrame"
 
 
-def _load_brainglobe_atlas(atlas_name: str, data_dir: Path) -> object:
+def _load_brainglobe_atlas(atlas_name: str, data_dir: Path) -> BrainGlobeAtlas:
     """Load a BrainGlobe atlas, preferring the provided data directory."""
     atlas_dir = Path(data_dir)
     if not atlas_dir.exists():
@@ -198,10 +218,11 @@ def _extract_hemispheres(atlas: object) -> np.ndarray:
     raise ValueError("BrainGlobe atlas does not expose hemisphere labels")
 
 
-def _hemisphere_masks_from_brainglobe(resolution: int, data_dir: Path) -> tuple[np.ndarray, np.ndarray]:
-    """Load left/right hemisphere masks for a specific resolution."""
+def _midline_masks_from_brainglobe(resolution: int, data_dir: Path) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Load left/right midline-based masks for a specific resolution."""
     atlas_name = f"allen_mouse_{resolution}um"
     atlas = _load_brainglobe_atlas(atlas_name, data_dir)
+    root_mask = atlas.annotation > 0
 
     hemispheres = np.asarray(_extract_hemispheres(atlas))
     values = set(np.unique(hemispheres).tolist())
@@ -210,29 +231,32 @@ def _hemisphere_masks_from_brainglobe(resolution: int, data_dir: Path) -> tuple[
         left_mask = hemispheres == 1
         right_mask = hemispheres == 2
     else:
-        raise ValueError(
-            f"Unexpected hemisphere label values {sorted(values)} for atlas {atlas_name}."
-        )
+        raise ValueError(f"Unexpected midline label values {sorted(values)} for atlas {atlas_name}.")
 
-    return left_mask.astype(np.uint8), right_mask.astype(np.uint8)
+    return left_mask.astype(np.uint8), right_mask.astype(np.uint8), root_mask.astype(np.uint8)
 
 
-def _get_hemisphere_annotation_values(terminology: TerminologyLike) -> tuple[int, int]:
-    """Return annotation values for left/right hemispheres from terminology."""
+def _get_bilateral_annotation_values(terminology: TerminologyLike) -> tuple[int, int, int, int]:
+    """Return annotation values for left/right of midline from terminology."""
     df = terminology.df
 
-    def _find_value(name: str, abbreviation: str):
+    def _find_value(name: str, abbreviation: str) -> int:
         name_mask = df["name"].astype(str).str.lower() == name.lower()
         if name_mask.any():
             return int(df.loc[name_mask, "annotation_value"].iloc[0])
+
         abbr_mask = df["abbreviation"].astype(str).str.lower() == abbreviation.lower()
         if abbr_mask.any():
             return int(df.loc[abbr_mask, "annotation_value"].iloc[0])
-        raise ValueError(f"Could not locate hemisphere term '{name}' in terminology")
 
-    left_value = _find_value("Left of midline", "LMid")
-    right_value = _find_value("Right of midline", "RMid")
-    return left_value, right_value
+        raise ValueError(f"Could not locate midline term '{name}' in terminology")
+
+    lmid_value = _find_value("Left of midline", "LMid")
+    rmid_value = _find_value("Right of midline", "RMid")
+    lh_value = _find_value("Left hemisphere", "LHem")
+    rh_value = _find_value("Right hemisphere", "RHem")
+
+    return lmid_value, rmid_value, lh_value, rh_value
 
 
 def _scale_to_dataset_index(
@@ -254,13 +278,13 @@ def _scale_to_dataset_index(
     return scale_to_index
 
 
-def _add_hemisphere_masks_to_uncompressed(
+def _add_midline_masks_to_uncompressed(
     annotation_output_dir: Path,
     terminology,
     scales,
     brainglobe_dir: Path,
 ):
-    """Add left/right hemisphere masks into the uncompressed OME-Zarr."""
+    """Add left/right midline-based masks into the uncompressed OME-Zarr."""
     zarr_path = annotation_output_dir / "annotations.ome.zarr"
     if not zarr_path.exists():
         raise FileNotFoundError(f"Missing uncompressed annotations at {zarr_path}")
@@ -268,7 +292,7 @@ def _add_hemisphere_masks_to_uncompressed(
     group = zarr.open(str(zarr_path), mode="r+")
     annotations_grp = cast(zarr.Group, group["labels"]["annotations"])
 
-    left_value, right_value = _get_hemisphere_annotation_values(terminology)
+    lmid_value, rmid_value, lhem_value, rhem_value = _get_bilateral_annotation_values(terminology)
     scale_to_index: dict[int, str] = _scale_to_dataset_index(
         annotation_output_dir, scales, annotations_grp
     )
@@ -291,30 +315,36 @@ def _add_hemisphere_masks_to_uncompressed(
             _ = zarr_array.resize(new_shape)
             zarr_array[new_len - 1, :, :, :] = 0
 
-    _append_annotation_value(left_value)
-    _append_annotation_value(right_value)
+    _append_annotation_value(lmid_value)
+    _append_annotation_value(rmid_value)
+    _append_annotation_value(lhem_value)
+    _append_annotation_value(rhem_value)
 
-    left_idx = np.where(annotation_values == left_value)[0]
-    right_idx = np.where(annotation_values == right_value)[0]
+    lmid_idx = np.where(annotation_values == lmid_value)[0]
+    rmid_idx = np.where(annotation_values == rmid_value)[0]
+    lhem_idx = np.where(annotation_values == lhem_value)[0]
+    rhem_idx = np.where(annotation_values == rhem_value)[0]
 
-    if left_idx.size != 1 or right_idx.size != 1:
+    if lmid_idx.size != 1 or rmid_idx.size != 1:
         raise ValueError(
-            "Hemisphere annotation values not found uniquely in annotation_values"
+            "Midline annotation values not found uniquely in annotation_values"
         )
 
     for scale, dataset_name in scale_to_index.items():
-        left_mask, right_mask = _hemisphere_masks_from_brainglobe(scale, brainglobe_dir)
+        lmid_mask, rmid_mask, root_mask = _midline_masks_from_brainglobe(scale, brainglobe_dir)
 
         zarr_array = annotations_grp[dataset_name]
-        if zarr_array.shape[1:] != left_mask.shape:
+        if zarr_array.shape[1:] != lmid_mask.shape:
             raise ValueError(
-                f"Hemisphere mask shape {left_mask.shape} does not match "
+                f"Midline mask shape {lmid_mask.shape} does not match "
                 f"annotation shape {zarr_array.shape[1:]} for scale {scale}"
             )
 
-        logging.info(f"Writing hemisphere masks for scale {scale} into dataset {dataset_name}")
-        zarr_array[left_idx[0], :, :, :] = left_mask
-        zarr_array[right_idx[0], :, :, :] = right_mask
+        logging.info(f"Writing midline masks for scale {scale} into dataset {dataset_name}")
+        zarr_array[lmid_idx[0], :, :, :] = lmid_mask
+        zarr_array[rmid_idx[0], :, :, :] = rmid_mask
+        zarr_array[lhem_idx[0], :, :, :] = root_mask & lmid_mask
+        zarr_array[rhem_idx[0], :, :, :] = root_mask & rmid_mask
 
 
 def create_ccf2026_annotation_set(
@@ -324,7 +354,7 @@ def create_ccf2026_annotation_set(
     scales=DEFAULT_CCF2026_SCALES,
     brainglobe_dir: Path = BRAINGLOBE_DATA_DIR,
 ):
-    """Create the 2026 CCF annotation set and add hemisphere masks."""
+    """Create the 2026 CCF annotation set and add midline masks."""
     logging.info("Creating CCF 2026 anatomical annotation set...")
 
     template = library.get_template("allen-adult-mouse-stpt-template", "2020")
@@ -355,7 +385,7 @@ def create_ccf2026_annotation_set(
 
     _write_ccf2026_annotation_data_description(annotation_set.location(results_dir))
 
-    _add_hemisphere_masks_to_uncompressed(
+    _add_midline_masks_to_uncompressed(
         annotation_output_dir=annotation_output_dir,
         terminology=terminology,
         scales=annotation_set.scales,

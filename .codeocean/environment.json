@@ -1,6 +1,6 @@
 {
 	"version": 1,
-	"base_image": "codeocean/code-server-python-extensions-pack:code-server4.108.2python3.12.4aind-metadata-mcp0.5.2withDOTFILES_REPOsupport",
+	"base_image": "codeocean/code-server-python-extensions-pack:code-server4.112.0python3.12.4codeocean-mcp-serveruvetc",
 	"options": {
 		"registry_host_arg": true,
 		"git_ask_pass": true,
@@ -15,7 +15,7 @@
 				},
 				{
 					"name": "awscli",
-					"version": "1.44.58"
+					"version": "1.44.66"
 				},
 				{
 					"name": "brainglobe-atlasapi",
@@ -23,7 +23,7 @@
 				},
 				{
 					"name": "cloud-volume",
-					"version": "12.12.0"
+					"version": "12.12.1"
 				},
 				{
 					"name": "nibabel",

@@ -1,6 +1,6 @@
-# hash:sha256:770fdbc24d992cf9a282c41aa0039a9c5f2cba081139916e1ac50ab4d72465ab
+# hash:sha256:69314e5c44dddf013c24581efba7b1cb7792515132609612ab3dbccec0c66187
 ARG REGISTRY_HOST
-FROM $REGISTRY_HOST/codeocean/code-server-python-extensions-pack:code-server4.108.2python3.12.4aind-metadata-mcp0.5.2withDOTFILES_REPOsupport
+FROM $REGISTRY_HOST/codeocean/code-server-python-extensions-pack:code-server4.112.0python3.12.4codeocean-mcp-serveruvetc
 
 ARG DEBIAN_FRONTEND=noninteractive
 ARG GIT_ASKPASS
@@ -8,9 +8,9 @@ COPY git-ask-pass /
 
 RUN pip install -U --no-cache-dir \
     aind-data-schema==2.6.0 \
-    awscli==1.44.58 \
+    awscli==1.44.66 \
     brainglobe-atlasapi==2.3.0 \
-    cloud-volume==12.12.0 \
+    cloud-volume==12.12.1 \
     nibabel==5.4.2 \
     ome-zarr==0.14.0 \
     pandas==3.0.1 \
