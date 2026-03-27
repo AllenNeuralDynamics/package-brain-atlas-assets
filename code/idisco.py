@@ -121,7 +121,7 @@ def package_idisco_template(results_dir):
         compressor=compressor,
         channel_names=all_channel_names,
     )
-    correct_coordinate_transforms_rfc5(group, axes, coordinate_system_name="micrometer")
+    correct_coordinate_transforms_rfc5(group, axes, coordinate_system_name="micrometer RAS"), intrinsic_coordinate_system_name="index", multiscale_transform_key="coordinateTransformations")
     logging.info(f"iDISCO OME-Zarr multiscale pyramid written to {zarr_path}")
 
     # Create and register Template asset

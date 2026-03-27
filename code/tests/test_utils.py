@@ -1,9 +1,11 @@
 import math
+import tempfile
 import unittest
 
 import numpy as np
+import zarr
 
-from utils import decompose_affine
+from utils import correct_coordinate_transforms_rfc5, decompose_affine
 
 
 def rotation_x(theta: float) -> np.ndarray:
@@ -57,6 +59,22 @@ def compose_affine(
     return affine
 
 
+def build_transform_list(
+    scale: list[float],
+    rotation: np.ndarray | None = None,
+    flip: np.ndarray | None = None,
+    translation: list[float] | None = None,
+) -> list[dict]:
+    transforms = [{"type": "scale", "scale": scale}]
+    if flip is not None:
+        transforms.append({"type": "affine", "affine": flip.tolist()})
+    if rotation is not None:
+        transforms.append({"type": "rotation", "rotation": rotation.tolist()})
+    if translation is not None:
+        transforms.append({"type": "translation", "translation": translation})
+    return transforms
+
+
 class DecomposeAffineTests(unittest.TestCase):
     def assert_recomposes(self, affine: np.ndarray) -> None:
         scale, rotation, flip, translation = decompose_affine(affine)
@@ -91,6 +109,148 @@ class DecomposeAffineTests(unittest.TestCase):
         affine[:3, 3] = np.array([-2.0, 4.5, 0.0])
 
         self.assert_recomposes(affine)
+
+
+class CorrectCoordinateTransformsRfc5Tests(unittest.TestCase):
+    def make_group(self, shape, axes, transforms_by_path):
+        tempdir = tempfile.TemporaryDirectory()
+        self.addCleanup(tempdir.cleanup)
+
+        group = zarr.open_group(tempdir.name, mode="w")
+        datasets = []
+        for path, transforms in transforms_by_path.items():
+            group.create_array(path, data=np.zeros(shape, dtype=np.float32))
+            datasets.append(
+                {
+                    "path": path,
+                    "coordinateTransformations": transforms,
+                }
+            )
+
+        group.attrs.put(
+            {
+                "ome": {
+                    "multiscales": [
+                        {
+                            "name": "test",
+                            "axes": axes,
+                            "datasets": datasets,
+                        }
+                    ]
+                }
+            }
+        )
+        return group
+
+    def test_splits_dataset_scale_from_shared_world_transform(self) -> None:
+        intrinsic_axes = [
+            {"name": "z", "type": "space", "unit": "millimeter"},
+            {"name": "y", "type": "space", "unit": "millimeter"},
+            {"name": "x", "type": "space", "unit": "millimeter"},
+        ]
+        world_axes = [
+            {"name": "z", "type": "space", "unit": "millimeter", "orientation": {"type": "anatomical", "value": "inferior-to-superior"}},
+            {"name": "y", "type": "space", "unit": "millimeter", "orientation": {"type": "anatomical", "value": "posterior-to-anterior"}},
+            {"name": "x", "type": "space", "unit": "millimeter", "orientation": {"type": "anatomical", "value": "left-to-right"}},
+        ]
+        rotation = rotation_z(math.radians(30.0))
+        translation = [1.2, -3.4, 5.6]
+        transforms_by_path = {
+            "0": build_transform_list([0.01, 0.01, 0.01], rotation=rotation, translation=translation),
+            "1": build_transform_list([0.02, 0.02, 0.02], rotation=rotation, translation=translation),
+        }
+
+        group = self.make_group((2, 2, 2), intrinsic_axes, transforms_by_path)
+
+        correct_coordinate_transforms_rfc5(group, world_axes)
+
+        ome = dict(group.attrs)["ome"]
+        self.assertEqual([cs["name"] for cs in ome["coordinateSystems"]], ["intrinsic", "mm RAS"])
+
+        multiscales = ome["multiscales"][0]
+        self.assertEqual(multiscales["coordinateTransformations"][0]["input"], "intrinsic")
+        self.assertEqual(multiscales["coordinateTransformations"][0]["output"], "mm RAS")
+        self.assertEqual(
+            [t["type"] for t in multiscales["coordinateTransformations"][0]["transformations"]],
+            ["rotation", "translation"],
+        )
+
+        dataset_transform = multiscales["datasets"][0]["coordinateTransformations"][0]
+        self.assertEqual(dataset_transform["input"], "0")
+        self.assertEqual(dataset_transform["output"], "intrinsic")
+        self.assertEqual(dataset_transform["transformations"], [{"type": "scale", "scale": [0.01, 0.01, 0.01]}])
+
+        dataset_ome = dict(group["0"].attrs)["ome"]
+        self.assertEqual(dataset_ome["coordinateTransformations"], multiscales["datasets"][0]["coordinateTransformations"])
+
+    def test_preserves_channel_identity_for_4d_intrinsic_scale(self) -> None:
+        intrinsic_axes = [
+            {"name": "c", "type": "channel"},
+            {"name": "z", "type": "space", "unit": "micrometer"},
+            {"name": "y", "type": "space", "unit": "micrometer"},
+            {"name": "x", "type": "space", "unit": "micrometer"},
+        ]
+        world_axes = [
+            {"name": "c", "type": "channel"},
+            {"name": "z", "type": "space", "unit": "micrometer", "orientation": {"type": "anatomical", "value": "dorsal-to-ventral"}},
+            {"name": "y", "type": "space", "unit": "micrometer", "orientation": {"type": "anatomical", "value": "anterior-to-posterior"}},
+            {"name": "x", "type": "space", "unit": "micrometer", "orientation": {"type": "anatomical", "value": "left-to-right"}},
+        ]
+        rotation = np.eye(4)
+        rotation[1:4, 1:4] = rotation_y(math.radians(20.0))
+        translation = [0.0, 12.0, -8.0, 1.5]
+        transforms_by_path = {
+            "0": build_transform_list([1.0, 10.0, 10.0, 10.0], rotation=rotation, translation=translation),
+            "1": build_transform_list([1.0, 25.0, 25.0, 25.0], rotation=rotation, translation=translation),
+        }
+
+        group = self.make_group((2, 2, 2, 2), intrinsic_axes, transforms_by_path)
+
+        correct_coordinate_transforms_rfc5(group, world_axes)
+
+        dataset_transform = dict(group.attrs)["ome"]["multiscales"][0]["datasets"][1]["coordinateTransformations"][0]
+        self.assertEqual(
+            dataset_transform["transformations"],
+            [{"type": "scale", "scale": [1.0, 25.0, 25.0, 25.0]}],
+        )
+        shared_transform = dict(group.attrs)["ome"]["multiscales"][0]["coordinateTransformations"][0]
+        self.assertEqual(shared_transform["transformations"][0]["type"], "rotation")
+        self.assertEqual(shared_transform["transformations"][1]["type"], "translation")
+
+    def test_keeps_reflection_in_shared_world_transform(self) -> None:
+        intrinsic_axes = [
+            {"name": "z", "type": "space", "unit": "millimeter"},
+            {"name": "y", "type": "space", "unit": "millimeter"},
+            {"name": "x", "type": "space", "unit": "millimeter"},
+        ]
+        world_axes = [
+            {"name": "z", "type": "space", "unit": "millimeter", "orientation": {"type": "anatomical", "value": "inferior-to-superior"}},
+            {"name": "y", "type": "space", "unit": "millimeter", "orientation": {"type": "anatomical", "value": "posterior-to-anterior"}},
+            {"name": "x", "type": "space", "unit": "millimeter", "orientation": {"type": "anatomical", "value": "left-to-right"}},
+        ]
+
+        affine = np.eye(4)
+        affine[:3, :3] = np.diag([-0.01, 0.02, 0.03])
+        affine[:3, 3] = np.array([-2.0, 4.5, 0.0])
+        scale, rotation, flip, translation = decompose_affine(affine)
+
+        transforms_by_path = {
+            "0": build_transform_list(
+                scale.tolist(),
+                rotation=rotation,
+                flip=flip,
+                translation=translation.tolist(),
+            )
+        }
+
+        group = self.make_group((2, 2, 2), intrinsic_axes, transforms_by_path)
+
+        correct_coordinate_transforms_rfc5(group, world_axes)
+
+        shared_transform = dict(group.attrs)["ome"]["multiscales"][0]["coordinateTransformations"][0]
+        self.assertIn("affine", [transform["type"] for transform in shared_transform["transformations"]])
+        self.assertEqual(shared_transform["transformations"][-1]["type"], "translation")
+        self.assertEqual(shared_transform["output"], "mm RAS")
 
 
 if __name__ == "__main__":

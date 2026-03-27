@@ -5,6 +5,7 @@ import nibabel as nib
 import logging
 import copy
 
+
 def decompose_affine(affine: np.ndarray) -> tuple[
     np.ndarray | None,
     np.ndarray | None,
@@ -112,39 +113,123 @@ def _update_axis_code(axes_metadata, ax_code, orientation_start, orientation_end
         
     return axes_metadata
 
-def correct_coordinate_transforms_rfc5(group, axes, coordinate_system_name="mm"):
+def _split_dataset_and_global_transforms(
+    coordinate_transformations: list[dict],
+) -> tuple[list[dict], list[dict]]:
+    dataset_transforms = []
+    global_transforms = []
+    for transform in coordinate_transformations:
+        if transform.get("type") == "scale":
+            dataset_transforms.append(copy.deepcopy(transform))
+        else:
+            global_transforms.append(copy.deepcopy(transform))
+    return dataset_transforms, global_transforms
+
+
+def _transforms_match(left: list[dict], right: list[dict]) -> bool:
+    if len(left) != len(right):
+        return False
+
+    for left_transform, right_transform in zip(left, right):
+        if left_transform.get("type") != right_transform.get("type"):
+            return False
+
+        left_keys = set(left_transform.keys())
+        right_keys = set(right_transform.keys())
+        if left_keys != right_keys:
+            return False
+
+        for key in left_keys - {"type"}:
+            left_value = np.asarray(left_transform[key], dtype=float)
+            right_value = np.asarray(right_transform[key], dtype=float)
+            if left_value.shape != right_value.shape:
+                return False
+            if not np.allclose(left_value, right_value, atol=1e-6):
+                return False
+
+    return True
+
+
+def _wrap_transform_sequence(input_name: str, output_name: str, transforms: list[dict]) -> dict:
+    return {
+        "type": "sequence",
+        "input": input_name,
+        "output": output_name,
+        "transformations": transforms,
+    }
+
+
+def correct_coordinate_transforms_rfc5(
+    group,
+    axes,
+    coordinate_system_name="mm RAS",
+    intrinsic_coordinate_system_name="intrinsic",
+    multiscale_transform_key="coordinateTransformations",
+):
     attrs = dict(group.attrs)
     ome_block = attrs.get("ome")
+    if ome_block is None:
+        raise ValueError("Expected OME metadata block in group attrs")
+
+    multiscales = ome_block.get("multiscales", [])
+    if not multiscales:
+        raise ValueError("Expected at least one multiscales entry in OME metadata")
+
+    multiscales_entry = multiscales[0]
+    intrinsic_axes = copy.deepcopy(multiscales_entry.get("axes", axes))
     ome_block["coordinateSystems"] = [
-        {"name": coordinate_system_name, "axes": axes}
+        {"name": intrinsic_coordinate_system_name, "axes": intrinsic_axes},
+        {"name": coordinate_system_name, "axes": copy.deepcopy(axes)},
     ]
-    multiscales = ome_block.get("multiscales", [])[0]
-    array_data = multiscales.get("datasets", []) 
+    array_data = multiscales_entry.get("datasets", [])
+    global_coordinate_transformations = None
+
     for idx in range(len(array_data)):
         _array = array_data[idx]
 
         array_path = _array.get("path", str(idx))
 
-        # this is being written as a list of transformations. 
-        # for RFC5, we want to save a "sequence" of transformations
         coord_transforms = _array.get("coordinateTransformations", [])
-        coordinate_transform_metadata = {
-            "type": "sequence",
-            "input": array_path,
-            "output": "mm",
-            "transformations": coord_transforms
-        }
+        dataset_transforms, candidate_global_transforms = _split_dataset_and_global_transforms(coord_transforms)
+        if not dataset_transforms:
+            raise ValueError(
+                f"Dataset {array_path} must include a scale transform to map indices into {intrinsic_coordinate_system_name}"
+            )
+
+        if global_coordinate_transformations is None:
+            global_coordinate_transformations = candidate_global_transforms
+        elif not _transforms_match(global_coordinate_transformations, candidate_global_transforms):
+            raise ValueError(
+                "All datasets must share the same non-scale transforms to emit a single intrinsic-to-world transform"
+            )
+
+        coordinate_transform_metadata = _wrap_transform_sequence(
+            array_path,
+            intrinsic_coordinate_system_name,
+            dataset_transforms,
+        )
         _array["coordinateTransformations"] = [coordinate_transform_metadata]
 
         # Apply same coordinate transform to all zarr arrays
-        array_attr = group[array_path].attrs
+        array_attr = dict(group[array_path].attrs)
         ome_attr = array_attr.get("ome", {})
         ome_attr["coordinateTransformations"] = _array.get("coordinateTransformations")
-        
+
         logging.info(f"OME attr: {ome_attr}")
         array_attr["ome"] = ome_attr
         group[array_path].attrs.put(array_attr)
 
-    ome_block["multiscales"] = [multiscales]
+    if global_coordinate_transformations:
+        multiscales_entry[multiscale_transform_key] = [
+            _wrap_transform_sequence(
+                intrinsic_coordinate_system_name,
+                coordinate_system_name,
+                global_coordinate_transformations,
+            )
+        ]
+    else:
+        multiscales_entry.pop(multiscale_transform_key, None)
+
+    ome_block["multiscales"] = [multiscales_entry]
     attrs["ome"] = ome_block
     group.attrs.put(attrs)
