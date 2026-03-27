@@ -89,11 +89,12 @@ class AnnotationSet(AtlasAsset):
         logging.info(f"Creating precomputed annotation file using highest resolution scale: {highest_res_scale}μm")
 
         high_res_data, high_res_affine = compressed_results[highest_res_scale]
-        scale_vec, rotation_mat, translation_vec = decompose_affine(high_res_affine)  # Ensure affine is decomposed correctly
+        scale_vec, rotation_mat, flip_mat, translation_vec = decompose_affine(high_res_affine)  # Ensure affine is decomposed correctly
         # Round scale
         scale_vec = [round(1e4*dim)/1e4 for dim in scale_vec]
         logging.info(
-            f"Decomposed affine for highest resolution: scale={scale_vec}, translation={translation_vec}, rotation=\n{rotation_mat}"
+            f"Decomposed affine for highest resolution: scale={scale_vec}, translation={translation_vec}, "
+            f"rotation=\n{rotation_mat}, flip=\n{flip_mat}"
         )
         precomputed_output = output_dir / "annotations.precomputed"
         convert_compressed_annotations_to_precomputed(
@@ -468,10 +469,11 @@ def convert_compressed_annotations_to_zarr(compressed_results, output_dir, scale
             arrays.append(data)
 
             # Extract transformation information from affine matrix
-            scale_vec, rotation_mat, translation_vec = decompose_affine(affine)
+            scale_vec, rotation_mat, flip_mat, translation_vec = decompose_affine(affine)
             scale_vec = round_transform_values(scale_vec, decimals=6)
             translation_vec = round_transform_values(translation_vec, decimals=6)
             rotation_mat = round_transform_values(rotation_mat, decimals=8)
+            flip_mat = round_transform_values(flip_mat, decimals=8)
 
             # Write affine information to axes
             path_str = str(output_dir).lower()
@@ -480,10 +482,12 @@ def convert_compressed_annotations_to_zarr(compressed_results, output_dir, scale
             scale_transforms = []
             if scale_vec is not None:
                 scale_transforms.append({"type": "scale", "scale": scale_vec.tolist()})
-            if translation_vec is not None:
-                scale_transforms.append({"type": "translation", "translation": translation_vec.tolist()})
+            if flip_mat is not None:
+                scale_transforms.append({"type": "affine", "affine": flip_mat.tolist()})
             if rotation_mat is not None:
                 scale_transforms.append({"type": "rotation", "rotation": rotation_mat.tolist()})
+            if translation_vec is not None:
+                scale_transforms.append({"type": "translation", "translation": translation_vec.tolist()})
             transforms.append(scale_transforms)
         else:
             logging.warning(f"Scale {scale} not found in compressed results, skipping.")
@@ -611,10 +615,11 @@ def uncompress_annotations_to_zarr(input_dir, terminology, output_dir, scales=(1
             annotation_values = values
 
         # Extract transformation information from affine matrix
-        scale_vec, rotation_mat, translation_vec = decompose_affine(new_affine)
+        scale_vec, rotation_mat, flip_mat, translation_vec = decompose_affine(new_affine)
         scale_vec = round_transform_values(scale_vec, decimals=6)
         translation_vec = round_transform_values(translation_vec, decimals=6)
         rotation_mat = round_transform_values(rotation_mat, decimals=8)
+        flip_mat = round_transform_values(flip_mat, decimals=8)
 
         # Update axes orientation metadata once using spatial axes
         if axes_orientation is None or original_orientation is None:
@@ -635,14 +640,19 @@ def uncompress_annotations_to_zarr(input_dir, terminology, output_dir, scales=(1
             full_scale = [1.0] + scale_vec.tolist()
             scale_transforms.append({"type": "scale", "scale": full_scale})
 
-        if translation_vec is not None:
-            full_translation = [0.0] + translation_vec.tolist()
-            scale_transforms.append({"type": "translation", "translation": full_translation})
+        if flip_mat is not None:
+            flip_4d = np.eye(4)
+            flip_4d[1:, 1:] = flip_mat
+            scale_transforms.append({"type": "affine", "affine": flip_4d.tolist()})
 
         if rotation_mat is not None:
             rotation_4d = np.eye(4)
             rotation_4d[1:, 1:] = rotation_mat
             scale_transforms.append({"type": "rotation", "rotation": rotation_4d.tolist()})
+
+        if translation_vec is not None:
+            full_translation = [0.0] + translation_vec.tolist()
+            scale_transforms.append({"type": "translation", "translation": full_translation})
 
         transforms.append(scale_transforms)
 

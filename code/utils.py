@@ -1,34 +1,68 @@
 """Utility functions shared across atlas processing modules."""
 
 import numpy as np
-from typing import List
 import nibabel as nib
 import logging
 import copy
 
-def decompose_affine(affine):
-    """Decompose 4x4 affine matrix into scale, rotation, and translation components."""
+def decompose_affine(affine: np.ndarray) -> tuple[
+    np.ndarray | None,
+    np.ndarray | None,
+    np.ndarray | None,
+    np.ndarray | None,
+]:
+    """Decompose a 4x4 affine matrix into scale, rotation, flip, and translation.
+
+    The linear transform is assumed to be well-approximated by
+    ``rotation @ flip @ diag(scale)`` where ``rotation`` is a proper rotation
+    matrix, ``flip`` is a diagonal matrix with entries in ``{-1, 1}``, and
+    ``scale`` contains positive axis scales.
+    """
+    affine = np.asarray(affine, dtype=float)
+
     # Extract translation vector from the last column
     translation = affine[:3, 3]
 
     # Extract 3x3 transformation matrix (top-left block)
     M = affine[:3, :3]
 
-    # Scale: compute the norm of each column vector
-    scale = np.linalg.norm(M, axis=0)
+    if np.allclose(M, 0.0):
+        raise ValueError("Affine linear transform is singular and cannot be decomposed")
 
-    # Rotation: normalize columns to remove scaling
-    rotation = M / scale
+    # Estimate the closest orthogonal matrix, then enforce det(rotation) == 1.
+    U, _, Vt = np.linalg.svd(M)
+    rotation = U @ Vt
+    if np.linalg.det(rotation) < 0:
+        U[:, -1] *= -1
+        rotation = U @ Vt
+
+    # Separate signed per-axis scaling after removing the proper rotation.
+    aligned = rotation.T @ M
+    signed_scale = np.diag(aligned)
+    flip_diag = np.where(signed_scale < 0, -1.0, 1.0)
+    scale = np.abs(signed_scale)
+    flip = np.diag(flip_diag)
+
+    residual = aligned - np.diag(signed_scale)
+    if not np.allclose(residual, 0.0, atol=1e-6):
+        logging.warning(
+            "Affine contains shear or non-axis-aligned scaling; decompose_affine is approximating it as rotation + flip + scale. Residual:\n%s",
+            residual,
+        )
 
     # Replace no-op components with None
     scale_out = None if np.allclose(scale, np.ones_like(scale)) else scale
     rotation_out = None if np.allclose(rotation, np.eye(3)) else rotation
+    flip_out = None if np.allclose(flip, np.eye(3)) else flip
     translation_out = None if np.allclose(translation, np.zeros_like(translation)) else translation
     
-    return scale_out, rotation_out, translation_out
+    return scale_out, rotation_out, flip_out, translation_out
 
 
-def round_transform_values(values, decimals=6):
+def round_transform_values(
+    values: np.ndarray | list[float] | None,
+    decimals: int = 6,
+) -> np.ndarray | None:
     """Round transform values to avoid floating point precision artifacts."""
     if values is None:
         return None
@@ -38,7 +72,7 @@ def round_transform_values(values, decimals=6):
     return arr
 
 def write_image_orientation(affine: np.ndarray,
-                          axes_metadata: List,
+                          axes_metadata: list,
                           path_str: str,
                           ):
     
