@@ -1,10 +1,10 @@
-# hash:sha256:e9346f18369561035bfeec6e14762af614b4c3aa0360bf75f2960c7a0533fa63
+# hash:sha256:3cd4db1c4997cea3ea6925b6be6e7993370e12ddf28da120c704c3c7e752a2ad
 ARG REGISTRY_HOST
-FROM $REGISTRY_HOST/codeocean/code-server-python-extensions-pack:code-server4.108.2python3.12.4aind-metadata-mcp0.5.2withDOTFILES_REPOsupport
+FROM $REGISTRY_HOST/codeocean/code-server-python-extensions-pack:v5.0
 
 ARG DEBIAN_FRONTEND=noninteractive
 ARG GIT_ASKPASS
-COPY git-askpass /
+COPY git-ask-pass /
 
 RUN pip install -U --no-cache-dir \
     aind-data-schema==2.4.0 \

@@ -90,6 +90,7 @@ class Template(AtlasAsset):
             fpath = input_dir / fname
             logging.info(f"Loading file: {fpath}")
             img = nib.load(str(fpath))
+            img = nib.as_closest_canonical(img) # Flip and rotate image volume to be consistent with RAS orientation
             data = img.get_fdata().astype(np.float32)
             arrays.append(data)
             spacing = img.header.get_zooms()[:3]
