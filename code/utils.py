@@ -5,6 +5,7 @@ from typing import List
 import nibabel as nib
 import logging
 import copy
+from pathlib import Path
 
 def decompose_affine(affine):
     """Decompose 4x4 affine matrix into scale, rotation, and translation components."""
@@ -36,6 +37,12 @@ def round_transform_values(values, decimals=6):
     arr = np.round(arr, decimals=decimals)
     arr = np.where(np.isclose(arr, 0.0), 0.0, arr)
     return arr
+
+def reorient_image_volume(img_path: Path, output_path: Path):
+    "Reorients image volume in img_path to RAS and saves as nifti"
+    img = nib.load(str(img_path))
+    img = nib.as_closest_canonical(img)
+    nib.save(img, str(output_path))
 
 def write_image_orientation(affine: np.ndarray,
                           axes_metadata: List,

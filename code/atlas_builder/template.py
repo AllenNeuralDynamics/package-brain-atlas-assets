@@ -17,6 +17,7 @@ from utils import (
     write_image_orientation,
     correct_coordinate_transforms_rfc5,
     round_transform_values,
+    reorient_image_volume
 )
 
 
@@ -60,7 +61,7 @@ class Template(AtlasAsset):
             dst = template_dir / dst_fname
             logging.info(f"Destination file: {dst}")
             if not dst.exists():
-                shutil.copy2(src, dst)
+                reorient_image_volume(src, dst)
                 logging.info(f"Copied {src} to {dst} with new name")
             else:
                 logging.info(f"File {dst} already exists, skipping copy.")

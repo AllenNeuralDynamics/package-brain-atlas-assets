@@ -117,27 +117,27 @@ def main(results_dir: str | Path):
     # Clear the entire results directory
     clear_directory(results_dir, keep_files={"output.log"})
 
-    # ## Package DevMouse atlas assets first
-    # devmouse.package_devmouse(devmouse_dir, results_dir, library)
-    # devmouse_spim.package_devmouse(devmouse_lsfm_dir, results_dir, library)
+    ## Package DevMouse atlas assets first
+    devmouse.package_devmouse(devmouse_dir, results_dir, library)
+    devmouse_spim.package_devmouse(devmouse_lsfm_dir, results_dir, library)
     
-    # # Package CCF 3 legacy annotations and templates
-    # CCFv3.package_ccf(ccf3_dir, results_dir, library, scales=scales)
+    # Package CCF 3 legacy annotations and templates
+    CCFv3.package_ccf(ccf3_dir, results_dir, library, scales=scales)
 
     # Package CCF 2020 annotations
     CCFv2020.package_ccf2020(abc_dir, results_dir, library, scales=(10, 25)) 
 
-    # # Package SmartSPIM template (uses library for assets)
-    # SmartSPIM.package_smartspim_template(
-    #     smartspim_dir, smartspim_remapped_dir, results_dir, library, scales=scales
-    # )
+    # Package SmartSPIM template (uses library for assets)
+    SmartSPIM.package_smartspim_template(
+        smartspim_dir, smartspim_remapped_dir, results_dir, library, scales=scales
+    )
 
-    # # Package iDISCO template
-    # # no idisco for now
-    # # idisco.package_idisco_template(results_dir)       
+    Package iDISCO template
+    no idisco for now
+    idisco.package_idisco_template(results_dir)       
 
-    # # Package HMBA atlases
-    # HMBA.package_ccf(hmba_dir, results_dir, library, scales=hmba_scales)
+    # Package HMBA atlases
+    HMBA.package_ccf(hmba_dir, results_dir, library, scales=hmba_scales)
 
     for a in library.coordinate_spaces:
         a.create_manifest(results_dir)

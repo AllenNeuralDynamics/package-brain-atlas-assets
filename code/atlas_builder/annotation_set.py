@@ -26,6 +26,7 @@ from utils import (
     write_image_orientation,
     correct_coordinate_transforms_rfc5,
     round_transform_values,
+    reorient_image_volume
 )
 
 
@@ -141,7 +142,7 @@ class AnnotationSet(AtlasAsset):
         for scale in self.scales:
             src_file = f"{input_prefix}_{scale}.nii.gz"
             dst_file = output_dir / f"annotations_compressed_{scale}.nii.gz"
-            shutil.copy2(src_file, dst_file)
+            reorient_image_volume(src_file, dst_file)
             logging.info(f"Copied {src_file} to {dst_file}")
 
         # Load the copied files and use the general create method
