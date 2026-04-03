@@ -1,4 +1,4 @@
-# hash:sha256:3cd4db1c4997cea3ea6925b6be6e7993370e12ddf28da120c704c3c7e752a2ad
+# hash:sha256:445482140b82ab5f98423e07243067eabfb7e13140eb489a9747725c10ba145d
 ARG REGISTRY_HOST
 FROM $REGISTRY_HOST/codeocean/code-server-python-extensions-pack:v5.0
 
