@@ -14,7 +14,6 @@ import zarr
 
 
 from ome_zarr.writer import write_multiscale, write_multiscales_metadata
-import SimpleITK as sitk
 
 from atlas_builder.template import Template
 from atlas_builder.atlas_asset import AtlasAsset
@@ -22,6 +21,7 @@ from atlas_builder.terminology import Terminology
 from atlas_builder.precomputed import (convert_compressed_annotations_to_precomputed,
                                       write_segment_properties, create_mesh_from_compressed_annotation)
 from utils import (
+    convert_mhd_to_nifti,
     decompose_affine,
     write_image_orientation,
     correct_coordinate_transforms_rfc5,
@@ -149,12 +149,14 @@ class AnnotationSet(AtlasAsset):
         compressed_results = load_compressed_annotations(output_dir, scales=self.scales)
         self.create(compressed_results, output_root, include_meshes=include_meshes)
 
-    def create_from_mhd(self, mhd_paths, output_root, include_meshes=True):
-        """Create annotation set from MHD (Meta Image) source files.
+    def create_from_mhd(self, mhd_path, output_root, include_meshes=True, output_direction=None):
+        """Create an annotation set from a single MHD (Meta Image) source file.
 
         Args:
-            mhd_paths: Dictionary mapping scale to MHD file paths, or single MHD path for single scale
+            mhd_path: Path to the source MHD file for a single-scale annotation set
             output_root: Root directory where the annotation set will be created
+            include_meshes: Whether to generate meshes in the precomputed output
+            output_direction: Optional direction cosine matrix to assign to converted NIfTI output
         """
 
         output_dir = self.location(output_root)
@@ -162,51 +164,21 @@ class AnnotationSet(AtlasAsset):
 
         logging.info(f"Creating annotation set from MHD files at {output_dir}")
 
-        # Handle single MHD file or multiple files
-        if isinstance(mhd_paths, (str, Path)):
-            # Single MHD file - assume it matches the single scale
-            if len(self.scales) != 1:
-                raise ValueError("Single MHD path provided but annotation set has multiple scales")
-            mhd_paths = {self.scales[0]: mhd_paths}
+        if len(self.scales) != 1:
+            raise ValueError("create_from_mhd only supports single-scale annotation sets")
 
-        # Convert MHD files to NIfTI with proper naming and collect compressed results
-        compressed_results = {}
+        scale = self.scales[0]
+        logging.info(f"Processing MHD file for scale {scale}: {mhd_path}")
 
-        for scale in self.scales:
-            if scale not in mhd_paths:
-                logging.warning(f"No MHD file provided for scale {scale}, skipping")
-                continue
+        temp_nii = output_dir / f"annotations_compressed_{scale}.nii.gz"
+        convert_mhd_to_nifti(mhd_path, temp_nii, output_direction=output_direction)
+        logging.info(f"Converted MHD to NIfTI: {temp_nii}")
 
-            mhd_path = mhd_paths[scale]
-            logging.info(f"Processing MHD file for scale {scale}: {mhd_path}")
+        img = nib.load(str(temp_nii))
+        compressed_data = img.get_fdata().astype(np.int32)
+        compressed_results = {scale: (compressed_data, img.affine)}
 
-            # Read MHD file using SimpleITK
-            image = sitk.ReadImage(str(mhd_path))
-
-            # Convert spacing from microns to millimeters (divide by 1000)
-            spacing_microns = image.GetSpacing()
-            spacing_mm = tuple(s / 1000.0 for s in spacing_microns)
-            image.SetSpacing(spacing_mm)
-
-            # Convert origin from microns to millimeters (divide by 1000)
-            origin_microns = image.GetOrigin()
-            origin_mm = tuple(o / 1000.0 for o in origin_microns)
-            image.SetOrigin(origin_mm)
-
-            # Save as temporary NIfTI file
-            temp_nii = output_dir / f"annotations_compressed_{scale}.nii.gz"
-            sitk.WriteImage(image, str(temp_nii))
-            logging.info(f"Converted MHD to NIfTI: {temp_nii}")
-
-            # Load the converted file to get compressed results
-            img = nib.load(str(temp_nii))
-            compressed_data = img.get_fdata().astype(np.int32)
-            compressed_results[scale] = (compressed_data, img.affine)
-
-            logging.info(f"Loaded compressed annotation for scale {scale} with shape {compressed_data.shape}")
-
-        if not compressed_results:
-            raise ValueError("No valid MHD files were processed")
+        logging.info(f"Loaded compressed annotation for scale {scale} with shape {compressed_data.shape}")
 
         # Use the general create method with the compressed results
         self.create(compressed_results, output_root, include_meshes=include_meshes)

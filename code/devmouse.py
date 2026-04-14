@@ -24,6 +24,7 @@ from atlas_builder import (
     Terminology,
 )
 from atlas_builder.annotation_set import uncompress_annotations_to_zarr
+from utils import convert_mhd_to_nifti
 import datetime
 from aind_data_schema.core.data_description import DataDescription, Funding
 from aind_data_schema_models.data_name_patterns import build_data_name
@@ -200,37 +201,6 @@ def read_mhd_metadata(mhd_path):
     return spacing, origin, direction
 
 
-def convert_mhd_to_nifti(mhd_path, output_path):
-    """
-    Convert an MHD file to NIfTI format.
-
-    Converts units from microns (MHD) to millimeters (NIfTI standard).
-
-    Parameters
-    ----------
-    mhd_path : str
-        Path to the input MHD file
-    output_path : str
-        Path for the output NIfTI file
-    """
-    # Read the MHD file
-    image = sitk.ReadImage(str(mhd_path))
-
-    # Convert spacing from microns to millimeters (divide by 1000)
-    spacing_microns = image.GetSpacing()
-    spacing_mm = tuple(s / 1000.0 for s in spacing_microns)
-    image.SetSpacing(spacing_mm)
-
-    # Convert origin from microns to millimeters (divide by 1000)
-    origin_microns = image.GetOrigin()
-    origin_mm = tuple(o / 1000.0 for o in origin_microns)
-    image.SetOrigin(origin_mm)
-
-    # Write as NIfTI
-    sitk.WriteImage(image, str(output_path))
-    print(f"Converted {mhd_path} to {output_path} (units converted from microns to mm)")
-
-
 def create_devmouse_terminology(output_dir, library):
     """
     Create a Terminology from the devmouse structures CSV.
@@ -366,7 +336,12 @@ def package_age_group(age, base_dir, results_dir, asset_library, terminology):
     template_dir.mkdir(parents=True, exist_ok=True)
 
     template_nii = template_dir / f"template_{scale}.nii.gz"
-    convert_mhd_to_nifti(template_mhd, template_nii)
+    convert_mhd_to_nifti(
+        template_mhd,
+        template_nii,
+        output_direction=[0, 1, 0, 0, 0, -1, -1, 0, 0],
+    )
+    print(f"Converted {template_mhd} to {template_nii} (units converted from microns to mm)")
 
     # Convert NIfTI to OME-Zarr and create manifest
     template.convert_nifti_to_omezarr_multiscale(results_dir)
@@ -392,6 +367,7 @@ def package_age_group(age, base_dir, results_dir, asset_library, terminology):
         annotation_mhd,
         results_dir,
         include_meshes=True,
+        output_direction=[0, 1, 0, 0, 0, -1, -1, 0, 0],
     )
 
     # Create uncompressed (hierarchical) annotation set

@@ -1,11 +1,41 @@
 import math
 import tempfile
 import unittest
+from unittest.mock import patch
 
 import numpy as np
+import pandas as pd
 import zarr
 
-from utils import correct_coordinate_transforms_rfc5, decompose_affine
+from atlas_builder.annotation_set import AnnotationSet
+from atlas_builder.template import Template
+from atlas_builder.terminology import Terminology
+from utils import convert_mhd_to_nifti, correct_coordinate_transforms_rfc5, decompose_affine
+
+
+class FakeSimpleITKImage:
+    def __init__(self, spacing, origin, direction):
+        self._spacing = tuple(spacing)
+        self._origin = tuple(origin)
+        self._direction = tuple(direction)
+
+    def GetSpacing(self):
+        return self._spacing
+
+    def SetSpacing(self, spacing):
+        self._spacing = tuple(spacing)
+
+    def GetOrigin(self):
+        return self._origin
+
+    def SetOrigin(self, origin):
+        self._origin = tuple(origin)
+
+    def GetDirection(self):
+        return self._direction
+
+    def SetDirection(self, direction):
+        self._direction = tuple(direction)
 
 
 def rotation_x(theta: float) -> np.ndarray:
@@ -109,6 +139,114 @@ class DecomposeAffineTests(unittest.TestCase):
         affine[:3, 3] = np.array([-2.0, 4.5, 0.0])
 
         self.assert_recomposes(affine)
+
+
+class ConvertMhdToNiftiTests(unittest.TestCase):
+    @patch("utils.sitk.WriteImage")
+    @patch("utils.sitk.ReadImage")
+    def test_converts_spacing_and_origin_to_millimeters(self, mock_read_image, mock_write_image) -> None:
+        image = FakeSimpleITKImage(
+            spacing=(25.0, 25.0, 50.0),
+            origin=(100.0, 200.0, 300.0),
+            direction=(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0),
+        )
+        mock_read_image.return_value = image
+
+        convert_mhd_to_nifti("input.mhd", "output.nii.gz")
+
+        self.assertEqual(image.GetSpacing(), (0.025, 0.025, 0.05))
+        self.assertEqual(image.GetOrigin(), (0.1, 0.2, 0.3))
+        self.assertEqual(image.GetDirection(), (1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0))
+        mock_write_image.assert_called_once_with(image, "output.nii.gz")
+
+    @patch("utils.sitk.WriteImage")
+    @patch("utils.sitk.ReadImage")
+    def test_overrides_direction_when_requested(self, mock_read_image, mock_write_image) -> None:
+        image = FakeSimpleITKImage(
+            spacing=(10.0, 10.0, 10.0),
+            origin=(0.0, 0.0, 0.0),
+            direction=(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0),
+        )
+        mock_read_image.return_value = image
+
+        convert_mhd_to_nifti(
+            "input.mhd",
+            "output.nii.gz",
+            output_direction=[0.0, 1.0, 0.0, 0.0, 0.0, -1.0, -1.0, 0.0, 0.0],
+        )
+
+        self.assertEqual(image.GetDirection(), (0.0, 1.0, 0.0, 0.0, 0.0, -1.0, -1.0, 0.0, 0.0))
+        mock_write_image.assert_called_once_with(image, "output.nii.gz")
+
+
+class AnnotationSetCreateFromMhdTests(unittest.TestCase):
+    @patch.object(AnnotationSet, "create")
+    @patch("atlas_builder.annotation_set.nib.load")
+    @patch("atlas_builder.annotation_set.convert_mhd_to_nifti")
+    def test_forwards_output_direction_to_converter(
+        self,
+        mock_convert_mhd_to_nifti,
+        mock_nib_load,
+        mock_create,
+    ) -> None:
+        terminology_df = pd.DataFrame(
+            {
+                "identifier": ["DMBA:1"],
+                "parent_identifier": [""],
+                "name": ["root"],
+                "abbreviation": ["RT"],
+            }
+        )
+        annotation_set = AnnotationSet(
+            name="test-annotation",
+            version="2012",
+            template=Template(name="test-template", version="2012", scales=(25,)),
+            terminology=Terminology(name="test-terms", version="2012", df=terminology_df),
+            scales=(25,),
+        )
+
+        class FakeNibImage:
+            affine = np.eye(4)
+
+            def get_fdata(self):
+                return np.ones((2, 2, 2), dtype=np.int16)
+
+        mock_nib_load.return_value = FakeNibImage()
+        direction = [0.0, 1.0, 0.0, 0.0, 0.0, -1.0, -1.0, 0.0, 0.0]
+
+        with tempfile.TemporaryDirectory() as tempdir:
+            annotation_set.create_from_mhd(
+                "annotation.mhd",
+                tempdir,
+                include_meshes=False,
+                output_direction=direction,
+            )
+
+        mock_convert_mhd_to_nifti.assert_called_once()
+        _, kwargs = mock_convert_mhd_to_nifti.call_args
+        self.assertEqual(kwargs["output_direction"], direction)
+        mock_create.assert_called_once()
+
+    def test_rejects_multi_scale_annotation_sets(self) -> None:
+        terminology_df = pd.DataFrame(
+            {
+                "identifier": ["DMBA:1"],
+                "parent_identifier": [""],
+                "name": ["root"],
+                "abbreviation": ["RT"],
+            }
+        )
+        annotation_set = AnnotationSet(
+            name="test-annotation",
+            version="2012",
+            template=Template(name="test-template", version="2012", scales=(10, 25)),
+            terminology=Terminology(name="test-terms", version="2012", df=terminology_df),
+            scales=(10, 25),
+        )
+
+        with tempfile.TemporaryDirectory() as tempdir:
+            with self.assertRaisesRegex(ValueError, "single-scale"):
+                annotation_set.create_from_mhd("annotation.mhd", tempdir)
 
 
 class CorrectCoordinateTransformsRfc5Tests(unittest.TestCase):

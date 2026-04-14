@@ -4,6 +4,29 @@ import numpy as np
 import nibabel as nib
 import logging
 import copy
+import SimpleITK as sitk
+
+
+def convert_mhd_to_nifti(mhd_path, output_path, output_direction=None):
+    """Convert an MHD file to NIfTI, translating spatial units from microns to millimeters.
+
+    Args:
+        mhd_path: Path to the input MHD file.
+        output_path: Path where the converted NIfTI file will be written.
+        output_direction: Optional direction cosine matrix to assign before writing.
+    """
+    image = sitk.ReadImage(str(mhd_path))
+
+    spacing_mm = tuple(value / 1000.0 for value in image.GetSpacing())
+    image.SetSpacing(spacing_mm)
+
+    origin_mm = tuple(value / 1000.0 for value in image.GetOrigin())
+    image.SetOrigin(origin_mm)
+
+    if output_direction is not None:
+        image.SetDirection(output_direction)
+
+    sitk.WriteImage(image, str(output_path))
 
 
 def decompose_affine(affine: np.ndarray) -> tuple[
