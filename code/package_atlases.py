@@ -119,7 +119,7 @@ def main(results_dir: str | Path):
     clear_directory(results_dir, keep_files={"output.log"})
 
     ## Package DevMouse atlas assets first
-    devmouse.package_devmouse(devmouse_dir, results_dir, library)
+    devmouse.package_devmouse(devmouse_dir, results_dir, library, include_meshes=True)
     devmouse_spim.package_devmouse(devmouse_lsfm_dir, results_dir, library)
     
     # Package CCF 3 legacy annotations and templates

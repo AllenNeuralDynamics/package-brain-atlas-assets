@@ -178,12 +178,31 @@ class ConvertMhdToNiftiTests(unittest.TestCase):
         self.assertEqual(image.GetDirection(), (0.0, 1.0, 0.0, 0.0, 0.0, -1.0, -1.0, 0.0, 0.0))
         mock_write_image.assert_called_once_with(image, "output.nii.gz")
 
+    @patch("utils.sitk.WriteImage")
+    @patch("utils.sitk.ReadImage")
+    def test_overrides_origin_when_requested(self, mock_read_image, mock_write_image) -> None:
+        image = FakeSimpleITKImage(
+            spacing=(10.0, 10.0, 10.0),
+            origin=(100.0, 200.0, 300.0),
+            direction=(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0),
+        )
+        mock_read_image.return_value = image
+
+        convert_mhd_to_nifti(
+            "input.mhd",
+            "output.nii.gz",
+            output_origin=[0.0, 0.0, 0.0],
+        )
+
+        self.assertEqual(image.GetOrigin(), (0.0, 0.0, 0.0))
+        mock_write_image.assert_called_once_with(image, "output.nii.gz")
+
 
 class AnnotationSetCreateFromMhdTests(unittest.TestCase):
     @patch.object(AnnotationSet, "create")
     @patch("atlas_builder.annotation_set.nib.load")
     @patch("atlas_builder.annotation_set.convert_mhd_to_nifti")
-    def test_forwards_output_direction_to_converter(
+    def test_forwards_output_direction_and_origin_to_converter(
         self,
         mock_convert_mhd_to_nifti,
         mock_nib_load,
@@ -213,6 +232,7 @@ class AnnotationSetCreateFromMhdTests(unittest.TestCase):
 
         mock_nib_load.return_value = FakeNibImage()
         direction = [0.0, 1.0, 0.0, 0.0, 0.0, -1.0, -1.0, 0.0, 0.0]
+        origin = [0.0, 0.0, 0.0]
 
         with tempfile.TemporaryDirectory() as tempdir:
             annotation_set.create_from_mhd(
@@ -220,11 +240,13 @@ class AnnotationSetCreateFromMhdTests(unittest.TestCase):
                 tempdir,
                 include_meshes=False,
                 output_direction=direction,
+                output_origin=origin,
             )
 
         mock_convert_mhd_to_nifti.assert_called_once()
         _, kwargs = mock_convert_mhd_to_nifti.call_args
         self.assertEqual(kwargs["output_direction"], direction)
+        self.assertEqual(kwargs["output_origin"], origin)
         mock_create.assert_called_once()
 
     def test_rejects_multi_scale_annotation_sets(self) -> None:

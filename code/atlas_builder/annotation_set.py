@@ -149,7 +149,14 @@ class AnnotationSet(AtlasAsset):
         compressed_results = load_compressed_annotations(output_dir, scales=self.scales)
         self.create(compressed_results, output_root, include_meshes=include_meshes)
 
-    def create_from_mhd(self, mhd_path, output_root, include_meshes=True, output_direction=None):
+    def create_from_mhd(
+        self,
+        mhd_path,
+        output_root,
+        include_meshes=True,
+        output_direction=None,
+        output_origin=None,
+    ):
         """Create an annotation set from a single MHD (Meta Image) source file.
 
         Args:
@@ -157,6 +164,7 @@ class AnnotationSet(AtlasAsset):
             output_root: Root directory where the annotation set will be created
             include_meshes: Whether to generate meshes in the precomputed output
             output_direction: Optional direction cosine matrix to assign to converted NIfTI output
+            output_origin: Optional origin in millimeters to assign to converted NIfTI output
         """
 
         output_dir = self.location(output_root)
@@ -171,7 +179,12 @@ class AnnotationSet(AtlasAsset):
         logging.info(f"Processing MHD file for scale {scale}: {mhd_path}")
 
         temp_nii = output_dir / f"annotations_compressed_{scale}.nii.gz"
-        convert_mhd_to_nifti(mhd_path, temp_nii, output_direction=output_direction)
+        convert_mhd_to_nifti(
+            mhd_path,
+            temp_nii,
+            output_direction=output_direction,
+            output_origin=output_origin,
+        )
         logging.info(f"Converted MHD to NIfTI: {temp_nii}")
 
         img = nib.load(str(temp_nii))
