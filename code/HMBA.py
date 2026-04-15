@@ -360,7 +360,7 @@ def create_all_ccf_annotation_sets(input_dir: Path, results_dir: Path, library, 
 
 def create_homba_parcellation_terminology(input_dir, output_dir, library):
     """Create parcellation terminology from HOMBA structure hierarchy."""
-    input_path = input_dir / "annotation" / "HOMBA_v1_mapping.csv"
+    input_path = input_dir / "annotation" / "HOMBA_v1.csv"
 
     df = pd.read_csv(input_path)
     df["color_hex_triplet"] = [f"#{r:02x}{g:02x}{b:02x}" for r, g, b in zip(df["r"], df["g"], df["b"])]
@@ -369,11 +369,11 @@ def create_homba_parcellation_terminology(input_dir, output_dir, library):
     # For homba, use structure IDs as both file_id and identifier
     filtered_df = pd.DataFrame(
         {
-            "identifier": df["unified_ontology_id"],
-            "annotation_value": df["unified_ontology_label_value"].astype(int),
+            "identifier": df["HOMBA_id"],
+            "annotation_value": df["HOMBA_annotation_value"].astype(int),
             "parent_identifier": df["parent_identifier"],
-            "name": df["unified_ontology_name"],
-            "abbreviation": df["unified_ontology_acronym"],
+            "name": df["HOMBA_name"],
+            "abbreviation": df["HOMBA_abbreviation"],
             "color_hex_triplet": df["color_hex_triplet"],
         }
     )
