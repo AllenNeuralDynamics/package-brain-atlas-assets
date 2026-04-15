@@ -2,6 +2,10 @@
 	"version": 1,
 	"attached_datasets": [
 		{
+			"id": "00118590-b407-4ead-9c18-916ee2456700",
+			"mount": "hmba"
+		},
+		{
 			"id": "042ee274-9739-4813-ac0e-227bcaf29031",
 			"mount": "remapped_ccf_labels_on_spim_LCA_template"
 		},
@@ -12,10 +16,6 @@
 		{
 			"id": "30bf0bcc-6467-4b49-a177-a1a1424ff1f6",
 			"mount": "smartspim_lca_template"
-		},
-		{
-			"id": "446bd3a9-18da-4b16-8e52-13641b33f326",
-			"mount": "hmba"
 		},
 		{
 			"id": "673fe731-3a2b-42eb-b8f7-bde82d79e371",

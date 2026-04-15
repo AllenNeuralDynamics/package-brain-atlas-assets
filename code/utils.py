@@ -47,14 +47,14 @@ def write_image_orientation(affine: np.ndarray,
     # - Quadrupeds use rostral-caudal (front-back) and dorsal-ventral.
 
     if "human" in path_str:
-        orientation_start = {'R':'right', 'L':'left', 'A':'anterior', 'P':'posterior', 'S':'superior', 'I':'inferior'}
-        orientation_end = {'R':'left',  'L':'right','A':'posterior','P':'anterior','S':'inferior', 'I':'superior'}
+        orientation_start = {'L':'right', 'R':'left', 'P':'anterior', 'A':'posterior', 'I':'superior', 'S':'inferior'}
+        orientation_end = {'L':'left',  'R':'right','P':'posterior','A':'anterior','I':'inferior', 'S':'superior'}
     elif "mouse" in path_str:
         orientation_start = {'R':'right',  'L':'left','A':'posterior','P':'anterior','S':'ventral', 'I':'dorsal'}
         orientation_end = {'R':'left', 'L':'right', 'A':'anterior', 'P':'posterior', 'S':'dorsal', 'I':'ventral'}
     else:
-        orientation_start = {'R':'right', 'L':'left', 'A':'rostral', 'P':'caudal', 'S':'dorsal', 'I':'ventral'}
-        orientation_end = {'R':'left',  'L':'right','A':'caudal','P':'rostral','S':'ventral', 'I':'dorsal'}
+        orientation_start = {'L':'right', 'R':'left', 'P':'rostral', 'A':'caudal', 'I':'dorsal', 'S':'ventral'}
+        orientation_end = {'L':'left',  'R':'right','P':'caudal','A':'rostral','I':'ventral', 'S':'dorsal'}
 
     updated_axis = copy.deepcopy(axes_metadata)
 
