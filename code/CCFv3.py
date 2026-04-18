@@ -437,7 +437,7 @@ def package_ccf(input_dir, output_dir, library, scales=(10, 25, 50, 100)):
                 name="allen-adult-mouse-ccf-space", version="2011"
             ),
             annotation_set=library.get_annotation_set(
-                name="allen-dev-mouse-p56-annotation", version="2012"
+                name="allen-dev-mouse-p56-nissl-annotation", version="2012"
             ),
             terminology=library.get_terminology(
                 name="allen-dev-mouse-terminology", version="2012"
