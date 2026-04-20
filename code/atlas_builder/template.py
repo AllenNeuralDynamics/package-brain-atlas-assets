@@ -109,7 +109,8 @@ class Template(AtlasAsset):
             if scale_vec is not None:
                 scale_transforms.append({"type": "scale", "scale": scale_vec.tolist()})
             if flip_mat is not None:
-                scale_transforms.append({"type": "affine", "affine": flip_mat.tolist()})
+                flip_mat_affine = np.hstack([flip_mat, np.zeros((3, 1))]).tolist() # Zero padding affine to be of shape (3,4)
+                scale_transforms.append({"type": "affine", "affine": flip_mat_affine})
             if rotation_mat is not None:
                 scale_transforms.append({"type": "rotation", "rotation": rotation_mat.tolist()})
             if translation_vec is not None:
