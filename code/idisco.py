@@ -74,10 +74,11 @@ def package_idisco_template(results_dir):
         img = nib.load(str(niftis[0]))
         spacing = img.header.get_zooms()[:3]
         origin = img.affine[:3, 3]
-        scale_vec, rotation_mat, translation_vec = decompose_affine(img.affine)
+        scale_vec, rotation_mat, flip_mat, translation_vec = decompose_affine(img.affine)
         logging.info(
             f"Scale {res}: spacing {spacing}, origin {origin}, affine:\n{img.affine}\n"
-            f"Decomposed: scale={scale_vec}, translation={translation_vec}, rotation=\n{rotation_mat}"
+            f"Decomposed: scale={scale_vec}, translation={translation_vec}, rotation=\n{rotation_mat}, "
+            f"flip=\n{flip_mat}"
         )
         arr, channel_names = load_nifti_channels(res_dir)
         arrays.append(arr)
@@ -89,12 +90,16 @@ def package_idisco_template(results_dir):
         per_scale_transforms = []
         if scale_vec is not None:
             per_scale_transforms.append({"type": "scale", "scale": [1.0] + scale_vec.tolist()})
-        if translation_vec is not None:
-            per_scale_transforms.append({"type": "translation", "translation": [1.0] + translation_vec.tolist()})
+        if flip_mat is not None:
+            f = np.identity(4)
+            f[1:4,1:4] = flip_mat
+            per_scale_transforms.append({"type": "affine", "affine": f.tolist()})
         if rotation_mat is not None:
             r = np.identity(4)
             r[1:4,1:4] = rotation_mat
             per_scale_transforms.append({"type": "rotation", "rotation": r.tolist()})
+        if translation_vec is not None:
+            per_scale_transforms.append({"type": "translation", "translation": [1.0] + translation_vec.tolist()})
         coordinate_transformations.append(per_scale_transforms)
 
     if not arrays:
@@ -116,7 +121,10 @@ def package_idisco_template(results_dir):
         compressor=compressor,
         channel_names=all_channel_names,
     )
-    correct_coordinate_transforms_rfc5(group, axes, coordinate_system_name="micrometer")
+    correct_coordinate_transforms_rfc5(group, axes, 
+        coordinate_system_name="micrometer RAS", 
+        intrinsic_coordinate_system_name="intrinsic", 
+        multiscale_transform_key="coordinateTransformations")
     logging.info(f"iDISCO OME-Zarr multiscale pyramid written to {zarr_path}")
 
     # Create and register Template asset

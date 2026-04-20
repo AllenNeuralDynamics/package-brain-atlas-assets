@@ -11,31 +11,35 @@
 			"packages": [
 				{
 					"name": "aind-data-schema",
-					"version": "2.4.0"
+					"version": "2.6.0"
 				},
 				{
 					"name": "awscli",
-					"version": "1.44.32"
+					"version": "1.44.71"
+				},
+				{
+					"name": "brainglobe-atlasapi",
+					"version": "2.3.0"
 				},
 				{
 					"name": "cloud-volume",
-					"version": "12.9.2"
+					"version": "12.12.1"
 				},
 				{
 					"name": "nibabel",
-					"version": "5.3.3"
+					"version": "5.4.2"
 				},
 				{
 					"name": "ome-zarr",
-					"version": "0.12.2"
+					"version": "0.14.0"
 				},
 				{
 					"name": "pandas",
-					"version": "3.0.0"
+					"version": "3.0.2"
 				},
 				{
 					"name": "pyarrow",
-					"version": "23.0.0"
+					"version": "23.0.1"
 				},
 				{
 					"name": "simpleitk",
@@ -43,11 +47,11 @@
 				},
 				{
 					"name": "tensorstore",
-					"version": "0.1.80"
+					"version": "0.1.82"
 				},
 				{
 					"name": "zmesh",
-					"version": "1.9.0"
+					"version": "1.11.0"
 				}
 			],
 			"options": {},

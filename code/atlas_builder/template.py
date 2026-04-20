@@ -94,22 +94,26 @@ class Template(AtlasAsset):
             arrays.append(data)
             spacing = img.header.get_zooms()[:3]
             origin = img.affine[:3, 3]
-            scale_vec, rotation_mat, translation_vec = decompose_affine(img.affine)
+            scale_vec, rotation_mat, flip_mat, translation_vec = decompose_affine(img.affine)
             scale_vec = round_transform_values(scale_vec, decimals=6)
             translation_vec = round_transform_values(translation_vec, decimals=6)
             rotation_mat = round_transform_values(rotation_mat, decimals=8)
+            flip_mat = round_transform_values(flip_mat, decimals=8)
             logging.info(
                 f"Scale {scale}: data shape {data.shape}, dtype {data.dtype}, spacing {spacing}, "
                 f"origin {origin}, affine:\n{img.affine}\n"
-                f"Decomposed: scale={scale_vec}, translation={translation_vec}, rotation=\n{rotation_mat}"
+                f"Decomposed: scale={scale_vec}, translation={translation_vec}, rotation=\n{rotation_mat}, "
+                f"flip=\n{flip_mat}"
             )
             scale_transforms = []
             if scale_vec is not None:
                 scale_transforms.append({"type": "scale", "scale": scale_vec.tolist()})
-            if translation_vec is not None:
-                scale_transforms.append({"type": "translation", "translation": translation_vec.tolist()})
+            if flip_mat is not None:
+                scale_transforms.append({"type": "affine", "affine": flip_mat.tolist()})
             if rotation_mat is not None:
                 scale_transforms.append({"type": "rotation", "rotation": rotation_mat.tolist()})
+            if translation_vec is not None:
+                scale_transforms.append({"type": "translation", "translation": translation_vec.tolist()})
             transforms.append(scale_transforms)
            
         

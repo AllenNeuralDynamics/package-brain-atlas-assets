@@ -7,6 +7,7 @@ into the AssetLibrary format, handling MHD files and creating proper anatomical
 templates and annotation sets.
 """
 
+import argparse
 import logging
 import os
 import shutil
@@ -18,12 +19,14 @@ import SimpleITK as sitk
 
 from atlas_builder import (
     AnnotationSet,
+    AssetLibrary,
     CoordinateSpace,
     Template,
     Atlas,
     Terminology,
 )
 from atlas_builder.annotation_set import uncompress_annotations_to_zarr
+from utils import convert_mhd_to_nifti
 import datetime
 from aind_data_schema.core.data_description import DataDescription, Funding
 from aind_data_schema_models.data_name_patterns import build_data_name
@@ -117,6 +120,8 @@ DEVMOUSE_TEMPLATE_DATA = [
 # Creation time constants
 DEVMOUSE_ONTOLOGY_CREATION_TIME = datetime.datetime(2012, 1, 1, tzinfo=datetime.timezone.utc)
 DEVMOUSE_TEMPLATE_CREATION_TIME = datetime.datetime(2012, 1, 1, tzinfo=datetime.timezone.utc)
+DEVMOUSE_OUTPUT_DIRECTION = [0.0, 0.0, -1.0, 1.0, 0.0, 0.0, 0.0, -1.0, 0.0]                            
+DEVMOUSE_OUTPUT_ORIGIN = [0, 0, 0]
 
 
 def _write_devmouse_ontology_data_description(output_dir: Path):
@@ -200,37 +205,6 @@ def read_mhd_metadata(mhd_path):
     return spacing, origin, direction
 
 
-def convert_mhd_to_nifti(mhd_path, output_path):
-    """
-    Convert an MHD file to NIfTI format.
-
-    Converts units from microns (MHD) to millimeters (NIfTI standard).
-
-    Parameters
-    ----------
-    mhd_path : str
-        Path to the input MHD file
-    output_path : str
-        Path for the output NIfTI file
-    """
-    # Read the MHD file
-    image = sitk.ReadImage(str(mhd_path))
-
-    # Convert spacing from microns to millimeters (divide by 1000)
-    spacing_microns = image.GetSpacing()
-    spacing_mm = tuple(s / 1000.0 for s in spacing_microns)
-    image.SetSpacing(spacing_mm)
-
-    # Convert origin from microns to millimeters (divide by 1000)
-    origin_microns = image.GetOrigin()
-    origin_mm = tuple(o / 1000.0 for o in origin_microns)
-    image.SetOrigin(origin_mm)
-
-    # Write as NIfTI
-    sitk.WriteImage(image, str(output_path))
-    print(f"Converted {mhd_path} to {output_path} (units converted from microns to mm)")
-
-
 def create_devmouse_terminology(output_dir, library):
     """
     Create a Terminology from the devmouse structures CSV.
@@ -284,7 +258,7 @@ def create_devmouse_terminology(output_dir, library):
     return terminology
 
 
-def package_age_group(age, base_dir, results_dir, asset_library, terminology):
+def package_age_group(age, base_dir, results_dir, asset_library, terminology, include_meshes=True):
     """
     Package atlas assets for a specific age group.
 
@@ -300,6 +274,8 @@ def package_age_group(age, base_dir, results_dir, asset_library, terminology):
         The asset library to add assets to
     terminology : Terminology
         The parcellation terminology
+    include_meshes : bool
+        Whether to generate meshes for the annotation set
     """
     print(f"\nProcessing age group: {age}")
 
@@ -366,7 +342,13 @@ def package_age_group(age, base_dir, results_dir, asset_library, terminology):
     template_dir.mkdir(parents=True, exist_ok=True)
 
     template_nii = template_dir / f"template_{scale}.nii.gz"
-    convert_mhd_to_nifti(template_mhd, template_nii)
+    convert_mhd_to_nifti(
+        template_mhd,
+        template_nii,
+        output_direction=DEVMOUSE_OUTPUT_DIRECTION,
+        output_origin=DEVMOUSE_OUTPUT_ORIGIN,
+    )
+    print(f"Converted {template_mhd} to {template_nii} (units converted from microns to mm)")
 
     # Convert NIfTI to OME-Zarr and create manifest
     template.convert_nifti_to_omezarr_multiscale(results_dir)
@@ -391,7 +373,9 @@ def package_age_group(age, base_dir, results_dir, asset_library, terminology):
     annotation_set.create_from_mhd(
         annotation_mhd,
         results_dir,
-        include_meshes=True,
+        include_meshes=include_meshes,
+        output_direction=DEVMOUSE_OUTPUT_DIRECTION,
+        output_origin=DEVMOUSE_OUTPUT_ORIGIN,
     )
 
     # Create uncompressed (hierarchical) annotation set
@@ -430,7 +414,7 @@ def package_age_group(age, base_dir, results_dir, asset_library, terminology):
     print(f"  Created parcellation atlas: {atlas_name}")
 
 
-def package_devmouse(base_dir, results_dir, library):
+def package_devmouse(base_dir, results_dir, library, include_meshes=True):
     """Package all devmouse assets using the provided library and directories."""
     logging.info("Starting DevMouse atlas packaging...")
 
@@ -443,7 +427,14 @@ def package_devmouse(base_dir, results_dir, library):
 
     # Process each age group (creates templates, annotations, spaces, and atlases)
     for age in age_groups:
-        package_age_group(age, str(base_dir), results_dir, library, terminology)
+        package_age_group(
+            age,
+            str(base_dir),
+            results_dir,
+            library,
+            terminology,
+            include_meshes=include_meshes,
+        )
         
     logging.info("DevMouse atlas packaging complete!")
 
@@ -461,3 +452,57 @@ def package_devmouse(base_dir, results_dir, library):
     logging.info(
         f"  Atlases: {len([p for p in library.atlases if 'dev-mouse' in p.name])}"
     )
+
+
+def parse_args():
+    """Parse command line arguments for standalone DevMouse packaging."""
+    parser = argparse.ArgumentParser(description="Package DevMouse atlas assets.")
+    parser.add_argument(
+        "--base-dir",
+        type=Path,
+        default=Path("/data/devmouse-atlas-assets"),
+        help="Directory containing the source DevMouse MHD assets (default: /data/devmouse-atlas-assets)",
+    )
+    parser.add_argument(
+        "--results-dir",
+        "-r",
+        type=Path,
+        default=Path("/results"),
+        help="Directory to write packaged DevMouse atlas assets (default: /results)",
+    )
+    parser.add_argument(
+        "--log-level",
+        default="INFO",
+        choices=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
+        help="Logging level (default: INFO)",
+    )
+    parser.add_argument(
+        "--include-meshes",
+        action="store_true",
+        help="Generate annotation meshes during packaging. Disabled by default because mesh generation is slow.",
+    )
+    return parser.parse_args()
+
+
+def main() -> None:
+    """CLI entrypoint for standalone DevMouse packaging."""
+    args = parse_args()
+    logging.basicConfig(
+        level=getattr(logging, args.log_level),
+        format="%(asctime)s %(levelname)s %(message)s",
+    )
+
+    results_dir = args.results_dir
+    results_dir.mkdir(parents=True, exist_ok=True)
+
+    library = AssetLibrary()
+    package_devmouse(
+        args.base_dir,
+        results_dir,
+        library,
+        include_meshes=args.include_meshes,
+    )
+
+
+if __name__ == "__main__":
+    main()
