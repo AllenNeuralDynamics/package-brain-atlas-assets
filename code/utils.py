@@ -253,7 +253,7 @@ def correct_coordinate_transforms_rfc5(
     else:
         multiscales_entry.pop(multiscale_transform_key, None)
 
-    ome_block["version"] = "0.6"
+    ome_block["version"] = "0.6.dev3"
     ome_block["multiscales"] = [multiscales_entry]
     attrs["ome"] = ome_block
     group.attrs.put(attrs)
