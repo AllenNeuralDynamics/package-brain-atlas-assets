@@ -12,6 +12,7 @@ import zarr
 from ome_zarr.writer import write_multiscale
 
 from atlas_builder.atlas_asset import AtlasAsset
+from atlas_builder.coordinate_space import CoordinateSpace
 from utils import (
     decompose_affine,
     write_image_orientation,
@@ -29,24 +30,33 @@ class Template(AtlasAsset):
     """
 
     scales: tuple
+    coordinate_space: CoordinateSpace | None = None
 
     _asset_location: ClassVar[str] = "templates"
     schema_version: ClassVar[str] = "0.1.0"
 
     @property
     def manifest(self) -> dict:
-        return super().manifest | {
+        m = super().manifest | {
             "scales": list(self.scales),
         }
+        if self.coordinate_space is not None:
+            m["coordinate_space"] = self.coordinate_space.manifest
+        return m
 
     @classmethod
     def from_manifest(cls, manifest: dict, root: Path | None = None) -> "Template":
         scales = manifest.get("scales")
-        
+        coordinate_space = None
+        if "coordinate_space" in manifest:
+            coordinate_space = CoordinateSpace.from_manifest(
+                manifest["coordinate_space"], root=root
+            )
         return cls(
             name=manifest["name"],
             version=manifest["version"],
             scales=tuple(scales),
+            coordinate_space=coordinate_space,
         )
 
     def copy_nifti_files(self, prefix, output_root):
