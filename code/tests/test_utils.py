@@ -332,7 +332,7 @@ class CorrectCoordinateTransformsRfc5Tests(unittest.TestCase):
         self.assertEqual(multiscales["coordinateTransformations"][0]["output"], "mm RAS")
         self.assertEqual(
             [t["type"] for t in multiscales["coordinateTransformations"][0]["transformations"]],
-            ["rotation", "translation"],
+            ["rotation", "translation", "affine"],
         )
 
         dataset_transform = multiscales["datasets"][0]["coordinateTransformations"][0]
@@ -376,6 +376,7 @@ class CorrectCoordinateTransformsRfc5Tests(unittest.TestCase):
         shared_transform = dict(group.attrs)["ome"]["multiscales"][0]["coordinateTransformations"][0]
         self.assertEqual(shared_transform["transformations"][0]["type"], "rotation")
         self.assertEqual(shared_transform["transformations"][1]["type"], "translation")
+        self.assertEqual(shared_transform["transformations"][2]["type"], "affine")
 
     def test_keeps_reflection_in_shared_world_transform(self) -> None:
         intrinsic_axes = [
@@ -409,8 +410,73 @@ class CorrectCoordinateTransformsRfc5Tests(unittest.TestCase):
 
         shared_transform = dict(group.attrs)["ome"]["multiscales"][0]["coordinateTransformations"][0]
         self.assertIn("affine", [transform["type"] for transform in shared_transform["transformations"]])
-        self.assertEqual(shared_transform["transformations"][-1]["type"], "translation")
+        self.assertEqual(shared_transform["transformations"][-1]["type"], "affine")
         self.assertEqual(shared_transform["output"], "mm RAS")
+
+    def test_permutation_swaps_first_and_last_spatial_axes_3d(self) -> None:
+        intrinsic_axes = [
+            {"name": "z", "type": "space", "unit": "millimeter"},
+            {"name": "y", "type": "space", "unit": "millimeter"},
+            {"name": "x", "type": "space", "unit": "millimeter"},
+        ]
+        world_axes = [
+            {"name": "z", "type": "space", "unit": "millimeter", "orientation": {"type": "anatomical", "value": "inferior-to-superior"}},
+            {"name": "y", "type": "space", "unit": "millimeter", "orientation": {"type": "anatomical", "value": "posterior-to-anterior"}},
+            {"name": "x", "type": "space", "unit": "millimeter", "orientation": {"type": "anatomical", "value": "left-to-right"}},
+        ]
+        transforms_by_path = {
+            "0": build_transform_list([0.01, 0.01, 0.01]),
+        }
+
+        group = self.make_group((2, 2, 2), intrinsic_axes, transforms_by_path)
+
+        correct_coordinate_transforms_rfc5(group, world_axes)
+
+        shared_transform = dict(group.attrs)["ome"]["multiscales"][0]["coordinateTransformations"][0]
+        affine_transforms = [t for t in shared_transform["transformations"] if t["type"] == "affine"]
+        self.assertEqual(len(affine_transforms), 1)
+
+        perm_matrix = np.array(affine_transforms[0]["affine"])
+        expected = np.array([
+            [0.0, 0.0, 1.0, 0.0],
+            [0.0, 1.0, 0.0, 0.0],
+            [1.0, 0.0, 0.0, 0.0],
+        ])
+        np.testing.assert_array_equal(perm_matrix, expected)
+
+    def test_permutation_swaps_first_and_last_spatial_axes_4d(self) -> None:
+        intrinsic_axes = [
+            {"name": "c", "type": "channel"},
+            {"name": "z", "type": "space", "unit": "micrometer"},
+            {"name": "y", "type": "space", "unit": "micrometer"},
+            {"name": "x", "type": "space", "unit": "micrometer"},
+        ]
+        world_axes = [
+            {"name": "c", "type": "channel"},
+            {"name": "z", "type": "space", "unit": "micrometer", "orientation": {"type": "anatomical", "value": "dorsal-to-ventral"}},
+            {"name": "y", "type": "space", "unit": "micrometer", "orientation": {"type": "anatomical", "value": "anterior-to-posterior"}},
+            {"name": "x", "type": "space", "unit": "micrometer", "orientation": {"type": "anatomical", "value": "left-to-right"}},
+        ]
+        transforms_by_path = {
+            "0": build_transform_list([1.0, 10.0, 10.0, 10.0]),
+        }
+
+        group = self.make_group((2, 2, 2, 2), intrinsic_axes, transforms_by_path)
+
+        correct_coordinate_transforms_rfc5(group, world_axes)
+
+        shared_transform = dict(group.attrs)["ome"]["multiscales"][0]["coordinateTransformations"][0]
+        affine_transforms = [t for t in shared_transform["transformations"] if t["type"] == "affine"]
+        self.assertEqual(len(affine_transforms), 1)
+
+        perm_matrix = np.array(affine_transforms[0]["affine"])
+        expected = np.array([
+            [1.0, 0.0, 0.0, 0.0, 0.0],
+            [0.0, 0.0, 0.0, 1.0, 0.0],
+            [0.0, 0.0, 1.0, 0.0, 0.0],
+            [0.0, 1.0, 0.0, 0.0, 0.0],
+        ])
+        np.testing.assert_array_equal(perm_matrix, expected)
 
 
 if __name__ == "__main__":

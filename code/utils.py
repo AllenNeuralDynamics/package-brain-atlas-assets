@@ -118,7 +118,7 @@ def write_image_orientation(affine: np.ndarray,
     updated_axis = copy.deepcopy(axes_metadata)
 
     # Original axes
-    ax_code_orig = ['R','A','S'] #Default for identity matrix in Nibabel
+    ax_code_orig = ['S','A','R'] #Default for identity matrix in Nibabel
     axes_metadata = _update_axis_code(axes_metadata, ax_code_orig, orientation_start, orientation_end)
 
     # Rotated/Transformed axes
@@ -241,6 +241,20 @@ def correct_coordinate_transforms_rfc5(
         logging.info(f"OME attr: {ome_attr}")
         array_attr["ome"] = ome_attr
         group[array_path].attrs.put(array_attr)
+
+    # Build permutation to swap first and last spatial axes
+    # so the intrinsic order (z=R, y=A, x=S) maps to mm RAS (z=S, y=A, x=R)
+    spatial_indices = [i for i, a in enumerate(axes) if a.get("type") == "space"]
+    if len(spatial_indices) >= 2:
+        n = len(axes)
+        perm = np.eye(n, n + 1)
+        first, last = spatial_indices[0], spatial_indices[-1]
+        perm[[first, last]] = perm[[last, first]]
+        if not np.allclose(perm[:, :n], np.eye(n)):
+            permutation_transform = {"type": "affine", "affine": perm.tolist()}
+            if global_coordinate_transformations is None:
+                global_coordinate_transformations = []
+            global_coordinate_transformations.append(permutation_transform)
 
     if global_coordinate_transformations:
         multiscales_entry[multiscale_transform_key] = [
