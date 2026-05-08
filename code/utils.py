@@ -109,8 +109,8 @@ def write_image_orientation(affine: np.ndarray,
         orientation_start = {'L':'right', 'R':'left', 'P':'anterior', 'A':'posterior', 'I':'superior', 'S':'inferior'}
         orientation_end = {'L':'left',  'R':'right','P':'posterior','A':'anterior','I':'inferior', 'S':'superior'}
     elif "mouse" in path_str:
-        orientation_start = {'R':'right',  'L':'left','A':'posterior','P':'anterior','S':'ventral', 'I':'dorsal'}
-        orientation_end = {'R':'left', 'L':'right', 'A':'anterior', 'P':'posterior', 'S':'dorsal', 'I':'ventral'}
+        orientation_start = {'R':'left',  'L':'right','A':'posterior','P':'anterior','S':'ventral', 'I':'dorsal'}
+        orientation_end = {'R':'right', 'L':'left', 'A':'anterior', 'P':'posterior', 'S':'dorsal', 'I':'ventral'}
     else:
         orientation_start = {'L':'right', 'R':'left', 'P':'rostral', 'A':'caudal', 'I':'dorsal', 'S':'ventral'}
         orientation_end = {'L':'left',  'R':'right','P':'caudal','A':'rostral','I':'ventral', 'S':'dorsal'}
