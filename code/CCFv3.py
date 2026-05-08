@@ -359,22 +359,20 @@ def package_ccf(input_dir, output_dir, library, scales=(10, 25, 50, 100)):
     coordinate_space = CoordinateSpace(
         name="allen-adult-mouse-ccf-space",
         version="2015",
-        template=library.get_template(
-            "allen-adult-mouse-stpt-template", "2015"
-        ),
     )
     coordinate_space.create_manifest(output_dir)
     library.add(coordinate_space)
 
+    library.get_template("allen-adult-mouse-stpt-template", "2015").coordinate_space = coordinate_space
+
     coordinate_space = CoordinateSpace(
         name="allen-adult-mouse-ccf-space",
         version="2011",
-        template=library.get_template(
-            "allen-adult-mouse-nissl-template", "2011"
-        ),
     )
     coordinate_space.create_manifest(output_dir)
     library.add(coordinate_space)
+
+    library.get_template("allen-adult-mouse-nissl-template", "2011").coordinate_space = coordinate_space
 
     # Create and register parcellation atlas
     atlases = [
@@ -384,12 +382,9 @@ def package_ccf(input_dir, output_dir, library, scales=(10, 25, 50, 100)):
             coordinate_space=library.get_coordinate_space(
                 name="allen-adult-mouse-ccf-space", version="2011"
             ),
-            annotation_set=library.get_annotation_set(
+            annotation_sets=[library.get_annotation_set(
                 name="allen-adult-mouse-annotation", version="2011"
-            ),
-            terminology=library.get_terminology(
-                name="allen-adult-mouse-terminology", version="2017"
-            ),
+            )],
         ),
         Atlas(
             name="allen-adult-mouse-ccf-atlas",
@@ -397,12 +392,9 @@ def package_ccf(input_dir, output_dir, library, scales=(10, 25, 50, 100)):
             coordinate_space=library.get_coordinate_space(
                 name="allen-adult-mouse-ccf-space", version="2015"
             ),
-            annotation_set=library.get_annotation_set(
+            annotation_sets=[library.get_annotation_set(
                 name="allen-adult-mouse-annotation", version="2015"
-            ),
-            terminology=library.get_terminology(
-                name="allen-adult-mouse-terminology", version="2017"
-            ),
+            )],
         ),
         Atlas(
             name="allen-adult-mouse-ccf-atlas",
@@ -410,12 +402,9 @@ def package_ccf(input_dir, output_dir, library, scales=(10, 25, 50, 100)):
             coordinate_space=library.get_coordinate_space(
                 name="allen-adult-mouse-ccf-space", version="2015"
             ),
-            annotation_set=library.get_annotation_set(
+            annotation_sets=[library.get_annotation_set(
                 name="allen-adult-mouse-annotation", version="2016"
-            ),
-            terminology=library.get_terminology(
-                name="allen-adult-mouse-terminology", version="2017"
-            ),
+            )],
         ),
         Atlas(
             name="allen-adult-mouse-ccf-atlas",
@@ -423,12 +412,9 @@ def package_ccf(input_dir, output_dir, library, scales=(10, 25, 50, 100)):
             coordinate_space=library.get_coordinate_space(
                 name="allen-adult-mouse-ccf-space", version="2015"
             ),
-            annotation_set=library.get_annotation_set(
+            annotation_sets=[library.get_annotation_set(
                 name="allen-adult-mouse-annotation", version="2017"
-            ),
-            terminology=library.get_terminology(
-                name="allen-adult-mouse-terminology", version="2017"
-            ),
+            )],
         ),
         Atlas(
             name="allen-dev-mouse-p56-atlas",
@@ -436,12 +422,9 @@ def package_ccf(input_dir, output_dir, library, scales=(10, 25, 50, 100)):
             coordinate_space=library.get_coordinate_space(
                 name="allen-adult-mouse-ccf-space", version="2011"
             ),
-            annotation_set=library.get_annotation_set(
+            annotation_sets=[library.get_annotation_set(
                 name="allen-dev-mouse-p56-nissl-annotation", version="2012"
-            ),
-            terminology=library.get_terminology(
-                name="allen-dev-mouse-terminology", version="2012"
-            ),
+            )],
         ),
     ]
     for atlas in atlases:

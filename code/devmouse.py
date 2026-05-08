@@ -394,10 +394,11 @@ def package_age_group(age, base_dir, results_dir, asset_library, terminology, in
     # Create coordinate space for this developmental stage
     space_name = f"allen-dev-mouse-{age.lower()}-nissl-space"
     coordinate_space = CoordinateSpace(
-        name=space_name, version="2012", template=template
+        name=space_name, version="2012"
     )
     coordinate_space.create_manifest(results_dir)
     asset_library.add(coordinate_space)
+    template.coordinate_space = coordinate_space
     print(f"  Created coordinate space: {space_name}")
 
     # Create parcellation atlas
@@ -406,8 +407,7 @@ def package_age_group(age, base_dir, results_dir, asset_library, terminology, in
         name=atlas_name,
         version="2012",
         coordinate_space=coordinate_space,
-        annotation_set=annotation_set,
-        terminology=terminology,
+        annotation_sets=[annotation_set],
     )
     atlas.create_manifest(results_dir)
     asset_library.add(atlas)
