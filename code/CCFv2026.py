@@ -290,7 +290,7 @@ def _add_midline_masks_to_uncompressed(
         raise FileNotFoundError(f"Missing uncompressed annotations at {zarr_path}")
 
     group = zarr.open(str(zarr_path), mode="r+")
-    annotations_grp = cast(zarr.Group, group["labels"]["annotations"])
+    annotations_grp = group
 
     lmid_value, rmid_value, lhem_value, rhem_value = _get_bilateral_annotation_values(terminology)
     scale_to_index: dict[int, str] = _scale_to_dataset_index(
