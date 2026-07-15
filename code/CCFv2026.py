@@ -18,7 +18,7 @@ from brainglobe_atlasapi import BrainGlobeAtlas
 
 import CCFv2020
 from CCFv3 import load_ccf3_meshes  # type: ignore[import-not-found]
-from atlas_builder import AnnotationSet, AssetLibrary, Terminology  # type: ignore[import-not-found]
+from atlas_builder import AnnotationSet, AssetLibrary, CoordinateSpace, Terminology  # type: ignore[import-not-found]
 from atlas_builder.annotation_set import uncompress_annotations_to_zarr  # type: ignore[import-not-found]
 from atlas_builder.precomputed import append_meshes_to_precomputed  # type: ignore[import-not-found]
 
@@ -271,7 +271,7 @@ def _scale_to_dataset_index(
         src_fname = annotation_output_dir / f"annotations_compressed_{scale}.nii.gz"
         if not src_fname.exists():
             continue
-        dataset_name = str(scale_index)
+        dataset_name = f"s{scale_index}"
         if dataset_name in annotations_grp:
             scale_to_index[scale] = dataset_name
         scale_index += 1
@@ -360,8 +360,19 @@ def create_ccf2026_annotation_set(
     template = library.get_template("allen-adult-mouse-stpt-template", "2020")
     terminology = library.get_terminology("allen-adult-mouse-terminology", "2026-03")
 
+    coordinate_space = template.coordinate_space
+    if coordinate_space is None:
+        coordinate_space = CoordinateSpace(
+            name="allen-adult-mouse-ccf-stereotaxic-space",
+            version="2020",
+        )
+        coordinate_space.create_manifest(results_dir)
+        library.add(coordinate_space)
+        template.coordinate_space = coordinate_space
+
     annotation_set = AnnotationSet(
         name="allen-adult-mouse-stereotaxic-annotation",
+        coordinate_space=coordinate_space,
         template=template,
         terminology=terminology,
         version="2026-03",

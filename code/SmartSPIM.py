@@ -38,6 +38,7 @@ def create_smartspim_annotation_set(input_dir, results_dir, library):
 
     annotation_set = AnnotationSet(
         name="allen-adult-mouse-spim-lca-annotation",
+        coordinate_space=template.coordinate_space,
         template=template,
         terminology=terminology,
         version="2024-05",

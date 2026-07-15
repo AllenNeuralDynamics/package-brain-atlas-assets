@@ -320,6 +320,7 @@ def create_ccf2020_annotation_set(input_dir, results_dir, library, scales=(10, 2
 
     annotation_set = AnnotationSet(
         name="allen-adult-mouse-stereotaxic-annotation",
+        coordinate_space=template.coordinate_space,
         template=template,
         terminology=terminology,
         version="2020",
@@ -380,9 +381,6 @@ def package_ccf2020(input_dir, output_dir, library, scales=(10,)):
     # Create and register terminology
     create_ccf2020_terminology(input_dir, output_dir, library)
 
-    # Create and register annotation set
-    create_ccf2020_annotation_set(input_dir, output_dir, library, scales)
-
     # Create and register coordinate space
     coordinate_space = CoordinateSpace(
         name="allen-adult-mouse-ccf-stereotaxic-space",
@@ -393,6 +391,9 @@ def package_ccf2020(input_dir, output_dir, library, scales=(10,)):
 
     library.get_template("allen-adult-mouse-stpt-template", "2020").coordinate_space = coordinate_space
 
+    # Create and register annotation set
+    create_ccf2020_annotation_set(input_dir, output_dir, library, scales)
+
     # Create parcellation atlas
     atlas = Atlas(
         name="allen-adult-mouse-ccf-stereotaxic-atlas",
@@ -400,6 +401,9 @@ def package_ccf2020(input_dir, output_dir, library, scales=(10,)):
         coordinate_space=library.get_coordinate_space(
             "allen-adult-mouse-ccf-stereotaxic-space", "2020"
         ),
+        templates=[library.get_template(
+            "allen-adult-mouse-stpt-template", "2020"
+        )],
         annotation_sets=[library.get_annotation_set(
             "allen-adult-mouse-stereotaxic-annotation", "2020"
         )],

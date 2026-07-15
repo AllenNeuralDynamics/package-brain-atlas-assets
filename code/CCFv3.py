@@ -251,6 +251,7 @@ def create_all_ccf_annotation_sets(input_dir, results_dir, library, scales=(10, 
         annotation_dir = input_dir / "annotation" / annotation["directory"]
         annotation_set = AnnotationSet(
             name=annotation["name"],
+            coordinate_space=annotation["template"].coordinate_space,
             template=annotation["template"],
             terminology=annotation["terminology"],
             version=annotation["version"],
@@ -352,10 +353,7 @@ def package_ccf(input_dir, output_dir, library, scales=(10, 25, 50, 100)):
     # Create and register anatomical templates
     create_all_ccf_templates(input_dir, output_dir, library, scales)
 
-    # Create and register annotation sets
-    create_all_ccf_annotation_sets(input_dir, output_dir, library, scales=scales)
-
-    # Create and register coordinate space
+    # Create and register coordinate spaces
     coordinate_space = CoordinateSpace(
         name="allen-adult-mouse-ccf-space",
         version="2015",
@@ -374,6 +372,9 @@ def package_ccf(input_dir, output_dir, library, scales=(10, 25, 50, 100)):
 
     library.get_template("allen-adult-mouse-nissl-template", "2011").coordinate_space = coordinate_space
 
+    # Create and register annotation sets
+    create_all_ccf_annotation_sets(input_dir, output_dir, library, scales=scales)
+
     # Create and register parcellation atlas
     atlases = [
         Atlas(
@@ -382,6 +383,9 @@ def package_ccf(input_dir, output_dir, library, scales=(10, 25, 50, 100)):
             coordinate_space=library.get_coordinate_space(
                 name="allen-adult-mouse-ccf-space", version="2011"
             ),
+            templates=[library.get_template(
+                name="allen-adult-mouse-nissl-template", version="2011"
+            )],
             annotation_sets=[library.get_annotation_set(
                 name="allen-adult-mouse-annotation", version="2011"
             )],
@@ -392,6 +396,9 @@ def package_ccf(input_dir, output_dir, library, scales=(10, 25, 50, 100)):
             coordinate_space=library.get_coordinate_space(
                 name="allen-adult-mouse-ccf-space", version="2015"
             ),
+            templates=[library.get_template(
+                name="allen-adult-mouse-stpt-template", version="2015"
+            )],
             annotation_sets=[library.get_annotation_set(
                 name="allen-adult-mouse-annotation", version="2015"
             )],
@@ -402,6 +409,9 @@ def package_ccf(input_dir, output_dir, library, scales=(10, 25, 50, 100)):
             coordinate_space=library.get_coordinate_space(
                 name="allen-adult-mouse-ccf-space", version="2015"
             ),
+            templates=[library.get_template(
+                name="allen-adult-mouse-stpt-template", version="2015"
+            )],
             annotation_sets=[library.get_annotation_set(
                 name="allen-adult-mouse-annotation", version="2016"
             )],
@@ -412,6 +422,9 @@ def package_ccf(input_dir, output_dir, library, scales=(10, 25, 50, 100)):
             coordinate_space=library.get_coordinate_space(
                 name="allen-adult-mouse-ccf-space", version="2015"
             ),
+            templates=[library.get_template(
+                name="allen-adult-mouse-stpt-template", version="2015"
+            )],
             annotation_sets=[library.get_annotation_set(
                 name="allen-adult-mouse-annotation", version="2017"
             )],
@@ -422,6 +435,9 @@ def package_ccf(input_dir, output_dir, library, scales=(10, 25, 50, 100)):
             coordinate_space=library.get_coordinate_space(
                 name="allen-adult-mouse-ccf-space", version="2011"
             ),
+            templates=[library.get_template(
+                name="allen-adult-mouse-nissl-template", version="2011"
+            )],
             annotation_sets=[library.get_annotation_set(
                 name="allen-dev-mouse-p56-nissl-annotation", version="2012"
             )],
