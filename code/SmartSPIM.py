@@ -202,6 +202,12 @@ def package_smartspim_template(input_dir, remapped_annotation_dir, results_dir, 
     library.add(template)
     logging.info(f"Created SmartSPIM anatomical template {template.name} {template.version}")
 
+    # Associate the template with the existing CCF coordinate space
+    coordinate_space = library.get_coordinate_space(
+        name="allen-adult-mouse-ccf-space", version="2015"
+    )
+    template.coordinate_space = coordinate_space
+
     # Copy validated metadata to template directory
     template_dir = template.location(results_dir)
     copy_data_description(input_dir, template_dir, template.name)
