@@ -322,6 +322,7 @@ def create_all_ccf_annotation_sets(input_dir: Path, results_dir: Path, library, 
         annotation_dir = input_dir / "annotation" / annotation["directory"]
         annotation_set = AnnotationSet(
             name=annotation["name"],
+            coordinate_space=annotation["template"].coordinate_space,
             template=annotation["template"],
             terminology=terminology,
             version=annotation["version"],
@@ -412,9 +413,6 @@ def package_ccf(input_dir, output_dir, library, scales):
     # Create and register anatomical templates
     create_all_anatomical_templates(input_dir, output_dir, library, scales)
 
-    # Create and register annotation sets
-    create_all_ccf_annotation_sets(input_dir, output_dir, library, scales)
-
     # Create and register anatomical spaces
     anatomical_space = CoordinateSpace(
         name="hmba-adult-human-hcp-space",
@@ -451,12 +449,18 @@ def package_ccf(input_dir, output_dir, library, scales):
     library.add(anatomical_space)
     library.get_template("hmba-adult-marmoset-mri-template", "2025").coordinate_space = anatomical_space
 
+    # Create and register annotation sets
+    create_all_ccf_annotation_sets(input_dir, output_dir, library, scales)
+
     # Create and register parcellation atlas
     atlases = [
         Atlas(
             name="hmba-adult-human-homba-atlas",
             version="2025",
             coordinate_space=library.get_coordinate_space(name="hmba-adult-human-hcp-space", version="2025"),
+            templates=[library.get_template(
+                name="hmba-adult-human-hcp-template", version="2025"
+            )],
             annotation_sets=[library.get_annotation_set(
                 name="hmba-adult-human-hombabg-annotation", version="2025"
             )],
@@ -465,6 +469,9 @@ def package_ccf(input_dir, output_dir, library, scales):
             name="hmba-adult-human-dhbav2gyral-atlas",
             version="2025",
             coordinate_space=library.get_coordinate_space(name="hmba-adult-human-icbm2009b-space", version="2025"),
+            templates=[library.get_template(
+                name="hmba-adult-human-icbm2009b-template", version="2025"
+            )],
             annotation_sets=[library.get_annotation_set(
                 name="hmba-adult-human-dhbav2gyral-annotation", version="2025"
             )],
@@ -473,6 +480,9 @@ def package_ccf(input_dir, output_dir, library, scales):
             name="hmba-adult-human-dhbav2brodmann-atlas",
             version="2025",
             coordinate_space=library.get_coordinate_space(name="hmba-adult-human-icbm2009b-space", version="2025"),
+            templates=[library.get_template(
+                name="hmba-adult-human-icbm2009b-template", version="2025"
+            )],
             annotation_sets=[library.get_annotation_set(
                 name="hmba-adult-human-dhbav2brodmann-annotation", version="2025"
             )],
@@ -481,6 +491,9 @@ def package_ccf(input_dir, output_dir, library, scales):
             name="hmba-adult-rhesusmacaque-homba-atlas",
             version="2025",
             coordinate_space=library.get_coordinate_space(name="hmba-adult-rhesusmacaque-mri-space", version="2025"),
+            templates=[library.get_template(
+                name="hmba-adult-rhesusmacaque-mri-template", version="2025"
+            )],
             annotation_sets=[library.get_annotation_set(
                 name="hmba-adult-rhesusmacaque-homba-annotation", version="2025"
             )],
@@ -489,6 +502,9 @@ def package_ccf(input_dir, output_dir, library, scales):
             name="hmba-adult-cynomolgusmacaque-homba-atlas",
             version="2025",
             coordinate_space=library.get_coordinate_space(name="hmba-adult-cynomolgusmacaque-mri-space", version="2026"),
+            templates=[library.get_template(
+                name="hmba-adult-cynomolgusmacaque-mri-template", version="2026"
+            )],
             annotation_sets=[library.get_annotation_set(
                 name="hmba-adult-cynomolgusmacaque-homba-annotation", version="2026"
             )],
@@ -497,6 +513,9 @@ def package_ccf(input_dir, output_dir, library, scales):
             name="hmba-adult-marmoset-homba-atlas",
             version="2025",
             coordinate_space=library.get_coordinate_space(name="hmba-adult-marmoset-mri-space", version="2025"),
+            templates=[library.get_template(
+                name="hmba-adult-marmoset-mri-template", version="2025"
+            )],
             annotation_sets=[library.get_annotation_set(
                 name="hmba-adult-marmoset-homba-annotation", version="2025"
             )],

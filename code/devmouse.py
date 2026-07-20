@@ -359,10 +359,21 @@ def package_age_group(age, base_dir, results_dir, asset_library, terminology, in
     # Write template data description
     _write_devmouse_template_data_description(template.location(results_dir), age)
 
+    # Create coordinate space for this developmental stage
+    space_name = f"allen-dev-mouse-{age.lower()}-nissl-space"
+    coordinate_space = CoordinateSpace(
+        name=space_name, version="2012"
+    )
+    coordinate_space.create_manifest(results_dir)
+    asset_library.add(coordinate_space)
+    template.coordinate_space = coordinate_space
+    print(f"  Created coordinate space: {space_name}")
+
     # Create annotation set
     annotation_name = f"allen-dev-mouse-{age.lower()}-nissl-annotation"
     annotation_set = AnnotationSet(
         name=annotation_name,
+        coordinate_space=coordinate_space,
         template=template,
         terminology=terminology,
         version="2012",
@@ -391,22 +402,13 @@ def package_age_group(age, base_dir, results_dir, asset_library, terminology, in
     asset_library.add(annotation_set)
     print(f"  Added annotation set: {annotation_name}")
 
-    # Create coordinate space for this developmental stage
-    space_name = f"allen-dev-mouse-{age.lower()}-nissl-space"
-    coordinate_space = CoordinateSpace(
-        name=space_name, version="2012"
-    )
-    coordinate_space.create_manifest(results_dir)
-    asset_library.add(coordinate_space)
-    template.coordinate_space = coordinate_space
-    print(f"  Created coordinate space: {space_name}")
-
     # Create parcellation atlas
     atlas_name = f"allen-dev-mouse-{age.lower()}-nissl-atlas"
     atlas = Atlas(
         name=atlas_name,
         version="2012",
         coordinate_space=coordinate_space,
+        templates=[template],
         annotation_sets=[annotation_set],
     )
     atlas.create_manifest(results_dir)

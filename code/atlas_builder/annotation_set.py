@@ -17,6 +17,7 @@ from ome_zarr.writer import write_multiscale, write_multiscales_metadata
 
 from atlas_builder.template import Template
 from atlas_builder.atlas_asset import AtlasAsset
+from atlas_builder.coordinate_space import CoordinateSpace
 from atlas_builder.terminology import Terminology
 from atlas_builder.precomputed import (convert_compressed_annotations_to_precomputed,
                                       write_segment_properties, create_mesh_from_compressed_annotation)
@@ -34,14 +35,16 @@ class AnnotationSet(AtlasAsset):
     """Brain structure annotation dataset manager.
 
     Attributes:
-        template: Aligned template
+        coordinate_space: Coordinate space the annotations are defined in
         terminology: Brain structure terminology/hierarchy
         scales: Available resolution scales in micrometers per voxel
+        template: Optional aligned template
     """
 
-    template: Template
+    coordinate_space: CoordinateSpace
     terminology: Terminology
     scales: tuple
+    template: Template | None = None
 
     _asset_location: ClassVar[str] = "annotation-sets"
     schema_version: ClassVar[str] = "0.1.0"
@@ -49,23 +52,32 @@ class AnnotationSet(AtlasAsset):
     @property
     def manifest(self) -> dict:
         """Generate manifest dictionary for this annotation set."""
-        return super().manifest | {
-            "template": self.template.manifest,
+        m = super().manifest | {
+            "coordinate_space": self.coordinate_space.manifest,
             "terminology": self.terminology.manifest,
             "scales": list(self.scales),
         }
+        if self.template is not None:
+            m["template"] = self.template.manifest
+        return m
 
     @classmethod
     def from_manifest(cls, manifest: dict, root: Path | None = None) -> "AnnotationSet":
-        template = Template.from_manifest(manifest["template"], root=root)
+        coordinate_space = CoordinateSpace.from_manifest(
+            manifest["coordinate_space"], root=root
+        )
         terminology = Terminology.from_manifest(manifest["terminology"], root=root)
         scales = tuple(manifest.get("scales", ()))
+        template = None
+        if "template" in manifest:
+            template = Template.from_manifest(manifest["template"], root=root)
         return cls(
             name=manifest["name"],
             version=manifest["version"],
-            template=template,
+            coordinate_space=coordinate_space,
             terminology=terminology,
             scales=scales,
+            template=template,
         )
 
     def create(self, compressed_results, output_root, include_meshes=True):
@@ -581,7 +593,7 @@ def uncompress_annotations_to_zarr(input_dir, terminology, output_dir, scales=(1
             scale,
             terminology,
             zarr_group=group,
-            zarr_dataset_name=f"{scale_index}",
+            zarr_dataset_name=f"s{scale_index}",
             zarr_chunks=(1, 128, 128, 128),
         )
 
@@ -650,7 +662,7 @@ def uncompress_annotations_to_zarr(input_dir, terminology, output_dir, scales=(1
         group,
         datasets=[
             {
-                "path": str(i),
+                "path": f"s{i}",
                 "coordinateTransformations": transforms[i],
             }
             for i in range(len(zarr_arrays))

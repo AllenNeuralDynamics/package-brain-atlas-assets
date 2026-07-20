@@ -8,6 +8,7 @@ import pandas as pd
 import zarr
 
 from atlas_builder.annotation_set import AnnotationSet
+from atlas_builder.coordinate_space import CoordinateSpace
 from atlas_builder.template import Template
 from atlas_builder.terminology import Terminology
 from utils import convert_mhd_to_nifti, correct_coordinate_transforms_rfc5, decompose_affine
@@ -219,6 +220,7 @@ class AnnotationSetCreateFromMhdTests(unittest.TestCase):
         annotation_set = AnnotationSet(
             name="test-annotation",
             version="2012",
+            coordinate_space=CoordinateSpace(name="test-space", version="2012"),
             template=Template(name="test-template", version="2012", scales=(25,)),
             terminology=Terminology(name="test-terms", version="2012", df=terminology_df),
             scales=(25,),
@@ -261,6 +263,7 @@ class AnnotationSetCreateFromMhdTests(unittest.TestCase):
         annotation_set = AnnotationSet(
             name="test-annotation",
             version="2012",
+            coordinate_space=CoordinateSpace(name="test-space", version="2012"),
             template=Template(name="test-template", version="2012", scales=(10, 25)),
             terminology=Terminology(name="test-terms", version="2012", df=terminology_df),
             scales=(10, 25),

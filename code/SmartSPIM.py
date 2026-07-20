@@ -38,6 +38,7 @@ def create_smartspim_annotation_set(input_dir, results_dir, library):
 
     annotation_set = AnnotationSet(
         name="allen-adult-mouse-spim-lca-annotation",
+        coordinate_space=template.coordinate_space,
         template=template,
         terminology=terminology,
         version="2024-05",
@@ -200,6 +201,12 @@ def package_smartspim_template(input_dir, remapped_annotation_dir, results_dir, 
     template.create(input_prefix=input_dir / "smartspim_lca_template", output_root=results_dir)
     library.add(template)
     logging.info(f"Created SmartSPIM anatomical template {template.name} {template.version}")
+
+    # Associate the template with the existing CCF coordinate space
+    coordinate_space = library.get_coordinate_space(
+        name="allen-adult-mouse-ccf-space", version="2015"
+    )
+    template.coordinate_space = coordinate_space
 
     # Copy validated metadata to template directory
     template_dir = template.location(results_dir)
