@@ -314,7 +314,9 @@ def create_ccf3_terminology(input_dir, output_dir, library):
             "parent_identifier": df["parent_structure_id"].map(lambda x: f"MBA:{int(x)}" if not pd.isna(x) else ""),
             "name": df["name"],
             "abbreviation": df["acronym"],
-            "color_hex_triplet": df["color_hex_triplet"].map(lambda x: f"#{x}"),
+            # Some source rows lost a leading zero (e.g. "19399" -> "019399"),
+            # so zero-pad to 6 hex digits before prefixing with "#".
+            "color_hex_triplet": df["color_hex_triplet"].map(lambda x: f"#{str(x).zfill(6)}"),
         }
     )
 

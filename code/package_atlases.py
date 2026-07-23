@@ -143,7 +143,13 @@ def main(results_dir: str | Path):
     # Package HMBA atlases
     HMBA.package_ccf(hmba_dir, results_dir, library, scales=hmba_scales)
 
+    # Re-write manifests now that all cross-asset associations are complete.
+    # Templates associate their coordinate_space after Template.create() has
+    # already written manifest.json, so re-render here to capture it.
     for a in library.coordinate_spaces:
+        a.create_manifest(results_dir)
+
+    for a in library.templates:
         a.create_manifest(results_dir)
 
 
