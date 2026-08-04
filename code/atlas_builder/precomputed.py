@@ -63,6 +63,25 @@ def append_mesh_to_precomputed(mesh, scale, precomputed_file, identifier):
         f.write(cvbytes)
 
 
+def clear_meshes_from_precomputed(precomputed_file: str, keep_annotation_values:tuple=(), mesh_dir="mesh"):
+    
+    """Remove meshes from a precomputed-run set except for annotations with voxels in annotaion set"""
+    
+    mesh_path = Path(precomputed_file) / mesh_dir
+    if not mesh_path.exists():
+        return 0
+
+    keep = {str(v) for v in keep_annotation_values}
+    removed = 0
+    for entry in mesh_path.iterdir():
+        if entry.is_file() and entry.name.split(":", 1)[0] not in keep:
+            entry.unlink()
+            removed += 1
+
+    logging.info(f"Removed {removed} mesh fragments from {mesh_path}, keeping {len(keep)} annotation values")
+    return removed
+
+
 def append_meshes_to_precomputed(meshes, precomputed_file, scale, map_annotation_value=None, mesh_dir="mesh"):
     """Append meshes to an existing precomputed dataset and update info (moved)."""
     map_annotation_value = map_annotation_value or (lambda x: x)

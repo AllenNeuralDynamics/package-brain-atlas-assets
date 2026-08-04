@@ -10,7 +10,7 @@ from CCFv3 import load_ccf3_meshes
 from atlas_builder import (AnnotationSet, CoordinateSpace,
                           Template, Atlas,
                           Terminology)
-from atlas_builder.precomputed import append_meshes_to_precomputed
+from atlas_builder.precomputed import append_meshes_to_precomputed, clear_meshes_from_precomputed
 from atlas_builder.annotation_set import uncompress_annotations_to_zarr
 import datetime
 from aind_data_schema.core.data_description import DataDescription, Funding
@@ -18,6 +18,12 @@ from aind_data_schema_models.data_name_patterns import build_data_name
 from aind_data_schema_models.modalities import Modality
 from aind_data_schema_models.organizations import Organization
 from aind_data_schema.components.identifiers import Person
+
+CCF2020_MINTED_VALUE_OFFSET = 2000
+CCF2020_REFERENCE = (
+    "s3://aind-scratch-data/david.feng/allen-atlas-assets/terminologies/allen-adult-mouse-terminology/2020/terminology.csv"
+)
+
 
 CCF2020_TERMINOLOGY_CREATION_TIME = datetime.datetime(2020, 4, 17, tzinfo=datetime.timezone.utc)
 CCF2020_ANNOTATION_CREATION_TIME = datetime.datetime(2020, 4, 17, tzinfo=datetime.timezone.utc)
@@ -46,6 +52,62 @@ def create_ccf2020_template(input_dir, results_dir, library, scales=(10,25)):
     logging.info(f"Created CCF 2020 template: {template.name} {template.version}")
 
     return template
+
+
+def _register_annotation_values(pt_df: pd.DataFrame, parcellation_df: pd.DataFrame) -> pd.Series:
+    """Create an annotation value for every term in `parcellation.csv` that has no parcellation_index of its own.
+
+    Uses the public `terminology.csv` from the previous release to register every value that has already
+    been published, so a term keeps its value across builds. Anything that release does not cover is
+    numbered `CCF2020_MINTED_VALUE_OFFSET + int(graph_order)`
+    """
+    real_values = set(pd.to_numeric(parcellation_df["parcellation_index"], errors="coerce").dropna().astype(int))
+    published_df = pd.read_csv(CCF2020_REFERENCE)
+    published = dict(zip(published_df["identifier"].astype(str), published_df["annotation_value"].astype(int)))
+
+    missing = pt_df.loc[pt_df["parcellation_index"].isna()]
+    identifiers = missing["identifier"].astype(str)
+    order = pd.to_numeric(missing["graph_order"], errors="coerce")
+    if order.isna().any():
+        raise ValueError(
+            f"graph_order is missing for {missing.loc[order.isna(), 'identifier'].tolist()[:5]}; "
+            "it is required to assign annotation values."
+        )
+
+    # Only terms with no parcellation_index take a value from reference (assumes rest is consistent w/ parcellation.csv).
+    pinned = {ident: published[ident] for ident in set(identifiers) & set(published)}
+
+    highest_pinned = max([0, *real_values, *pinned.values()])
+    # Hardcode errors if annotation values run into each other
+    if CCF2020_MINTED_VALUE_OFFSET <= highest_pinned:
+        raise ValueError(
+            f"CCF2020_MINTED_VALUE_OFFSET ({CCF2020_MINTED_VALUE_OFFSET}) must exceed every pinned "
+            f"annotation value (highest is {highest_pinned})!"
+        )
+    if reused := sorted(set(pinned.values()) & real_values):
+        raise ValueError(
+            f"Last stable version gives voxel-less terms annotation values {reused[:5]} that the "
+            f"annotation now uses, total: {len(reused)})."
+        )
+
+    values = identifiers.map(pinned).fillna(CCF2020_MINTED_VALUE_OFFSET + order.astype(int)).astype(int)
+
+    pairs = pd.DataFrame({"identifier": identifiers, "value": values}).drop_duplicates()
+    if clashes := sorted(pairs.loc[pairs.duplicated("value", keep=False), "value"].unique()):
+        raise ValueError(
+            f"Multiple independent terms share annotation values {clashes[:5]} ({len(clashes)} total)!"
+        )
+
+    unpublished = sorted(set(identifiers) - set(published))
+    if unpublished:
+        logging.warning(
+            f"{len(unpublished)} terms are new: {unpublished[:10]}."
+        )
+    logging.info(
+        f"Assigned {pairs['identifier'].nunique()} annotation values ({values.min()}-{values.max()}) to terms "
+        f"with no parcellation_index of their own; {len(published)} pinned, {len(unpublished)} minted"
+    )
+    return values
 
 
 def _build_ccf2020_terminology_dataframe(metadata_dir: Path) -> pd.DataFrame:
@@ -132,16 +194,14 @@ def _build_ccf2020_terminology_dataframe(metadata_dir: Path) -> pd.DataFrame:
 
     pt_df = _collapse_abc_unassigned(pt_df)
 
-    # Mint new parcellation_index values for any rows missing one
+    # Fill in parcellation_index for any rows missing one using MBA identifier as invariant across build runs.
+    
     pt_df["parcellation_index"] = pd.to_numeric(pt_df["parcellation_index"], errors="coerce")
     missing_mask = pt_df["parcellation_index"].isna()
+
+    
     if missing_mask.any():
-        max_existing = pd.to_numeric(parcellation_df["parcellation_index"], errors="coerce").max()
-        max_existing = int(max_existing) if pd.notna(max_existing) else 0
-        max_current = int(pt_df["parcellation_index"].dropna().max()) if (~missing_mask).any() else 0
-        start = max(max_existing, max_current) + 1
-        new_ids = range(start, start + int(missing_mask.sum()))
-        pt_df.loc[missing_mask, "parcellation_index"] = list(new_ids)
+        pt_df.loc[missing_mask, "parcellation_index"] = _register_annotation_values(pt_df, parcellation_df)
 
     pt_df["parcellation_index"] = pt_df["parcellation_index"].astype(int)
 
@@ -355,14 +415,25 @@ def create_ccf2020_annotation_set(input_dir, results_dir, library, scales=(10, 2
 
     meshes = load_ccf3_meshes(Path("/data/ccf_meshes/mcc/annotation/ccf_2017/structure_meshes"))
 
-    # Append just meshes; segment properties already written by create()
-    append_meshes_to_precomputed(
-        ((m, map_obj_id_to_annotation_value(obj_id)) for m, obj_id in meshes),
+    precomputed_dir = (
         results_dir
         / "annotation-sets"
         / "allen-adult-mouse-stereotaxic-annotation"
         / "2020"
-        / "annotations.precomputed",
+        / "annotations.precomputed"
+    )
+
+    # Remove parent mesh fragments but keep mesh fragments from structures with voxels directly in the annotation set.
+    parcellation_df = pd.read_csv(input_dir / "metadata" / "Allen-CCF-2020" / "20230630" / "parcellation.csv")
+    clear_meshes_from_precomputed(
+        precomputed_dir,
+        keep_annotation_values=set(terminology.df["annotation_value"]) & set(parcellation_df["parcellation_index"]),
+    )
+
+    # Append meshes
+    append_meshes_to_precomputed(
+        ((m, map_obj_id_to_annotation_value(obj_id)) for m, obj_id in meshes),
+        precomputed_dir,
         scale=1000,  # convert microns to nm
         map_annotation_value=lambda v: v[0] if isinstance(v, list) else v,
     )
