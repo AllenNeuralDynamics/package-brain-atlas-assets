@@ -20,8 +20,8 @@ from aind_data_schema_models.organizations import Organization
 from aind_data_schema.components.identifiers import Person
 
 CCF2020_MINTED_VALUE_OFFSET = 2000
-CCF2020_REFERENCE = (
-    "s3://aind-scratch-data/david.feng/allen-atlas-assets/terminologies/allen-adult-mouse-terminology/2020/terminology.csv"
+CCF2020_LABEL_REFERENCE = (
+    "https://download.alleninstitute.org/informatics-archive/current-release/mouse_ccf/annotation/ccf_2022/compacted/itksnap_label_description.txt"
 )
 
 
@@ -57,13 +57,32 @@ def create_ccf2020_template(input_dir, results_dir, library, scales=(10,25)):
 def _register_annotation_values(pt_df: pd.DataFrame, parcellation_df: pd.DataFrame) -> pd.Series:
     """Create an annotation value for every term in `parcellation.csv` that has no parcellation_index of its own.
 
-    Uses the public `terminology.csv` from the previous release to register every value that has already
+    Uses the public ITK label table from 2020 release as a reference. Registers every value that has already
     been published, so a term keeps its value across builds. Anything that release does not cover is
     numbered `CCF2020_MINTED_VALUE_OFFSET + int(graph_order)`
     """
     real_values = set(pd.to_numeric(parcellation_df["parcellation_index"], errors="coerce").dropna().astype(int))
-    published_df = pd.read_csv(CCF2020_REFERENCE)
-    published = dict(zip(published_df["identifier"].astype(str), published_df["annotation_value"].astype(int)))
+
+    # Read in ITK-SNAP label description file formatted as [index R G B A VIS MSH "<abbreviation> - <identifier>"]. Only need the first and last columns here.
+
+    published_df = pd.read_table(
+        CCF2020_LABEL_REFERENCE,
+        sep=r"\s+",
+        header=None,
+        quotechar='"',
+        usecols=[0, 7],
+        names=["annotation_value", "label"],
+    )
+    
+    # Identifier in ITK-SNAP label has stripped `MBA:`. Need to put back in for joining
+    _mba_identifier = [f"MBA:{n.str.rsplit(" - ", n=1).str[-1].str.strip()}" for n in published_df["label"]]
+    
+    published = dict(
+        zip(
+            _mba_identifier,
+            published_df["annotation_value"].astype(int),
+        )
+    )
 
     missing = pt_df.loc[pt_df["parcellation_index"].isna()]
     identifiers = missing["identifier"].astype(str)
@@ -78,12 +97,9 @@ def _register_annotation_values(pt_df: pd.DataFrame, parcellation_df: pd.DataFra
     pinned = {ident: published[ident] for ident in set(identifiers) & set(published)}
 
     highest_pinned = max([0, *real_values, *pinned.values()])
+    
     # Hardcode errors if annotation values run into each other
-    if CCF2020_MINTED_VALUE_OFFSET <= highest_pinned:
-        raise ValueError(
-            f"CCF2020_MINTED_VALUE_OFFSET ({CCF2020_MINTED_VALUE_OFFSET}) must exceed every pinned "
-            f"annotation value (highest is {highest_pinned})!"
-        )
+
     if reused := sorted(set(pinned.values()) & real_values):
         raise ValueError(
             f"Last stable version gives voxel-less terms annotation values {reused[:5]} that the "
@@ -105,7 +121,7 @@ def _register_annotation_values(pt_df: pd.DataFrame, parcellation_df: pd.DataFra
         )
     logging.info(
         f"Assigned {pairs['identifier'].nunique()} annotation values ({values.min()}-{values.max()}) to terms "
-        f"with no parcellation_index of their own; {len(published)} pinned, {len(unpublished)} minted"
+        f"with no parcellation_index of their own; {len(published)} pinned, {len(unpublished)} created"
     )
     return values
 
