@@ -75,7 +75,7 @@ def _register_annotation_values(pt_df: pd.DataFrame, parcellation_df: pd.DataFra
     )
     
     # Identifier in ITK-SNAP label has stripped `MBA:`. Need to put back in for joining
-    _mba_identifier = [f"MBA:{n.str.rsplit(" - ", n=1).str[-1].str.strip()}" for n in published_df["label"]]
+    _mba_identifier = [f"MBA:{n.rsplit(' - ', 1)[-1].strip()}" for n in published_df["label"]]
     
     published = dict(
         zip(
