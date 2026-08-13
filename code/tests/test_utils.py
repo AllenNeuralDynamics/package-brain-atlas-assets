@@ -328,19 +328,23 @@ class CorrectCoordinateTransformsRfc5Tests(unittest.TestCase):
         correct_coordinate_transforms_rfc5(group, world_axes)
 
         ome = dict(group.attrs)["ome"]
-        self.assertEqual([cs["name"] for cs in ome["coordinateSystems"]], ["intrinsic", "mm RAS"])
+        self.assertEqual(ome["version"], "0.6rc0")
 
         multiscales = ome["multiscales"][0]
-        self.assertEqual(multiscales["coordinateTransformations"][0]["input"], "intrinsic")
-        self.assertEqual(multiscales["coordinateTransformations"][0]["output"], "mm RAS")
+        # coordinateSystems lives inside the multiscales entry, not on the ome block
+        self.assertEqual([cs["name"] for cs in multiscales["coordinateSystems"]], ["intrinsic", "mm RAS"])
+        self.assertNotIn("coordinateSystems", ome)
+
+        self.assertEqual(multiscales["coordinateTransformations"][0]["input"], {"name": "intrinsic"})
+        self.assertEqual(multiscales["coordinateTransformations"][0]["output"], {"name": "mm RAS"})
         self.assertEqual(
             [t["type"] for t in multiscales["coordinateTransformations"][0]["transformations"]],
             ["rotation", "translation", "affine"],
         )
 
         dataset_transform = multiscales["datasets"][0]["coordinateTransformations"][0]
-        self.assertEqual(dataset_transform["input"], "0")
-        self.assertEqual(dataset_transform["output"], "intrinsic")
+        self.assertEqual(dataset_transform["input"], {"path": "0"})
+        self.assertEqual(dataset_transform["output"], {"name": "intrinsic"})
         self.assertEqual(dataset_transform["transformations"], [{"type": "scale", "scale": [0.01, 0.01, 0.01]}])
 
         dataset_ome = dict(group["0"].attrs)["ome"]
@@ -414,7 +418,7 @@ class CorrectCoordinateTransformsRfc5Tests(unittest.TestCase):
         shared_transform = dict(group.attrs)["ome"]["multiscales"][0]["coordinateTransformations"][0]
         self.assertIn("affine", [transform["type"] for transform in shared_transform["transformations"]])
         self.assertEqual(shared_transform["transformations"][-1]["type"], "affine")
-        self.assertEqual(shared_transform["output"], "mm RAS")
+        self.assertEqual(shared_transform["output"], {"name": "mm RAS"})
 
     def test_permutation_swaps_first_and_last_spatial_axes_3d(self) -> None:
         intrinsic_axes = [

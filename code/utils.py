@@ -173,11 +173,11 @@ def _transforms_match(left: list[dict], right: list[dict]) -> bool:
     return True
 
 
-def _wrap_transform_sequence(input_name: str, output_name: str, transforms: list[dict]) -> dict:
+def _wrap_transform_sequence(input_ref: dict, output_ref: dict, transforms: list[dict]) -> dict:
     return {
         "type": "sequence",
-        "input": input_name,
-        "output": output_name,
+        "input": input_ref,
+        "output": output_ref,
         "transformations": transforms,
     }
 
@@ -200,7 +200,7 @@ def correct_coordinate_transforms_rfc5(
 
     multiscales_entry = multiscales[0]
     intrinsic_axes = copy.deepcopy(multiscales_entry.get("axes", axes))
-    ome_block["coordinateSystems"] = [
+    multiscales_entry["coordinateSystems"] = [
         {"name": intrinsic_coordinate_system_name, "axes": intrinsic_axes},
         {"name": coordinate_system_name, "axes": copy.deepcopy(axes)},
     ]
@@ -227,8 +227,8 @@ def correct_coordinate_transforms_rfc5(
             )
 
         coordinate_transform_metadata = _wrap_transform_sequence(
-            array_path,
-            intrinsic_coordinate_system_name,
+            {"path": array_path},
+            {"name": intrinsic_coordinate_system_name},
             dataset_transforms,
         )
         _array["coordinateTransformations"] = [coordinate_transform_metadata]
@@ -259,15 +259,15 @@ def correct_coordinate_transforms_rfc5(
     if global_coordinate_transformations:
         multiscales_entry[multiscale_transform_key] = [
             _wrap_transform_sequence(
-                intrinsic_coordinate_system_name,
-                coordinate_system_name,
+                {"name": intrinsic_coordinate_system_name},
+                {"name": coordinate_system_name},
                 global_coordinate_transformations,
             )
         ]
     else:
         multiscales_entry.pop(multiscale_transform_key, None)
 
-    ome_block["version"] = "0.6.dev3"
+    ome_block["version"] = "0.6rc0"
     ome_block["multiscales"] = [multiscales_entry]
     attrs["ome"] = ome_block
     group.attrs.put(attrs)
