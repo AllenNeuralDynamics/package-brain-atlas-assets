@@ -1,4 +1,4 @@
-# hash:sha256:986f4490ad787777d5f6eddd6a7474e42fdf5cd8c1e4afb13f1bd72b67dfdf2d
+# hash:sha256:f9003a6f86fc2c4c17d7ed007a862f4ffe2aa3aec5429eb56378fd42e3af7b28
 ARG REGISTRY_HOST
 FROM $REGISTRY_HOST/codeocean/code-server-python-extensions-pack:code-server4.129.0python3.12.4codeocean-mcp-serveruvpyreflyetc
 
@@ -13,7 +13,6 @@ RUN pip install -U --no-cache-dir \
     cloud-volume==12.14.4 \
     ngff-zarr==0.42.1 \
     nibabel==5.4.2 \
-    ome-zarr==0.18.0 \
     pandas==3.0.5 \
     pyarrow==25.0.1 \
     simpleitk==2.5.6 \
