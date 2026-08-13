@@ -6,11 +6,13 @@ import numpy as np
 import nibabel as nib
 import zarr as zarr_lib
 import re
-from ome_zarr.writer import write_image, write_multiscale
-from ome_zarr.io import parse_url
-from ome_zarr.format import CurrentFormat
 from atlas_builder.template import Template
-from utils import decompose_affine, correct_coordinate_transforms_rfc5
+from utils import (
+    decompose_affine,
+    omero_from_channel_names,
+    write_multiscale_arrays,
+    write_v06_metadata,
+)
 
 # Directory containing the multiresolution, multichannel NIfTI files
 IDISCO_DATA_DIR = Path("/root/capsule/data/idisco_template_multichannel_multiresolution")
@@ -111,20 +113,16 @@ def package_idisco_template(results_dir):
         {"name": "y", "type": "space", "unit": "micrometer"},
         {"name": "x", "type": "space", "unit": "micrometer"},
     ]
-    compressor = {"id": "blosc", "cname": "zstd", "clevel": 3, "shuffle": 1}
-    write_multiscale(
-        arrays,
+    dataset_paths = write_multiscale_arrays(group, arrays, chunks=(1, 128, 128, 128))
+
+    write_v06_metadata(
         group,
-        axes=axes,
-        coordinate_transformations=coordinate_transformations,
-        chunks=(1, 128, 128, 128),
-        compressor=compressor,
-        channel_names=all_channel_names,
+        dataset_paths,
+        coordinate_transformations,
+        intrinsic_axes=axes,
+        world_coordinate_system_name="micrometer RAS",
+        omero=omero_from_channel_names(all_channel_names, arrays[0]),
     )
-    correct_coordinate_transforms_rfc5(group, axes, 
-        coordinate_system_name="micrometer RAS", 
-        intrinsic_coordinate_system_name="intrinsic", 
-        multiscale_transform_key="coordinateTransformations")
     logging.info(f"iDISCO OME-Zarr multiscale pyramid written to {zarr_path}")
 
     # Create and register Template asset

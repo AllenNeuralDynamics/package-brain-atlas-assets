@@ -12,7 +12,7 @@ RUN pip install -U --no-cache-dir \
     brainglobe-atlasapi==2.3.0 \
     cloud-volume==12.12.1 \
     nibabel==5.4.2 \
-    ome-zarr==0.14.0 \
+    ngff-zarr==0.41.1 \
     pandas==3.0.2 \
     pyarrow==23.0.1 \
     simpleitk==2.5.3 \

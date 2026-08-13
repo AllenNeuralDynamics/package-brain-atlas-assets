@@ -9,14 +9,14 @@ import nibabel as nib
 import numpy as np
 import re
 import zarr
-from ome_zarr.writer import write_multiscale
 
 from atlas_builder.atlas_asset import AtlasAsset
 from atlas_builder.coordinate_space import CoordinateSpace
 from utils import (
     decompose_affine,
     write_image_orientation,
-    correct_coordinate_transforms_rfc5,
+    write_multiscale_arrays,
+    write_v06_metadata,
     round_transform_values,
 )
 
@@ -135,18 +135,16 @@ class Template(AtlasAsset):
 
         group = zarr.open(output_zarr_path, mode="w")
         logging.info("Writing OME-Zarr multiscale with affine transforms and chunk size (128, 128, 128)...")
-        compressor = {"id": "blosc", "cname": "zstd", "clevel": 3, "shuffle": 1}
-        
-        write_multiscale(
-            arrays,
-            group,
-            axes=original_orientation,
-            coordinate_transformations=transforms,
-            chunks=(128, 128, 128),
-            compressor=compressor,
-        )
 
-        correct_coordinate_transforms_rfc5(group, axes_orientation)
+        dataset_paths = write_multiscale_arrays(group, arrays, chunks=(128, 128, 128))
+
+        write_v06_metadata(
+            group,
+            dataset_paths,
+            transforms,
+            intrinsic_axes=original_orientation,
+            world_axes=axes_orientation,
+        )
 
         logging.info(f"OME-Zarr multiscale with affine transforms written to {output_zarr_path}")
 
