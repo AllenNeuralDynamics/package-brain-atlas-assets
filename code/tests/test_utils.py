@@ -11,6 +11,8 @@ from atlas_builder.annotation_set import AnnotationSet
 from atlas_builder.coordinate_space import CoordinateSpace
 from atlas_builder.template import Template
 from atlas_builder.terminology import Terminology
+from ngff_zarr.v04.zarr_metadata import Omero, OmeroChannel, OmeroWindow
+
 from utils import convert_mhd_to_nifti, decompose_affine, write_v06_metadata
 
 
@@ -439,6 +441,58 @@ class WriteV06MetadataTests(unittest.TestCase):
             [1.0, 0.0, 0.0, 0.0],
         ])
         np.testing.assert_array_equal(perm_matrix, expected)
+
+    def test_omits_omero_when_not_supplied(self) -> None:
+        axes = [
+            {"name": "z", "type": "space", "unit": "millimeter"},
+            {"name": "y", "type": "space", "unit": "millimeter"},
+            {"name": "x", "type": "space", "unit": "millimeter"},
+        ]
+        transforms_by_path = {"0": build_transform_list([0.01, 0.01, 0.01])}
+
+        group = self.make_group((2, 2, 2), transforms_by_path)
+        ome = self.write(group, transforms_by_path, axes, axes)
+
+        self.assertNotIn("omero", ome)
+        self.assertNotIn("omero", ome["multiscales"][0])
+
+    def test_hoists_omero_to_group_level(self) -> None:
+        axes = [
+            {"name": "c", "type": "channel"},
+            {"name": "z", "type": "space", "unit": "micrometer"},
+            {"name": "y", "type": "space", "unit": "micrometer"},
+            {"name": "x", "type": "space", "unit": "micrometer"},
+        ]
+        transforms_by_path = {"0": build_transform_list([1.0, 10.0, 10.0, 10.0])}
+        omero = Omero(
+            channels=[
+                OmeroChannel(
+                    color="FF0000",
+                    window=OmeroWindow(min=0.0, max=100.0, start=5.0, end=95.0),
+                    label="cfos",
+                )
+            ]
+        )
+
+        group = self.make_group((1, 2, 2, 2), transforms_by_path)
+        write_v06_metadata(
+            group,
+            list(transforms_by_path),
+            list(transforms_by_path.values()),
+            intrinsic_axes=axes,
+            world_axes=axes,
+            omero=omero,
+        )
+        ome = dict(group.attrs)["ome"]
+
+        # omero is group-level: a sibling of multiscales, not part of the entry.
+        self.assertNotIn("omero", ome["multiscales"][0])
+        self.assertEqual(ome["omero"]["channels"][0]["label"], "cfos")
+        self.assertEqual(ome["omero"]["channels"][0]["color"], "FF0000")
+        self.assertEqual(
+            ome["omero"]["channels"][0]["window"],
+            {"min": 0.0, "max": 100.0, "start": 5.0, "end": 95.0},
+        )
 
     def test_permutation_swaps_first_and_last_spatial_axes_4d(self) -> None:
         intrinsic_axes = [

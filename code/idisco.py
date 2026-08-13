@@ -6,10 +6,10 @@ import numpy as np
 import nibabel as nib
 import zarr as zarr_lib
 import re
+from ngff_zarr import compute_omero_from_ngff_image, to_ngff_image
 from atlas_builder.template import Template
 from utils import (
     decompose_affine,
-    omero_from_channel_names,
     write_multiscale_arrays,
     write_v06_metadata,
 )
@@ -115,13 +115,21 @@ def package_idisco_template(results_dir):
     ]
     dataset_paths = write_multiscale_arrays(group, arrays, chunks=(1, 128, 128, 128))
 
+    # Channel rendering metadata: per-channel data range and a 2%-98% display window.
+    # Computed from the coarsest level, which tracks the full-resolution distribution
+    # closely enough for a display window at a fraction of the cost.
+    omero = compute_omero_from_ngff_image(
+        to_ngff_image(arrays[-1], dims=["c", "z", "y", "x"]),
+        labels=all_channel_names,
+    )
+
     write_v06_metadata(
         group,
         dataset_paths,
         coordinate_transformations,
         intrinsic_axes=axes,
         world_coordinate_system_name="micrometer RAS",
-        omero=omero_from_channel_names(all_channel_names, arrays[0]),
+        omero=omero,
     )
     logging.info(f"iDISCO OME-Zarr multiscale pyramid written to {zarr_path}")
 

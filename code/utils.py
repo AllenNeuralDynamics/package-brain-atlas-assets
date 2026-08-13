@@ -9,8 +9,6 @@ import SimpleITK as sitk
 
 from dataclasses import asdict
 
-from ngff_zarr import GLASBEY_COLORS
-from ngff_zarr.v04.zarr_metadata import Omero, OmeroChannel, OmeroWindow
 from ngff_zarr.v06.zarr_metadata import (
     Affine,
     AnatomicalOrientation,
@@ -249,33 +247,6 @@ def _wrap_transform_sequence(input_ref, output_ref, transforms: list[dict]) -> T
     )
 
 
-def omero_from_channel_names(channel_names, array=None):
-    """Build omero rendering metadata for named channels.
-
-    Replaces the omero block ome-zarr's write_multiscale derived from channel_names.
-    Window bounds come from the array's dtype range when one is supplied.
-    """
-    if not channel_names:
-        return None
-
-    if array is not None and np.issubdtype(array.dtype, np.integer):
-        info = np.iinfo(array.dtype)
-        low, high = float(info.min), float(info.max)
-    else:
-        low, high = 0.0, 1.0
-
-    return Omero(
-        channels=[
-            OmeroChannel(
-                color=GLASBEY_COLORS[i % len(GLASBEY_COLORS)].lstrip("#"),
-                window=OmeroWindow(min=low, max=high, start=low, end=high),
-                label=label,
-            )
-            for i, label in enumerate(channel_names)
-        ]
-    )
-
-
 def write_multiscale_arrays(
     group,
     arrays,
@@ -405,14 +376,19 @@ def write_v06_metadata(
     )
 
     # Metadata.extra is a read-side validation aid, never part of a written entry.
-    metadata_dict = asdict(metadata)
+    metadata_dict = _strip_none(asdict(metadata))
     metadata_dict.pop("extra", None)
 
+    # omero is group-level metadata, a sibling of multiscales rather than part of the
+    # entry, so it is hoisted out of the dataclass's nesting.
+    ome_block = {"version": NGFF_VERSION}
+    omero_dict = metadata_dict.pop("omero", None)
+    if omero_dict is not None:
+        ome_block["omero"] = omero_dict
+    ome_block["multiscales"] = [metadata_dict]
+
     attrs = dict(group.attrs)
-    attrs["ome"] = {
-        "version": NGFF_VERSION,
-        "multiscales": [_strip_none(metadata_dict)],
-    }
+    attrs["ome"] = ome_block
     group.attrs.put(attrs)
     logging.info(
         f"Wrote OME-Zarr {NGFF_VERSION} metadata: {len(datasets)} levels, "
