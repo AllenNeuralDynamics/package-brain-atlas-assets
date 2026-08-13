@@ -398,12 +398,12 @@ def uncompress_single_scale(
     logging.info(f"Creating zarr array and writing annotations in batches for scale {scale}")
 
     # Create zarr array
-    zarr_array = zarr_group.create_dataset(
+    zarr_array = zarr_group.create_array(
         zarr_dataset_name,
         shape=uncompressed_shape,
         chunks=zarr_chunks,
         dtype=np.uint8,
-        compressors=(zarr.codecs.BloscCodec(cname="zstd", clevel=3, shuffle=zarr.codecs.BloscShuffle.bitshuffle),),
+        compressors=(zarr.codecs.BloscCodec(cname="zstd", clevel=3, shuffle="bitshuffle"),),
     )
 
     # Process identifiers in batches to manage memory
@@ -664,12 +664,11 @@ def uncompress_annotations_to_zarr(input_dir, terminology, output_dir, scales=(1
 
     # Store annotation_values as a separate array in the zarr group
     if annotation_values is not None:
-        group.create_dataset(
+        # shape and dtype are taken from data; passing either alongside it is an error.
+        group.create_array(
             "annotation_values",
-            shape=annotation_values.shape,
             data=annotation_values,
-            dtype=annotation_values.dtype,
-            compressors=(zarr.codecs.BloscCodec(cname="zstd", clevel=3, shuffle=zarr.codecs.BloscShuffle.shuffle),),
+            compressors=(zarr.codecs.BloscCodec(cname="zstd", clevel=3, shuffle="shuffle"),),
         )
         logging.info(f"Stored {len(annotation_values)} annotation values")
 

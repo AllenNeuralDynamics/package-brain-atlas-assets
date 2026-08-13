@@ -260,9 +260,7 @@ def write_multiscale_arrays(
     write_v06_metadata. Levels are supplied pre-computed, so nothing is downsampled here.
     """
     if compressor is None:
-        compressor = zarr.codecs.BloscCodec(
-            cname="zstd", clevel=3, shuffle=zarr.codecs.BloscShuffle.shuffle
-        )
+        compressor = zarr.codecs.BloscCodec(cname="zstd", clevel=3, shuffle="shuffle")
     if dataset_paths is None:
         dataset_paths = [f"s{i}" for i in range(len(arrays))]
 
