@@ -347,8 +347,9 @@ class CorrectCoordinateTransformsRfc5Tests(unittest.TestCase):
         self.assertEqual(dataset_transform["output"], {"name": "intrinsic"})
         self.assertEqual(dataset_transform["transformations"], [{"type": "scale", "scale": [0.01, 0.01, 0.01]}])
 
-        dataset_ome = dict(group["0"].attrs)["ome"]
-        self.assertEqual(dataset_ome["coordinateTransformations"], multiscales["datasets"][0]["coordinateTransformations"])
+        # The array node carries no ome metadata of its own: a transform stored there
+        # could only reference coordinate systems that node does not define.
+        self.assertNotIn("ome", dict(group["0"].attrs))
 
     def test_preserves_channel_identity_for_4d_intrinsic_scale(self) -> None:
         intrinsic_axes = [

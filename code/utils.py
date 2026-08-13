@@ -233,14 +233,9 @@ def correct_coordinate_transforms_rfc5(
         )
         _array["coordinateTransformations"] = [coordinate_transform_metadata]
 
-        # Apply same coordinate transform to all zarr arrays
-        array_attr = dict(group[array_path].attrs)
-        ome_attr = array_attr.get("ome", {})
-        ome_attr["coordinateTransformations"] = _array.get("coordinateTransformations")
-
-        logging.info(f"OME attr: {ome_attr}")
-        array_attr["ome"] = ome_attr
-        group[array_path].attrs.put(array_attr)
+        # The transform is not copied onto the array node itself: the spec permits
+        # coordinateTransformations only inside multiscales > datasets,
+        # multiscales > coordinateTransformations, or scene > coordinateTransformations.
 
     # Build permutation to swap first and last spatial axes
     # so the intrinsic order (z=R, y=A, x=S) maps to mm RAS (z=S, y=A, x=R)
