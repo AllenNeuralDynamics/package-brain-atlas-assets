@@ -13,7 +13,12 @@ from atlas_builder.template import Template
 from atlas_builder.terminology import Terminology
 from ngff_zarr.v04.zarr_metadata import Omero, OmeroChannel, OmeroWindow
 
-from utils import convert_mhd_to_nifti, decompose_affine, write_v06_metadata
+from utils import (
+    convert_mhd_to_nifti,
+    decompose_affine,
+    write_multiscale_arrays,
+    write_v06_metadata,
+)
 
 
 class FakeSimpleITKImage:
@@ -274,6 +279,52 @@ class AnnotationSetCreateFromMhdTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tempdir:
             with self.assertRaisesRegex(ValueError, "single-scale"):
                 annotation_set.create_from_mhd("annotation.mhd", tempdir)
+
+
+class WriteMultiscaleArraysTests(unittest.TestCase):
+    def make_group(self):
+        tempdir = tempfile.TemporaryDirectory()
+        self.addCleanup(tempdir.cleanup)
+        return zarr.open_group(tempdir.name, mode="w")
+
+    def test_clamps_chunks_to_level_shape(self) -> None:
+        group = self.make_group()
+        # Coarse levels smaller than the requested chunk must not be padded out to it.
+        arrays = [np.zeros((264, 160, 228), dtype=np.float32), np.zeros((132, 80, 114), dtype=np.float32)]
+
+        paths = write_multiscale_arrays(group, arrays, chunks=(128, 128, 128))
+
+        self.assertEqual(paths, ["s0", "s1"])
+        self.assertEqual(tuple(group["s0"].chunks), (128, 128, 128))
+        self.assertEqual(tuple(group["s1"].chunks), (128, 80, 114))
+        for path, array in zip(paths, arrays):
+            self.assertTrue(all(c <= s for c, s in zip(group[path].chunks, array.shape)))
+
+    def test_applies_blosc_compression(self) -> None:
+        group = self.make_group()
+
+        write_multiscale_arrays(group, [np.zeros((8, 8, 8), dtype=np.float32)], chunks=(4, 4, 4))
+
+        blosc = [c for c in group["s0"].compressors if type(c).__name__ == "BloscCodec"]
+        self.assertEqual(len(blosc), 1, f"expected a BloscCodec, got {group['s0'].compressors}")
+        # cname/shuffle are plain strings in some zarr versions and enums in others.
+        cname = blosc[0].cname
+        self.assertEqual(getattr(cname, "value", cname), "zstd")
+        self.assertEqual(blosc[0].clevel, 3)
+
+    def test_rejects_chunks_of_wrong_rank(self) -> None:
+        group = self.make_group()
+
+        with self.assertRaisesRegex(ValueError, "3-dimensional but chunks has 4"):
+            write_multiscale_arrays(group, [np.zeros((4, 4, 4), dtype=np.float32)], chunks=(1, 4, 4, 4))
+
+    def test_round_trips_array_contents(self) -> None:
+        group = self.make_group()
+        array = np.arange(2 * 3 * 4, dtype=np.float32).reshape(2, 3, 4)
+
+        write_multiscale_arrays(group, [array], chunks=(128, 128, 128))
+
+        np.testing.assert_array_equal(group["s0"][...], array)
 
 
 class WriteV06MetadataTests(unittest.TestCase):

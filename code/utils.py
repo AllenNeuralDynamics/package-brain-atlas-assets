@@ -258,6 +258,9 @@ def write_multiscale_arrays(
 
     Only the arrays are written; multiscale metadata is written separately by
     write_v06_metadata. Levels are supplied pre-computed, so nothing is downsampled here.
+
+    ``chunks`` is clamped per axis to the level's shape, so the coarsest levels are not
+    padded out to a chunk far larger than the data they hold.
     """
     if compressor is None:
         compressor = zarr.codecs.BloscCodec(cname="zstd", clevel=3, shuffle="shuffle")
@@ -265,14 +268,22 @@ def write_multiscale_arrays(
         dataset_paths = [f"s{i}" for i in range(len(arrays))]
 
     for path, array in zip(dataset_paths, arrays):
+        if len(chunks) != array.ndim:
+            raise ValueError(
+                f"Dataset {path} is {array.ndim}-dimensional but chunks has {len(chunks)} entries: {chunks}"
+            )
+        level_chunks = tuple(min(c, s) for c, s in zip(chunks, array.shape))
+
         group.create_array(
             path,
             shape=array.shape,
             dtype=array.dtype,
-            chunks=chunks,
+            chunks=level_chunks,
             compressors=(compressor,),
         )[...] = array
-        logging.info(f"Wrote {path}: shape {array.shape}, dtype {array.dtype}")
+        logging.info(
+            f"Wrote {path}: shape {array.shape}, dtype {array.dtype}, chunks {level_chunks}"
+        )
 
     return list(dataset_paths)
 
