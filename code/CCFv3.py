@@ -1,6 +1,5 @@
 """CCF 3 mouse brain atlas packaging functions."""
 
-import glob
 import logging
 import shutil
 from pathlib import Path
@@ -14,8 +13,6 @@ from atlas_builder import (
     Atlas,
     Terminology,
 )
-from atlas_builder.mesh import Mesh
-from atlas_builder.precomputed import append_meshes_to_precomputed
 from atlas_builder.annotation_set import uncompress_annotations_to_zarr
 
 import datetime
@@ -119,21 +116,6 @@ def _write_ontology_data_description(output_dir: Path, name: str, version: str, 
     )
     dd.write_standard_file(output_directory=output_dir)
     logging.info(f"Wrote data_description.json for ontology {name} {version} to {output_dir}")
-
-
-def load_ccf3_meshes(mesh_dir):
-    """Load CCF 3 meshes from a directory.
-    Args:
-        mesh_dir (Path): Directory containing .obj mesh files.
-    Yields:
-        tuple: (Mesh, identifier) where Mesh is an instance of Mesh class and identifier is the mapped identifier.
-    """
-
-    for fname in glob.glob(str(mesh_dir / "*.obj")):
-        obj_id = int(Path(fname).stem.split("_")[1])
-
-        mesh = Mesh.from_obj(fname)
-        yield mesh, obj_id
 
 
 def create_all_ccf_templates(
@@ -261,7 +243,9 @@ def create_all_ccf_annotation_sets(input_dir, results_dir, library, scales=(10, 
         annotation_set.create_from_nifti(
             input_prefix=annotation_dir / "annotation",
             output_root=results_dir,
-            include_meshes=False,  # handling meshes separately
+            # Only 2017 has ever carried meshes; meshing every set would be new output
+            # and a meshing pass per hierarchy level on each of them.
+            include_meshes=annotation["version"] == "2017",
         )
 
         annotation_output_dir = annotation_set.location(results_dir)
@@ -284,17 +268,6 @@ def create_all_ccf_annotation_sets(input_dir, results_dir, library, scales=(10, 
 
         annotation_set.create_manifest(results_dir)
         library.add(annotation_set)
-
-    meshes = load_ccf3_meshes(Path("/data/ccf_meshes/mcc/annotation/ccf_2017/structure_meshes"))
-    append_meshes_to_precomputed(
-        meshes,
-        results_dir
-        / "annotation-sets"
-        / "allen-adult-mouse-annotation"
-        / "2017"
-        / "annotations.precomputed",
-        scale=1000,  # convert to nanometers
-    )
 
     logging.info("All CCF anatomical annotation sets created successfully")
 

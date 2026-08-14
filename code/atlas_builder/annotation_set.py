@@ -19,8 +19,9 @@ from atlas_builder.template import Template
 from atlas_builder.atlas_asset import AtlasAsset
 from atlas_builder.coordinate_space import CoordinateSpace
 from atlas_builder.terminology import Terminology
+from atlas_builder.multires_mesh import create_multires_meshes
 from atlas_builder.precomputed import (convert_compressed_annotations_to_precomputed,
-                                      write_segment_properties, create_mesh_from_compressed_annotation)
+                                      write_segment_properties)
 from utils import (
     convert_mhd_to_nifti,
     decompose_affine,
@@ -123,9 +124,10 @@ class AnnotationSet(AtlasAsset):
         )
 
         if include_meshes:
-            # Create mesh precomputed objects from annotation
-            logging.info(f"Creating meshes from annotation to {precomputed_output}")
-            create_mesh_from_compressed_annotation(high_res_data, self.scales, self.terminology.df, precomputed_output)
+            # Meshes are read back out of the precomputed volume written above, so this
+            # must follow convert_compressed_annotations_to_precomputed.
+            logging.info(f"Creating multi-resolution meshes in {precomputed_output}")
+            create_multires_meshes(precomputed_output, self.terminology.df)
 
         # Compute voxel counts for all terms using highest resolution data
         logging.info("Computing voxel counts for all terms at highest resolution...")
