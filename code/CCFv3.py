@@ -243,9 +243,7 @@ def create_all_ccf_annotation_sets(input_dir, results_dir, library, scales=(10, 
         annotation_set.create_from_nifti(
             input_prefix=annotation_dir / "annotation",
             output_root=results_dir,
-            # Only 2017 has ever carried meshes; meshing every set would be new output
-            # and a meshing pass per hierarchy level on each of them.
-            include_meshes=annotation["version"] == "2017",
+            include_meshes=True,
         )
 
         annotation_output_dir = annotation_set.location(results_dir)
