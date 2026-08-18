@@ -1,6 +1,6 @@
 """Main orchestration script for packaging brain atlas data assets."""
 
-# Requirements: nibabel, ome-zarr, zarr
+# Requirements: nibabel, ngff-zarr, zarr
 
 import argparse
 import atexit

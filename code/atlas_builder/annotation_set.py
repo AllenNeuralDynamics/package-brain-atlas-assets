@@ -13,7 +13,6 @@ import tensorstore as ts
 import zarr
 
 
-from ome_zarr.writer import write_multiscale, write_multiscales_metadata
 
 from atlas_builder.template import Template
 from atlas_builder.atlas_asset import AtlasAsset
@@ -26,7 +25,8 @@ from utils import (
     convert_mhd_to_nifti,
     decompose_affine,
     write_image_orientation,
-    correct_coordinate_transforms_rfc5,
+    write_multiscale_arrays,
+    write_v06_metadata,
     round_transform_values,
 )
 
@@ -400,12 +400,12 @@ def uncompress_single_scale(
     logging.info(f"Creating zarr array and writing annotations in batches for scale {scale}")
 
     # Create zarr array
-    zarr_array = zarr_group.create_dataset(
+    zarr_array = zarr_group.create_array(
         zarr_dataset_name,
         shape=uncompressed_shape,
         chunks=zarr_chunks,
         dtype=np.uint8,
-        compressors=(zarr.codecs.BloscCodec(cname="zstd", clevel=3, shuffle=zarr.codecs.BloscShuffle.bitshuffle),),
+        compressors=(zarr.codecs.BloscCodec(cname="zstd", clevel=3, shuffle="bitshuffle"),),
     )
 
     # Process identifiers in batches to manage memory
@@ -496,19 +496,17 @@ def convert_compressed_annotations_to_zarr(compressed_results, output_dir, scale
 
         logging.info("Writing OME-Zarr multiscale compressed annotations with chunk size (128, 128, 128)...")
 
-        # Dictionary format for ome-zarr write_multiscale
-        compressor_dict = {"id": "blosc", "cname": "zstd", "clevel": 3, "shuffle": 1}
-
-        write_multiscale(
-            arrays,
-            group,
-            axes=original_orientation,
-            coordinate_transformations=transforms,
-            chunks=(128, 128, 128),  # 3D chunks for compressed data
-            compressor=compressor_dict,
+        dataset_paths = write_multiscale_arrays(
+            group, arrays, chunks=(128, 128, 128)  # 3D chunks for compressed data
         )
 
-        correct_coordinate_transforms_rfc5(group, axes_orientation)
+        write_v06_metadata(
+            group,
+            dataset_paths,
+            transforms,
+            intrinsic_axes=original_orientation,
+            world_axes=axes_orientation,
+        )
 
         logging.info(f"OME-Zarr multiscale compressed annotations written to {output_zarr_path}")
     else:
@@ -657,32 +655,22 @@ def uncompress_annotations_to_zarr(input_dir, terminology, output_dir, scales=(1
         logging.error("No valid scales found")
         return
 
-    # Set up OME-Zarr metadata
-
-    # Write metadata
-    write_multiscales_metadata(
+    # The arrays were streamed into the group above, so only metadata is written here.
+    write_v06_metadata(
         group,
-        datasets=[
-            {
-                "path": f"s{i}",
-                "coordinateTransformations": transforms[i],
-            }
-            for i in range(len(zarr_arrays))
-        ],
-        axes=original_orientation if original_orientation is not None else axes,
+        [f"s{i}" for i in range(len(zarr_arrays))],
+        transforms,
+        intrinsic_axes=original_orientation if original_orientation is not None else axes,
+        world_axes=axes_orientation,
     )
-
-    if axes_orientation is not None:
-        correct_coordinate_transforms_rfc5(group, axes_orientation)
 
     # Store annotation_values as a separate array in the zarr group
     if annotation_values is not None:
-        group.create_dataset(
+        # shape and dtype are taken from data; passing either alongside it is an error.
+        group.create_array(
             "annotation_values",
-            shape=annotation_values.shape,
             data=annotation_values,
-            dtype=annotation_values.dtype,
-            compressors=(zarr.codecs.BloscCodec(cname="zstd", clevel=3, shuffle=zarr.codecs.BloscShuffle.shuffle),),
+            compressors=(zarr.codecs.BloscCodec(cname="zstd", clevel=3, shuffle="shuffle"),),
         )
         logging.info(f"Stored {len(annotation_values)} annotation values")
 

@@ -6,11 +6,13 @@ import numpy as np
 import nibabel as nib
 import zarr as zarr_lib
 import re
-from ome_zarr.writer import write_image, write_multiscale
-from ome_zarr.io import parse_url
-from ome_zarr.format import CurrentFormat
+from ngff_zarr import compute_omero_from_ngff_image, to_ngff_image
 from atlas_builder.template import Template
-from utils import decompose_affine, correct_coordinate_transforms_rfc5
+from utils import (
+    decompose_affine,
+    write_multiscale_arrays,
+    write_v06_metadata,
+)
 
 # Directory containing the multiresolution, multichannel NIfTI files
 IDISCO_DATA_DIR = Path("/root/capsule/data/idisco_template_multichannel_multiresolution")
@@ -111,20 +113,24 @@ def package_idisco_template(results_dir):
         {"name": "y", "type": "space", "unit": "micrometer"},
         {"name": "x", "type": "space", "unit": "micrometer"},
     ]
-    compressor = {"id": "blosc", "cname": "zstd", "clevel": 3, "shuffle": 1}
-    write_multiscale(
-        arrays,
-        group,
-        axes=axes,
-        coordinate_transformations=coordinate_transformations,
-        chunks=(1, 128, 128, 128),
-        compressor=compressor,
-        channel_names=all_channel_names,
+    dataset_paths = write_multiscale_arrays(group, arrays, chunks=(1, 128, 128, 128))
+
+    # Channel rendering metadata: per-channel data range and a 2%-98% display window.
+    # Computed from the coarsest level, which tracks the full-resolution distribution
+    # closely enough for a display window at a fraction of the cost.
+    omero = compute_omero_from_ngff_image(
+        to_ngff_image(arrays[-1], dims=["c", "z", "y", "x"]),
+        labels=all_channel_names,
     )
-    correct_coordinate_transforms_rfc5(group, axes, 
-        coordinate_system_name="micrometer RAS", 
-        intrinsic_coordinate_system_name="intrinsic", 
-        multiscale_transform_key="coordinateTransformations")
+
+    write_v06_metadata(
+        group,
+        dataset_paths,
+        coordinate_transformations,
+        intrinsic_axes=axes,
+        world_coordinate_system_name="micrometer RAS",
+        omero=omero,
+    )
     logging.info(f"iDISCO OME-Zarr multiscale pyramid written to {zarr_path}")
 
     # Create and register Template asset
