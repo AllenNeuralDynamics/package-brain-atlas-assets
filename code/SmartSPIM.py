@@ -166,7 +166,13 @@ def copy_processing(input_dir, output_dir):
                     url=dp["code_url"],
                     version=dp["code_version"],
                     parameters=dp["parameters"],
-                    input_data=[DataAsset(url=s) for s in dp["input_location"].split(",")],
+                    # Blank entries are dropped: an empty input_location splits to [""],
+                    # and DataAsset requires a name or url from aind-data-schema 2.9.0 on.
+                    input_data=[
+                        DataAsset(url=s.strip())
+                        for s in dp["input_location"].split(",")
+                        if s.strip()
+                    ],
                 ),
             )
             for i, dp in enumerate(data["processing_pipeline"]["data_processes"])
