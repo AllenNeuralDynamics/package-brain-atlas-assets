@@ -144,7 +144,7 @@ def create_multires_meshes(
     terminology,
     mesh_dir="mesh",
     task_shape=None,
-    simplification_error_voxels=0.25,
+    simplification_error_voxels=0.02,
     parallel=12,
     merge_parallel=1,
 ):
@@ -160,12 +160,17 @@ def create_multires_meshes(
         simplification_error_voxels: Simplification tolerance as a fraction of a voxel,
             converted to the nanometres igneous expects. Expressed in voxels because the
             atlases span 10um to 700um resolutions and a fixed nanometre figure would mean
-            something different in each. At a quarter of a voxel the decimation removes
-            marching-cubes staircase, which is discretization rather than anatomy, while
-            staying well inside one voxel of the original surface. Measured on real CCF
-            structures it cuts vertex counts roughly 25x from the raw surface with mean
-            deviation near 0.2 voxels; the parameter saturates around half a voxel, where
-            zmesh's own quality floor binds first.
+            something different in each.
+
+            The value is set by the thinnest structures rather than the typical ones. Note
+            that zmesh bounds how far a surviving vertex may move, not how far the surface
+            may depart: collapsing vertices lets the surface bow well past the tolerance,
+            by an order of magnitude or more. In CCF 2017 the median leaf structure is 7.7
+            voxels thick, 72% are under 10 and 6% are under 2 -- layer 6b sheets run 1.2 to
+            1.7. At a quarter voxel the worst-case departure on a 1.4 voxel sheet reached a
+            full 1.4 voxels, enough to pinch it away locally, and cost 13% of its surface
+            area. At 0.02 that falls to under 8% while still halving vertex counts against
+            an untuned 40nm, which is what this used to pass at 10um.
         parallel: Concurrent meshing workers. Every hierarchy level is queued at once, so
             this parallelises across levels even when task_shape is the whole volume and
             each level is a single task. There is one task per level, so raising this above
