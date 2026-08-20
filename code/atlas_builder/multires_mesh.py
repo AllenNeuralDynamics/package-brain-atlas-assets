@@ -143,8 +143,8 @@ def create_multires_meshes(
     precomputed_output,
     terminology,
     mesh_dir="mesh",
-    task_shape=(448, 448, 448),
-    max_simplification_error=40,
+    task_shape=None,
+    simplification_error_voxels=0.25,
     parallel=8,
     merge_parallel=1,
 ):
@@ -154,9 +154,20 @@ def create_multires_meshes(
         precomputed_output: Path to an existing precomputed segmentation layer.
         terminology: Terminology DataFrame with annotation_value and
             descendant_annotation_values columns.
-        task_shape: Meshing task size in voxels. Chunk alignment is not required.
-        max_simplification_error: Simplification tolerance in nanometres.
-        parallel: Worker count for meshing.
+        task_shape: Meshing task size in voxels. Defaults to the whole volume, so each
+            structure is meshed in one piece and no task boundaries exist to seam across.
+            A smaller shape restores parallelism at the cost of reintroducing them.
+        simplification_error_voxels: Simplification tolerance as a fraction of a voxel,
+            converted to the nanometres igneous expects. Expressed in voxels because the
+            atlases span 10um to 700um resolutions and a fixed nanometre figure would mean
+            something different in each. At a quarter of a voxel the decimation removes
+            marching-cubes staircase, which is discretization rather than anatomy, while
+            staying well inside one voxel of the original surface. Measured on real CCF
+            structures it cuts vertex counts roughly 25x from the raw surface with mean
+            deviation near 0.2 voxels; the parameter saturates around half a voxel, where
+            zmesh's own quality floor binds first.
+        parallel: Worker count for meshing. Only has an effect when task_shape is smaller
+            than the volume, since otherwise each pass is a single task.
         merge_parallel: Worker count for the merge pass. Kept low by default: the merge
             holds an entire structure's mesh in memory, and the root structure spans the
             whole volume, so this pass sets the peak memory of the pipeline.
@@ -170,6 +181,18 @@ def create_multires_meshes(
     precomputed_output = Path(precomputed_output).resolve()
     cloudpath = f"file://{precomputed_output}"
 
+    # mip 0 throughout: it is what the meshing pass below reads, and the mesh metadata
+    # that would report a mip of its own does not exist until that pass has run.
+    volume = CloudVolume(cloudpath)
+    volume_shape = tuple(int(x) for x in volume.meta.bounds(0).size3())
+    if task_shape is None:
+        task_shape = volume_shape
+
+    # The smallest axis, so the tolerance is at most the requested fraction of a voxel
+    # on anisotropic volumes rather than more on the finer axes.
+    voxel_nm = min(float(x) for x in volume.resolution)
+    max_simplification_error = simplification_error_voxels * voxel_nm
+
     remap_tables = build_hierarchy_remap_tables(terminology)
     structure_count = sum(len(set(table.values())) for table in remap_tables)
     logging.info(
@@ -178,6 +201,11 @@ def create_multires_meshes(
     )
 
     _clear_mesh_dir(precomputed_output, mesh_dir)
+    logging.info(
+        f"Volume {volume_shape} at {voxel_nm:g}nm, meshing task shape {tuple(task_shape)}, "
+        f"simplification error {simplification_error_voxels:g} voxels "
+        f"({max_simplification_error:g}nm)"
+    )
 
     for depth, table in enumerate(remap_tables):
         structures = len(set(table.values()))
@@ -215,8 +243,8 @@ def create_multires_meshes(
 
     # Must follow every meshing pass: create_meshing_tasks rewrites the mesh info as
     # neuroglancer_legacy_mesh each time it runs, and only the merge restores multilod.
-    volume = CloudVolume(cloudpath)
-    min_chunk_size = tuple(int(x) for x in volume.meta.bounds(volume.mesh.meta.mip).size3())
+    # min_chunk_size bounds every object, so no level of detail is split into fragments.
+    min_chunk_size = volume_shape
     logging.info(f"Merging to multi-resolution meshes, min_chunk_size={min_chunk_size}")
 
     queue = LocalTaskQueue(parallel=merge_parallel)
