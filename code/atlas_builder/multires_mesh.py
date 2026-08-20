@@ -145,7 +145,7 @@ def create_multires_meshes(
     mesh_dir="mesh",
     task_shape=None,
     simplification_error_voxels=0.25,
-    parallel=8,
+    parallel=12,
     merge_parallel=1,
 ):
     """Write single-LOD multi-resolution meshes for every structure in the terminology.
@@ -168,9 +168,17 @@ def create_multires_meshes(
             zmesh's own quality floor binds first.
         parallel: Concurrent meshing workers. Every hierarchy level is queued at once, so
             this parallelises across levels even when task_shape is the whole volume and
-            each level is a single task. Each worker holds a copy of the volume plus its
-            mesher state, so peak memory is roughly parallel times that: budget about 7GB
-            per worker for a 1140x800x1320 uint32 volume and scale with volume size.
+            each level is a single task. There is one task per level, so raising this above
+            the hierarchy depth does nothing: the terminologies here are 11 levels for adult
+            mouse, 14 for dev mouse and 15 for HMBA.
+
+            Each worker holds its own copy of the volume plus mesher state, so peak memory
+            is roughly parallel times that. A 1140x800x1320 uint32 volume, the largest here
+            at 4.8GB, peaked near 7GB per worker; the coarser atlases are far smaller. The
+            default of 12 is sized for a 128GB machine, where the worst case of a 14 level
+            hierarchy over a 10um volume lands around 84GB and leaves headroom. Lower it on
+            a smaller machine -- meshing degrades to sequential rather than failing, but
+            exceeding memory will not.
         merge_parallel: Worker count for the merge pass. Kept low by default: the merge
             holds an entire structure's mesh in memory, and the root structure spans the
             whole volume, so this pass sets the peak memory of the pipeline.
