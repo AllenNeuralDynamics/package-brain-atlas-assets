@@ -166,8 +166,11 @@ def create_multires_meshes(
             structures it cuts vertex counts roughly 25x from the raw surface with mean
             deviation near 0.2 voxels; the parameter saturates around half a voxel, where
             zmesh's own quality floor binds first.
-        parallel: Worker count for meshing. Only has an effect when task_shape is smaller
-            than the volume, since otherwise each pass is a single task.
+        parallel: Concurrent meshing workers. Every hierarchy level is queued at once, so
+            this parallelises across levels even when task_shape is the whole volume and
+            each level is a single task. Each worker holds a copy of the volume plus its
+            mesher state, so peak memory is roughly parallel times that: budget about 7GB
+            per worker for a 1140x800x1320 uint32 volume and scale with volume size.
         merge_parallel: Worker count for the merge pass. Kept low by default: the merge
             holds an entire structure's mesh in memory, and the root structure spans the
             whole volume, so this pass sets the peak memory of the pipeline.
@@ -207,39 +210,52 @@ def create_multires_meshes(
         f"({max_simplification_error:g}nm)"
     )
 
-    for depth, table in enumerate(remap_tables):
-        structures = len(set(table.values()))
-        logging.info(f"Meshing depth {depth}: {structures} structures, {len(table)} source labels")
-
-        tasks = list(
-            tc.create_meshing_tasks(
-                cloudpath,
-                mip=0,
-                shape=task_shape,
-                mesh_dir=mesh_dir,
-                sharded=False,
-                # The merge pass reads fragments with Mesh.from_precomputed unconditionally.
-                encoding="precomputed",
-                # Written per bounding box, so each depth would overwrite the last, leaving
-                # an index describing only the final level. The unsharded merge never reads it.
-                spatial_index=False,
-                # Closes surfaces where a structure is clipped by the volume edge.
-                closed_dataset_edges=True,
-                # tensorstore omits chunks that are entirely background, which CloudVolume
-                # would otherwise report as missing rather than empty.
-                fill_missing=True,
-                simplification=True,
-                max_simplification_error=max_simplification_error,
-                compress=None,
-            )
+    # Called once rather than per depth. The task list depends only on the volume and the
+    # shape, so the levels differ solely by remap table -- and calling it repeatedly would
+    # rewrite the mesh info each time, which concurrent passes would race on.
+    template_tasks = list(
+        tc.create_meshing_tasks(
+            cloudpath,
+            mip=0,
+            shape=task_shape,
+            mesh_dir=mesh_dir,
+            sharded=False,
+            # The merge pass reads fragments with Mesh.from_precomputed unconditionally.
+            encoding="precomputed",
+            # Written per bounding box, so each depth would overwrite the last, leaving
+            # an index describing only the final level. The unsharded merge never reads it.
+            spatial_index=False,
+            # Closes surfaces where a structure is clipped by the volume edge.
+            closed_dataset_edges=True,
+            # tensorstore omits chunks that are entirely background, which CloudVolume
+            # would otherwise report as missing rather than empty.
+            fill_missing=True,
+            simplification=True,
+            max_simplification_error=max_simplification_error,
+            compress=None,
         )
-        # create_meshing_tasks exposes no remap parameter, but the underlying task accepts
-        # one, so the tasks are rebuilt with the level's table attached.
-        tasks = [MeshTask(**{**task._args, "remap_table": dict(table)}) for task in tasks]
+    )
 
-        queue = LocalTaskQueue(parallel=parallel)
-        queue.insert(tasks)
-        queue.execute()
+    # Every depth is queued at once. The levels are independent -- each remaps the volume
+    # for its own antichain of structures -- and their label sets are disjoint, so the
+    # per-label fragment filenames cannot collide between them. Running them concurrently
+    # is what recovers the parallelism that a whole-volume task_shape otherwise gives up,
+    # without reintroducing the task boundaries that shape exists to avoid.
+    # create_meshing_tasks exposes no remap parameter, but the underlying task accepts one.
+    tasks = [
+        MeshTask(**{**template._args, "remap_table": dict(table)})
+        for table in remap_tables
+        for template in template_tasks
+    ]
+    for depth, table in enumerate(remap_tables):
+        logging.info(
+            f"Queued depth {depth}: {len(set(table.values()))} structures, {len(table)} source labels"
+        )
+    logging.info(f"Meshing {len(tasks)} tasks with parallel={parallel}")
+
+    queue = LocalTaskQueue(parallel=parallel)
+    queue.insert(tasks)
+    queue.execute()
 
     # Must follow every meshing pass: create_meshing_tasks rewrites the mesh info as
     # neuroglancer_legacy_mesh each time it runs, and only the merge restores multilod.
