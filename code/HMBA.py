@@ -361,7 +361,7 @@ def create_all_ccf_annotation_sets(input_dir: Path, results_dir: Path, library, 
 
 def create_homba_parcellation_terminology(input_dir, output_dir, library):
     """Create parcellation terminology from HOMBA structure hierarchy."""
-    input_path = input_dir / "annotation" / "HOMBA_v1.csv"
+    input_path = input_dir / "annotation" / "HOMBA_v1_2_0.csv"
 
     df = pd.read_csv(input_path)
     df["color_hex_triplet"] = [f"#{r:02x}{g:02x}{b:02x}" for r, g, b in zip(df["r"], df["g"], df["b"])]
