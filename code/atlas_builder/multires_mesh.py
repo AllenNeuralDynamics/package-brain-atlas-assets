@@ -144,7 +144,7 @@ def create_multires_meshes(
     terminology,
     mesh_dir="mesh",
     task_shape=None,
-    simplification_factor=100,
+    simplification_factor=10,
     simplification_error_voxels=0.02,
     parallel=12,
     merge_parallel=1,
@@ -159,12 +159,15 @@ def create_multires_meshes(
             structure is meshed in one piece and no task boundaries exist to seam across.
             A smaller shape restores parallelism at the cost of reintroducing them.
         simplification_factor: Target face-count reduction ratio passed to zmesh. A value
-            of N asks zmesh to reduce faces to roughly 1/N of the raw marching-cubes count.
-            The actual reduction is capped by simplification_error_voxels. igneous hardcodes
-            100 internally; override it here when that is too aggressive (e.g. HOMBA atlases
-            at 700 µm, where factor=100 reduces the CNS root mesh from 135 k to ~2 k faces).
-            Use 10 for coarse atlases (≥ 500 µm); the default 100 is appropriate for CCF
-            (10 µm) where structures have millions of raw faces.
+            of N asks zmesh to reduce faces to roughly 1/N of the raw marching-cubes count,
+            subject to simplification_error_voxels. igneous hardcodes 100 internally; this
+            parameter overrides it.
+
+            Validation at CCF (10 µm) showed max_error becomes binding around factor=30–50,
+            so factor=100 and factor=50 give identical results -- both too few faces. At
+            factor=10 the face count is factor-determined (10% of raw), giving visually
+            acceptable meshes across the full size range. Use a higher value only if mesh
+            file size becomes a concern for very large volumes.
         simplification_error_voxels: Simplification tolerance as a fraction of a voxel,
             converted to the nanometres igneous expects. Expressed in voxels because the
             atlases span 10um to 700um resolutions and a fixed nanometre figure would mean

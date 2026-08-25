@@ -81,7 +81,7 @@ class AnnotationSet(AtlasAsset):
             template=template,
         )
 
-    def create(self, compressed_results, output_root, include_meshes=True, simplification_factor=100, simplification_error_voxels=0.02):
+    def create(self, compressed_results, output_root, include_meshes=True, simplification_factor=10, simplification_error_voxels=0.02):
         """Create annotation set from compressed annotation data at multiple scales.
 
         Args:
@@ -140,7 +140,7 @@ class AnnotationSet(AtlasAsset):
 
         logging.info(f"Created annotation set at {output_dir}")
 
-    def create_from_nifti(self, input_prefix, output_root, include_meshes=True, simplification_factor=100, simplification_error_voxels=0.02):
+    def create_from_nifti(self, input_prefix, output_root, include_meshes=True, simplification_factor=10, simplification_error_voxels=0.02):
         """Create annotation set from NIfTI source files with standardized naming convention.
 
         Args:
@@ -168,7 +168,7 @@ class AnnotationSet(AtlasAsset):
         mhd_path,
         output_root,
         include_meshes=True,
-        simplification_factor=100,
+        simplification_factor=10,
         simplification_error_voxels=0.02,
         output_direction=None,
         output_origin=None,
