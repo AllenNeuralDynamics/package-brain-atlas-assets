@@ -144,6 +144,7 @@ def create_multires_meshes(
     terminology,
     mesh_dir="mesh",
     task_shape=None,
+    simplification_factor=100,
     simplification_error_voxels=0.02,
     parallel=12,
     merge_parallel=1,
@@ -157,6 +158,13 @@ def create_multires_meshes(
         task_shape: Meshing task size in voxels. Defaults to the whole volume, so each
             structure is meshed in one piece and no task boundaries exist to seam across.
             A smaller shape restores parallelism at the cost of reintroducing them.
+        simplification_factor: Target face-count reduction ratio passed to zmesh. A value
+            of N asks zmesh to reduce faces to roughly 1/N of the raw marching-cubes count.
+            The actual reduction is capped by simplification_error_voxels. igneous hardcodes
+            100 internally; override it here when that is too aggressive (e.g. HOMBA atlases
+            at 700 µm, where factor=100 reduces the CNS root mesh from 135 k to ~2 k faces).
+            Use 10 for coarse atlases (≥ 500 µm); the default 100 is appropriate for CCF
+            (10 µm) where structures have millions of raw faces.
         simplification_error_voxels: Simplification tolerance as a fraction of a voxel,
             converted to the nanometres igneous expects. Expressed in voxels because the
             atlases span 10um to 700um resolutions and a fixed nanometre figure would mean
@@ -219,6 +227,7 @@ def create_multires_meshes(
     _clear_mesh_dir(precomputed_output, mesh_dir)
     logging.info(
         f"Volume {volume_shape} at {voxel_nm:g}nm, meshing task shape {tuple(task_shape)}, "
+        f"simplification factor {simplification_factor}, "
         f"simplification error {simplification_error_voxels:g} voxels "
         f"({max_simplification_error:g}nm)"
     )
@@ -256,7 +265,7 @@ def create_multires_meshes(
     # without reintroducing the task boundaries that shape exists to avoid.
     # create_meshing_tasks exposes no remap parameter, but the underlying task accepts one.
     tasks = [
-        MeshTask(**{**template._args, "remap_table": dict(table)})
+        MeshTask(**{**template._args, "remap_table": dict(table), "simplification_factor": simplification_factor})
         for table in remap_tables
         for template in template_tasks
     ]
