@@ -261,6 +261,7 @@ def create_all_ccf_annotation_sets(input_dir: Path, results_dir: Path, library, 
             "scale": scales["hcp"],
             "summary": HCP_HOMBA_ANNOTATION_DESCRIPTION,
             "creation_time": HCP_HOMBA_ANNOTATION_CREATION_TIME,
+            "simplify": False,
         },
         {
             "directory": "hcp_dhbav2_subcortical_2025",
@@ -270,6 +271,7 @@ def create_all_ccf_annotation_sets(input_dir: Path, results_dir: Path, library, 
             "scale": scales["hcp"],
             "summary": HCP_DHBAv2_ANNOTATION_DESCRIPTION,
             "creation_time": HCP_HOMBA_ANNOTATION_CREATION_TIME,
+            "simplify": False,
         },
         {
             "directory": "icbm2009b_homba_gyral_2025",
@@ -279,6 +281,7 @@ def create_all_ccf_annotation_sets(input_dir: Path, results_dir: Path, library, 
             "scale": scales["icbm"],
             "summary": ICBM_HOMBA_GYRAL_ANNOTATION_DESCRIPTION,
             "creation_time": ICBM_HOMBA_ANNOTATION_CREATION_TIME,
+            "simplify": False,
         },
         {
             "directory": "icbm2009b_homba_brodmann_2025",
@@ -288,6 +291,7 @@ def create_all_ccf_annotation_sets(input_dir: Path, results_dir: Path, library, 
             "scale": scales["icbm"],
             "summary": ICBM_HOMBA_BRODMANN_ANNOTATION_DESCRIPTION,
             "creation_time": ICBM_HOMBA_ANNOTATION_CREATION_TIME,
+            "simplify": False,
         },
         {
             "directory": "mac25_homba_bg_2025",
@@ -297,6 +301,7 @@ def create_all_ccf_annotation_sets(input_dir: Path, results_dir: Path, library, 
             "scale": scales["mac25"],
             "summary": MAC25_HOMBA_ANNOTATION_DESCRIPTION,
             "creation_time": MAC25_HOMBA_ANNOTATION_CREATION_TIME,
+            "simplify": False,
         },
         {
             "directory": "mac25cyno_homba_bg_2025",
@@ -306,6 +311,7 @@ def create_all_ccf_annotation_sets(input_dir: Path, results_dir: Path, library, 
             "scale": scales["mac25"],
             "summary": MAC25CYNO_HOMBA_ANNOTATION_DESCRIPTION,
             "creation_time": MAC25CYNO_HOMBA_ANNOTATION_CREATION_TIME,
+            "simplify": False,
         },
         {
             "directory": "riken25_homba_bg_2025",
@@ -315,6 +321,7 @@ def create_all_ccf_annotation_sets(input_dir: Path, results_dir: Path, library, 
             "scale": scales["riken25"],
             "summary": RIKEN25_HOMBA_ANNOTATION_DESCRIPTION,
             "creation_time": RIKEN25_HOMBA_ANNOTATION_CREATION_TIME,
+            "simplify":True
         },
     ]
 
@@ -332,7 +339,8 @@ def create_all_ccf_annotation_sets(input_dir: Path, results_dir: Path, library, 
         annotation_set.create_from_nifti(
             input_prefix=annotation_dir / "annotation",
             output_root=results_dir,
-            include_meshes=True
+            include_meshes=True,
+            simplify=annotation["simplify"]
         )
 
         annotation_output_dir = annotation_set.location(results_dir)

@@ -207,7 +207,12 @@ def create_multires_meshes(
     # The smallest axis, so the tolerance is at most the requested fraction of a voxel
     # on anisotropic volumes rather than more on the finer axes.
     voxel_nm = min(float(x) for x in volume.resolution)
-    max_simplification_error = simplification_error_voxels * voxel_nm
+    if simplification_error_voxels is None:
+        simplification_flag = False
+        max_simplification_error = 0
+    else:
+        simplification_flag = True
+        max_simplification_error = simplification_error_voxels * voxel_nm
 
     remap_tables = build_hierarchy_remap_tables(terminology)
     structure_count = sum(len(set(table.values())) for table in remap_tables)
@@ -222,7 +227,7 @@ def create_multires_meshes(
         f"simplification error {simplification_error_voxels:g} voxels "
         f"({max_simplification_error:g}nm)"
     )
-
+    
     # Called once rather than per depth. The task list depends only on the volume and the
     # shape, so the levels differ solely by remap table -- and calling it repeatedly would
     # rewrite the mesh info each time, which concurrent passes would race on.
@@ -243,7 +248,7 @@ def create_multires_meshes(
             # tensorstore omits chunks that are entirely background, which CloudVolume
             # would otherwise report as missing rather than empty.
             fill_missing=True,
-            simplification=True,
+            simplification=simplification_flag,
             max_simplification_error=max_simplification_error,
             compress=None,
         )

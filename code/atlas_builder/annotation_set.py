@@ -81,7 +81,7 @@ class AnnotationSet(AtlasAsset):
             template=template,
         )
 
-    def create(self, compressed_results, output_root, include_meshes=True):
+    def create(self, compressed_results, output_root, include_meshes=True, simplify=True):
         """Create annotation set from compressed annotation data at multiple scales.
 
         Args:
@@ -127,7 +127,10 @@ class AnnotationSet(AtlasAsset):
             # Meshes are read back out of the precomputed volume written above, so this
             # must follow convert_compressed_annotations_to_precomputed.
             logging.info(f"Creating multi-resolution meshes in {precomputed_output}")
-            create_multires_meshes(precomputed_output, self.terminology.df)
+            if simplify==True:
+                create_multires_meshes(precomputed_output, self.terminology.df)
+            else:
+                create_multires_meshes(precomputed_output, self.terminology.df, simplification_error_voxels=None)
 
         # Compute voxel counts for all terms using highest resolution data
         logging.info("Computing voxel counts for all terms at highest resolution...")
@@ -140,7 +143,7 @@ class AnnotationSet(AtlasAsset):
 
         logging.info(f"Created annotation set at {output_dir}")
 
-    def create_from_nifti(self, input_prefix, output_root, include_meshes=True):
+    def create_from_nifti(self, input_prefix, output_root, include_meshes=True , simplify=True):
         """Create annotation set from NIfTI source files with standardized naming convention.
 
         Args:
@@ -161,7 +164,7 @@ class AnnotationSet(AtlasAsset):
 
         # Load the copied files and use the general create method
         compressed_results = load_compressed_annotations(output_dir, scales=self.scales)
-        self.create(compressed_results, output_root, include_meshes=include_meshes)
+        self.create(compressed_results, output_root, include_meshes=include_meshes, simplify=simplify)
 
     def create_from_mhd(
         self,
