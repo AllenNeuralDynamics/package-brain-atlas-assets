@@ -1,5 +1,6 @@
-"""CCF 3 mouse brain atlas packaging functions."""
+"""HMBA cross-species atlas packaging functions."""
 
+import argparse
 import glob
 import logging
 import shutil
@@ -525,3 +526,33 @@ def package_ccf(input_dir, output_dir, library, scales):
     for atlas in atlases:
         atlas.create_manifest(output_dir)
         library.add(atlas)
+
+
+def main():
+    parser = argparse.ArgumentParser(description="Package HMBA cross-species atlas assets.")
+    parser.add_argument(
+        "--input-dir",
+        default="/data/hmba",
+        help="Directory containing raw HMBA input data (default: /data/hmba)",
+    )
+    parser.add_argument(
+        "--results-dir",
+        default="/results",
+        help="Output directory for packaged atlas assets (default: /results)",
+    )
+    args = parser.parse_args()
+
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
+
+    from atlas_builder import AssetLibrary
+    library = AssetLibrary()
+
+    scales = {"hcp": (700,), "mac25": (160,), "riken25": (70,), "icbm": (500,)}
+    package_ccf(Path(args.input_dir), Path(args.results_dir), library, scales=scales)
+
+    for space in library.coordinate_spaces:
+        space.create_manifest(Path(args.results_dir))
+
+
+if __name__ == "__main__":
+    main()
