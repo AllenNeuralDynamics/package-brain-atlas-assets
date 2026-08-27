@@ -26,6 +26,10 @@
 					"version": "12.14.4"
 				},
 				{
+					"name": "igneous-pipeline",
+					"version": "4.36.2"
+				},
+				{
 					"name": "ngff-zarr",
 					"version": "0.42.1"
 				},

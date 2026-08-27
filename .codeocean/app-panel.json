@@ -1,0 +1,25 @@
+{
+	"version": 1,
+	"general": {
+		"title": "Package Brain Atlas Assets",
+		"instructions": "Select 'all' to package every atlas (CCF, SmartSPIM, iDISCO, HMBA, DevMouse), or 'hmba' to package only the HMBA cross-species atlases. All other settings use their default paths (/data/... inputs → /results output)."
+	},
+	"parameters": [
+		{
+			"id": "cNekKknMYy0OPsOy",
+			"name": "Entrypoint",
+			"type": "list",
+			"value_type": "string",
+			"default_value": "all",
+			"extra_data": [
+				"all",
+				"hmba"
+			]
+		}
+	],
+	"results": [
+		{
+			"file_name": "output.log"
+		}
+	]
+}

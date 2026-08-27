@@ -5,12 +5,10 @@ import shutil
 from pathlib import Path
 
 import pandas as pd
-from CCFv3 import load_ccf3_meshes
 
 from atlas_builder import (AnnotationSet, CoordinateSpace,
                           Template, Atlas,
                           Terminology)
-from atlas_builder.precomputed import append_meshes_to_precomputed, clear_meshes_from_precomputed
 from atlas_builder.annotation_set import uncompress_annotations_to_zarr
 import datetime
 from aind_data_schema.core.data_description import DataDescription, Funding
@@ -407,7 +405,7 @@ def create_ccf2020_annotation_set(input_dir, results_dir, library, scales=(10, 2
     annotation_set.create_from_nifti(
         input_prefix=annotation_dir / "annotation",
         output_root=results_dir,
-        include_meshes=False,
+        include_meshes=True,
     )
 
     annotation_output_dir = annotation_set.location(results_dir)
@@ -422,37 +420,6 @@ def create_ccf2020_annotation_set(input_dir, results_dir, library, scales=(10, 2
     _write_ccf2020_annotation_data_description(annotation_set.location(results_dir))
 
     annotation_set.create_manifest(results_dir)
-
-    def map_obj_id_to_annotation_value(obj_id):
-        """Map object IDs to file IDs."""
-        # Use the file_id from the terminology DataFrame
-        val = terminology.df.loc[terminology.df["identifier"] == f"MBA:{obj_id}", "annotation_value"].values[0]
-        return val[0] if isinstance(val, list) else val
-
-    meshes = load_ccf3_meshes(Path("/data/ccf_meshes/mcc/annotation/ccf_2017/structure_meshes"))
-
-    precomputed_dir = (
-        results_dir
-        / "annotation-sets"
-        / "allen-adult-mouse-stereotaxic-annotation"
-        / "2020"
-        / "annotations.precomputed"
-    )
-
-    # Remove parent mesh fragments but keep mesh fragments from structures with voxels directly in the annotation set.
-    parcellation_df = pd.read_csv(input_dir / "metadata" / "Allen-CCF-2020" / "20230630" / "parcellation.csv")
-    clear_meshes_from_precomputed(
-        precomputed_dir,
-        keep_annotation_values=set(terminology.df["annotation_value"]) & set(parcellation_df["parcellation_index"]),
-    )
-
-    # Append meshes
-    append_meshes_to_precomputed(
-        ((m, map_obj_id_to_annotation_value(obj_id)) for m, obj_id in meshes),
-        precomputed_dir,
-        scale=1000,  # convert microns to nm
-        map_annotation_value=lambda v: v[0] if isinstance(v, list) else v,
-    )
 
     # Add to asset library
     library.add(annotation_set)

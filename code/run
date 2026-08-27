@@ -2,4 +2,34 @@
 set -ex
 
 # This is the master script for the capsule. When you click "Reproducible Run", the code in this file will execute.
-python -u package_atlases.py "$@"
+#
+# Usage:
+#   ./run [ENTRYPOINT] [extra args...]
+#
+# ENTRYPOINT selects which atlas(es) to package:
+#   all   (default) - package every atlas via package_atlases.py
+#   hmba            - package only the HMBA atlases via HMBA.py
+#
+# Any additional arguments are forwarded to the selected entrypoint, e.g.:
+#   ./run all --results-dir /results
+#   ./run hmba --input-dir /data/hmba --results-dir /results
+
+ENTRYPOINT="${1:-all}"
+if [ "$#" -gt 0 ]; then
+    shift
+fi
+: "${ENTRYPOINT:=all}"   # blank string also falls back to 'all'
+
+case "$ENTRYPOINT" in
+    all)
+        python -u package_atlases.py "$@"
+        ;;
+    hmba)
+        python -u HMBA.py "$@"
+        ;;
+    *)
+        echo "Unknown entrypoint: $ENTRYPOINT" >&2
+        echo "Valid entrypoints: all, hmba" >&2
+        exit 1
+        ;;
+esac
