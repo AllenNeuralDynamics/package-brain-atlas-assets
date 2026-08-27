@@ -11,7 +11,14 @@ from atlas_builder.annotation_set import AnnotationSet
 from atlas_builder.coordinate_space import CoordinateSpace
 from atlas_builder.template import Template
 from atlas_builder.terminology import Terminology
-from utils import convert_mhd_to_nifti, correct_coordinate_transforms_rfc5, decompose_affine
+from ngff_zarr.v04.zarr_metadata import Omero, OmeroChannel, OmeroWindow
+
+from utils import (
+    convert_mhd_to_nifti,
+    decompose_affine,
+    write_multiscale_arrays,
+    write_v06_metadata,
+)
 
 
 class FakeSimpleITKImage:
@@ -274,36 +281,71 @@ class AnnotationSetCreateFromMhdTests(unittest.TestCase):
                 annotation_set.create_from_mhd("annotation.mhd", tempdir)
 
 
-class CorrectCoordinateTransformsRfc5Tests(unittest.TestCase):
-    def make_group(self, shape, axes, transforms_by_path):
+class WriteMultiscaleArraysTests(unittest.TestCase):
+    def make_group(self):
+        tempdir = tempfile.TemporaryDirectory()
+        self.addCleanup(tempdir.cleanup)
+        return zarr.open_group(tempdir.name, mode="w")
+
+    def test_clamps_chunks_to_level_shape(self) -> None:
+        group = self.make_group()
+        # Coarse levels smaller than the requested chunk must not be padded out to it.
+        arrays = [np.zeros((264, 160, 228), dtype=np.float32), np.zeros((132, 80, 114), dtype=np.float32)]
+
+        paths = write_multiscale_arrays(group, arrays, chunks=(128, 128, 128))
+
+        self.assertEqual(paths, ["s0", "s1"])
+        self.assertEqual(tuple(group["s0"].chunks), (128, 128, 128))
+        self.assertEqual(tuple(group["s1"].chunks), (128, 80, 114))
+        for path, array in zip(paths, arrays):
+            self.assertTrue(all(c <= s for c, s in zip(group[path].chunks, array.shape)))
+
+    def test_applies_blosc_compression(self) -> None:
+        group = self.make_group()
+
+        write_multiscale_arrays(group, [np.zeros((8, 8, 8), dtype=np.float32)], chunks=(4, 4, 4))
+
+        blosc = [c for c in group["s0"].compressors if type(c).__name__ == "BloscCodec"]
+        self.assertEqual(len(blosc), 1, f"expected a BloscCodec, got {group['s0'].compressors}")
+        # cname/shuffle are plain strings in some zarr versions and enums in others.
+        cname = blosc[0].cname
+        self.assertEqual(getattr(cname, "value", cname), "zstd")
+        self.assertEqual(blosc[0].clevel, 3)
+
+    def test_rejects_chunks_of_wrong_rank(self) -> None:
+        group = self.make_group()
+
+        with self.assertRaisesRegex(ValueError, "3-dimensional but chunks has 4"):
+            write_multiscale_arrays(group, [np.zeros((4, 4, 4), dtype=np.float32)], chunks=(1, 4, 4, 4))
+
+    def test_round_trips_array_contents(self) -> None:
+        group = self.make_group()
+        array = np.arange(2 * 3 * 4, dtype=np.float32).reshape(2, 3, 4)
+
+        write_multiscale_arrays(group, [array], chunks=(128, 128, 128))
+
+        np.testing.assert_array_equal(group["s0"][...], array)
+
+
+class WriteV06MetadataTests(unittest.TestCase):
+    def make_group(self, shape, transforms_by_path):
         tempdir = tempfile.TemporaryDirectory()
         self.addCleanup(tempdir.cleanup)
 
         group = zarr.open_group(tempdir.name, mode="w")
-        datasets = []
-        for path, transforms in transforms_by_path.items():
+        for path in transforms_by_path:
             group.create_array(path, data=np.zeros(shape, dtype=np.float32))
-            datasets.append(
-                {
-                    "path": path,
-                    "coordinateTransformations": transforms,
-                }
-            )
-
-        group.attrs.put(
-            {
-                "ome": {
-                    "multiscales": [
-                        {
-                            "name": "test",
-                            "axes": axes,
-                            "datasets": datasets,
-                        }
-                    ]
-                }
-            }
-        )
         return group
+
+    def write(self, group, transforms_by_path, intrinsic_axes, world_axes):
+        write_v06_metadata(
+            group,
+            list(transforms_by_path),
+            list(transforms_by_path.values()),
+            intrinsic_axes=intrinsic_axes,
+            world_axes=world_axes,
+        )
+        return dict(group.attrs)["ome"]
 
     def test_splits_dataset_scale_from_shared_world_transform(self) -> None:
         intrinsic_axes = [
@@ -323,28 +365,32 @@ class CorrectCoordinateTransformsRfc5Tests(unittest.TestCase):
             "1": build_transform_list([0.02, 0.02, 0.02], rotation=rotation, translation=translation),
         }
 
-        group = self.make_group((2, 2, 2), intrinsic_axes, transforms_by_path)
+        group = self.make_group((2, 2, 2), transforms_by_path)
 
-        correct_coordinate_transforms_rfc5(group, world_axes)
+        ome = self.write(group, transforms_by_path, intrinsic_axes, world_axes)
 
-        ome = dict(group.attrs)["ome"]
-        self.assertEqual([cs["name"] for cs in ome["coordinateSystems"]], ["intrinsic", "mm RAS"])
+        self.assertEqual(ome["version"], "0.6")
 
         multiscales = ome["multiscales"][0]
-        self.assertEqual(multiscales["coordinateTransformations"][0]["input"], "intrinsic")
-        self.assertEqual(multiscales["coordinateTransformations"][0]["output"], "mm RAS")
+        # coordinateSystems belongs inside the multiscales entry, not on the ome block
+        self.assertEqual([cs["name"] for cs in multiscales["coordinateSystems"]], ["intrinsic", "mm RAS"])
+        self.assertNotIn("coordinateSystems", ome)
+
+        self.assertEqual(multiscales["coordinateTransformations"][0]["input"], {"name": "intrinsic"})
+        self.assertEqual(multiscales["coordinateTransformations"][0]["output"], {"name": "mm RAS"})
         self.assertEqual(
             [t["type"] for t in multiscales["coordinateTransformations"][0]["transformations"]],
             ["rotation", "translation", "affine"],
         )
 
         dataset_transform = multiscales["datasets"][0]["coordinateTransformations"][0]
-        self.assertEqual(dataset_transform["input"], "0")
-        self.assertEqual(dataset_transform["output"], "intrinsic")
+        self.assertEqual(dataset_transform["input"], {"path": "0"})
+        self.assertEqual(dataset_transform["output"], {"name": "intrinsic"})
         self.assertEqual(dataset_transform["transformations"], [{"type": "scale", "scale": [0.01, 0.01, 0.01]}])
 
-        dataset_ome = dict(group["0"].attrs)["ome"]
-        self.assertEqual(dataset_ome["coordinateTransformations"], multiscales["datasets"][0]["coordinateTransformations"])
+        # The array node carries no ome metadata of its own: a transform stored there
+        # could only reference coordinate systems that node does not define.
+        self.assertNotIn("ome", dict(group["0"].attrs))
 
     def test_preserves_channel_identity_for_4d_intrinsic_scale(self) -> None:
         intrinsic_axes = [
@@ -367,16 +413,16 @@ class CorrectCoordinateTransformsRfc5Tests(unittest.TestCase):
             "1": build_transform_list([1.0, 25.0, 25.0, 25.0], rotation=rotation, translation=translation),
         }
 
-        group = self.make_group((2, 2, 2, 2), intrinsic_axes, transforms_by_path)
+        group = self.make_group((2, 2, 2, 2), transforms_by_path)
 
-        correct_coordinate_transforms_rfc5(group, world_axes)
+        ome = self.write(group, transforms_by_path, intrinsic_axes, world_axes)
 
-        dataset_transform = dict(group.attrs)["ome"]["multiscales"][0]["datasets"][1]["coordinateTransformations"][0]
+        dataset_transform = ome["multiscales"][0]["datasets"][1]["coordinateTransformations"][0]
         self.assertEqual(
             dataset_transform["transformations"],
             [{"type": "scale", "scale": [1.0, 25.0, 25.0, 25.0]}],
         )
-        shared_transform = dict(group.attrs)["ome"]["multiscales"][0]["coordinateTransformations"][0]
+        shared_transform = ome["multiscales"][0]["coordinateTransformations"][0]
         self.assertEqual(shared_transform["transformations"][0]["type"], "rotation")
         self.assertEqual(shared_transform["transformations"][1]["type"], "translation")
         self.assertEqual(shared_transform["transformations"][2]["type"], "affine")
@@ -407,14 +453,14 @@ class CorrectCoordinateTransformsRfc5Tests(unittest.TestCase):
             )
         }
 
-        group = self.make_group((2, 2, 2), intrinsic_axes, transforms_by_path)
+        group = self.make_group((2, 2, 2), transforms_by_path)
 
-        correct_coordinate_transforms_rfc5(group, world_axes)
+        ome = self.write(group, transforms_by_path, intrinsic_axes, world_axes)
 
-        shared_transform = dict(group.attrs)["ome"]["multiscales"][0]["coordinateTransformations"][0]
+        shared_transform = ome["multiscales"][0]["coordinateTransformations"][0]
         self.assertIn("affine", [transform["type"] for transform in shared_transform["transformations"]])
         self.assertEqual(shared_transform["transformations"][-1]["type"], "affine")
-        self.assertEqual(shared_transform["output"], "mm RAS")
+        self.assertEqual(shared_transform["output"], {"name": "mm RAS"})
 
     def test_permutation_swaps_first_and_last_spatial_axes_3d(self) -> None:
         intrinsic_axes = [
@@ -431,11 +477,11 @@ class CorrectCoordinateTransformsRfc5Tests(unittest.TestCase):
             "0": build_transform_list([0.01, 0.01, 0.01]),
         }
 
-        group = self.make_group((2, 2, 2), intrinsic_axes, transforms_by_path)
+        group = self.make_group((2, 2, 2), transforms_by_path)
 
-        correct_coordinate_transforms_rfc5(group, world_axes)
+        ome = self.write(group, transforms_by_path, intrinsic_axes, world_axes)
 
-        shared_transform = dict(group.attrs)["ome"]["multiscales"][0]["coordinateTransformations"][0]
+        shared_transform = ome["multiscales"][0]["coordinateTransformations"][0]
         affine_transforms = [t for t in shared_transform["transformations"] if t["type"] == "affine"]
         self.assertEqual(len(affine_transforms), 1)
 
@@ -446,6 +492,58 @@ class CorrectCoordinateTransformsRfc5Tests(unittest.TestCase):
             [1.0, 0.0, 0.0, 0.0],
         ])
         np.testing.assert_array_equal(perm_matrix, expected)
+
+    def test_omits_omero_when_not_supplied(self) -> None:
+        axes = [
+            {"name": "z", "type": "space", "unit": "millimeter"},
+            {"name": "y", "type": "space", "unit": "millimeter"},
+            {"name": "x", "type": "space", "unit": "millimeter"},
+        ]
+        transforms_by_path = {"0": build_transform_list([0.01, 0.01, 0.01])}
+
+        group = self.make_group((2, 2, 2), transforms_by_path)
+        ome = self.write(group, transforms_by_path, axes, axes)
+
+        self.assertNotIn("omero", ome)
+        self.assertNotIn("omero", ome["multiscales"][0])
+
+    def test_hoists_omero_to_group_level(self) -> None:
+        axes = [
+            {"name": "c", "type": "channel"},
+            {"name": "z", "type": "space", "unit": "micrometer"},
+            {"name": "y", "type": "space", "unit": "micrometer"},
+            {"name": "x", "type": "space", "unit": "micrometer"},
+        ]
+        transforms_by_path = {"0": build_transform_list([1.0, 10.0, 10.0, 10.0])}
+        omero = Omero(
+            channels=[
+                OmeroChannel(
+                    color="FF0000",
+                    window=OmeroWindow(min=0.0, max=100.0, start=5.0, end=95.0),
+                    label="cfos",
+                )
+            ]
+        )
+
+        group = self.make_group((1, 2, 2, 2), transforms_by_path)
+        write_v06_metadata(
+            group,
+            list(transforms_by_path),
+            list(transforms_by_path.values()),
+            intrinsic_axes=axes,
+            world_axes=axes,
+            omero=omero,
+        )
+        ome = dict(group.attrs)["ome"]
+
+        # omero is group-level: a sibling of multiscales, not part of the entry.
+        self.assertNotIn("omero", ome["multiscales"][0])
+        self.assertEqual(ome["omero"]["channels"][0]["label"], "cfos")
+        self.assertEqual(ome["omero"]["channels"][0]["color"], "FF0000")
+        self.assertEqual(
+            ome["omero"]["channels"][0]["window"],
+            {"min": 0.0, "max": 100.0, "start": 5.0, "end": 95.0},
+        )
 
     def test_permutation_swaps_first_and_last_spatial_axes_4d(self) -> None:
         intrinsic_axes = [
@@ -464,11 +562,11 @@ class CorrectCoordinateTransformsRfc5Tests(unittest.TestCase):
             "0": build_transform_list([1.0, 10.0, 10.0, 10.0]),
         }
 
-        group = self.make_group((2, 2, 2, 2), intrinsic_axes, transforms_by_path)
+        group = self.make_group((2, 2, 2, 2), transforms_by_path)
 
-        correct_coordinate_transforms_rfc5(group, world_axes)
+        ome = self.write(group, transforms_by_path, intrinsic_axes, world_axes)
 
-        shared_transform = dict(group.attrs)["ome"]["multiscales"][0]["coordinateTransformations"][0]
+        shared_transform = ome["multiscales"][0]["coordinateTransformations"][0]
         affine_transforms = [t for t in shared_transform["transformations"] if t["type"] == "affine"]
         self.assertEqual(len(affine_transforms), 1)
 

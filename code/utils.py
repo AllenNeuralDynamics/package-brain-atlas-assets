@@ -4,7 +4,30 @@ import numpy as np
 import nibabel as nib
 import logging
 import copy
+import zarr
 import SimpleITK as sitk
+
+from dataclasses import asdict
+
+from ngff_zarr.v06.zarr_metadata import (
+    Affine,
+    AnatomicalOrientation,
+    Axis,
+    CoordinateSystem,
+    CoordinateSystemIdentifier,
+    Dataset,
+    Identity,
+    Metadata,
+    Rotation,
+    Scale,
+    TransformSequence,
+    Translation,
+)
+
+# The 0.6rc0 spec document uses "0.6rc0", but no reader accepts that string. ngff-zarr
+# accepts "0.6" and "0.6.dev4"; the latter is temporary scaffolding slated for removal
+# once 0.6 is final (fideus-labs/ngff-zarr#561, #565).
+NGFF_VERSION = "0.6"
 
 
 def convert_mhd_to_nifti(mhd_path, output_path, output_direction=None, output_origin=None):
@@ -173,101 +196,210 @@ def _transforms_match(left: list[dict], right: list[dict]) -> bool:
     return True
 
 
-def _wrap_transform_sequence(input_name: str, output_name: str, transforms: list[dict]) -> dict:
-    return {
-        "type": "sequence",
-        "input": input_name,
-        "output": output_name,
-        "transformations": transforms,
-    }
+def _strip_none(obj):
+    """Recursively drop None-valued keys.
+
+    In OME-Zarr an absent field and an explicit null mean the same thing, so culling
+    None keeps the written metadata clean without enumerating optional fields. Only
+    None is removed; 0, "" and empty collections are preserved.
+    """
+    if isinstance(obj, dict):
+        return {k: _strip_none(v) for k, v in obj.items() if v is not None}
+    if isinstance(obj, list):
+        return [_strip_none(item) for item in obj]
+    return obj
 
 
-def correct_coordinate_transforms_rfc5(
+def _axis_from_dict(axis: dict) -> Axis:
+    """Build an ngff-zarr Axis from the plain dict form used throughout this module."""
+    orientation = axis.get("orientation")
+    return Axis(
+        name=axis["name"],
+        type=axis.get("type"),
+        unit=axis.get("unit"),
+        orientation=(
+            AnatomicalOrientation(value=orientation["value"]) if orientation else None
+        ),
+    )
+
+
+def _transform_from_dict(transform: dict):
+    """Build an ngff-zarr transform from the plain dict form produced by decompose_affine."""
+    transform_type = transform.get("type")
+    if transform_type == "scale":
+        return Scale(scale=list(transform["scale"]))
+    if transform_type == "translation":
+        return Translation(translation=list(transform["translation"]))
+    if transform_type == "rotation":
+        return Rotation(rotation=[list(row) for row in transform["rotation"]])
+    if transform_type == "affine":
+        return Affine(affine=[list(row) for row in transform["affine"]])
+    if transform_type == "identity":
+        return Identity()
+    raise ValueError(f"Unsupported coordinate transformation type: {transform_type!r}")
+
+
+def _wrap_transform_sequence(input_ref, output_ref, transforms: list[dict]) -> TransformSequence:
+    return TransformSequence(
+        input=input_ref,
+        output=output_ref,
+        transformations=[_transform_from_dict(t) for t in transforms],
+    )
+
+
+def write_multiscale_arrays(
     group,
-    axes,
-    coordinate_system_name="mm RAS",
-    intrinsic_coordinate_system_name="intrinsic",
-    multiscale_transform_key="coordinateTransformations",
+    arrays,
+    dataset_paths=None,
+    chunks=(128, 128, 128),
+    compressor=None,
 ):
-    attrs = dict(group.attrs)
-    ome_block = attrs.get("ome")
-    if ome_block is None:
-        raise ValueError("Expected OME metadata block in group attrs")
+    """Write pyramid levels into a zarr group, returning the paths written.
 
-    multiscales = ome_block.get("multiscales", [])
-    if not multiscales:
-        raise ValueError("Expected at least one multiscales entry in OME metadata")
+    Only the arrays are written; multiscale metadata is written separately by
+    write_v06_metadata. Levels are supplied pre-computed, so nothing is downsampled here.
 
-    multiscales_entry = multiscales[0]
-    intrinsic_axes = copy.deepcopy(multiscales_entry.get("axes", axes))
-    ome_block["coordinateSystems"] = [
-        {"name": intrinsic_coordinate_system_name, "axes": intrinsic_axes},
-        {"name": coordinate_system_name, "axes": copy.deepcopy(axes)},
-    ]
-    array_data = multiscales_entry.get("datasets", [])
-    global_coordinate_transformations = None
+    ``chunks`` is clamped per axis to the level's shape, so the coarsest levels are not
+    padded out to a chunk far larger than the data they hold.
+    """
+    if compressor is None:
+        compressor = zarr.codecs.BloscCodec(cname="zstd", clevel=3, shuffle="shuffle")
+    if dataset_paths is None:
+        dataset_paths = [f"s{i}" for i in range(len(arrays))]
 
-    for idx in range(len(array_data)):
-        _array = array_data[idx]
+    for path, array in zip(dataset_paths, arrays):
+        if len(chunks) != array.ndim:
+            raise ValueError(
+                f"Dataset {path} is {array.ndim}-dimensional but chunks has {len(chunks)} entries: {chunks}"
+            )
+        level_chunks = tuple(min(c, s) for c, s in zip(chunks, array.shape))
 
-        array_path = _array.get("path", str(idx))
+        group.create_array(
+            path,
+            shape=array.shape,
+            dtype=array.dtype,
+            chunks=level_chunks,
+            compressors=(compressor,),
+        )[...] = array
+        logging.info(
+            f"Wrote {path}: shape {array.shape}, dtype {array.dtype}, chunks {level_chunks}"
+        )
 
-        coord_transforms = _array.get("coordinateTransformations", [])
-        dataset_transforms, candidate_global_transforms = _split_dataset_and_global_transforms(coord_transforms)
-        if not dataset_transforms:
+    return list(dataset_paths)
+
+
+def write_v06_metadata(
+    group,
+    dataset_paths,
+    coordinate_transformations,
+    intrinsic_axes,
+    world_axes=None,
+    world_coordinate_system_name="mm RAS",
+    intrinsic_coordinate_system_name="intrinsic",
+    name="/",
+    omero=None,
+):
+    """Write OME-Zarr v0.6 multiscales metadata for arrays already present in ``group``.
+
+    Each entry of ``coordinate_transformations`` holds the transforms for one pyramid
+    level, as produced by decompose_affine. The ``scale`` transforms are per-level and
+    map array indices into the intrinsic coordinate system; every other transform is
+    shared across levels and describes intrinsic -> world, so it is emitted once.
+    """
+    if len(dataset_paths) != len(coordinate_transformations):
+        raise ValueError(
+            f"Got {len(dataset_paths)} dataset paths but "
+            f"{len(coordinate_transformations)} transform lists"
+        )
+    if world_axes is None:
+        world_axes = intrinsic_axes
+
+    shared_transforms = None
+    datasets = []
+
+    for array_path, level_transforms in zip(dataset_paths, coordinate_transformations):
+        level_scale_transforms, candidate_shared = _split_dataset_and_global_transforms(level_transforms)
+        if not level_scale_transforms:
             raise ValueError(
                 f"Dataset {array_path} must include a scale transform to map indices into {intrinsic_coordinate_system_name}"
             )
 
-        if global_coordinate_transformations is None:
-            global_coordinate_transformations = candidate_global_transforms
-        elif not _transforms_match(global_coordinate_transformations, candidate_global_transforms):
+        if shared_transforms is None:
+            shared_transforms = candidate_shared
+        elif not _transforms_match(shared_transforms, candidate_shared):
             raise ValueError(
                 "All datasets must share the same non-scale transforms to emit a single intrinsic-to-world transform"
             )
 
-        coordinate_transform_metadata = _wrap_transform_sequence(
-            array_path,
-            intrinsic_coordinate_system_name,
-            dataset_transforms,
+        datasets.append(
+            Dataset(
+                path=array_path,
+                coordinateTransformations=[
+                    _wrap_transform_sequence(
+                        CoordinateSystemIdentifier(path=array_path),
+                        CoordinateSystemIdentifier(name=intrinsic_coordinate_system_name),
+                        level_scale_transforms,
+                    )
+                ],
+            )
         )
-        _array["coordinateTransformations"] = [coordinate_transform_metadata]
-
-        # Apply same coordinate transform to all zarr arrays
-        array_attr = dict(group[array_path].attrs)
-        ome_attr = array_attr.get("ome", {})
-        ome_attr["coordinateTransformations"] = _array.get("coordinateTransformations")
-
-        logging.info(f"OME attr: {ome_attr}")
-        array_attr["ome"] = ome_attr
-        group[array_path].attrs.put(array_attr)
 
     # Build permutation to swap first and last spatial axes
     # so the intrinsic order (z=R, y=A, x=S) maps to mm RAS (z=S, y=A, x=R)
-    spatial_indices = [i for i, a in enumerate(axes) if a.get("type") == "space"]
+    spatial_indices = [i for i, a in enumerate(world_axes) if a.get("type") == "space"]
     if len(spatial_indices) >= 2:
-        n = len(axes)
+        n = len(world_axes)
         perm = np.eye(n, n + 1)
         first, last = spatial_indices[0], spatial_indices[-1]
         perm[[first, last]] = perm[[last, first]]
         if not np.allclose(perm[:, :n], np.eye(n)):
-            permutation_transform = {"type": "affine", "affine": perm.tolist()}
-            if global_coordinate_transformations is None:
-                global_coordinate_transformations = []
-            global_coordinate_transformations.append(permutation_transform)
+            if shared_transforms is None:
+                shared_transforms = []
+            shared_transforms.append({"type": "affine", "affine": perm.tolist()})
 
-    if global_coordinate_transformations:
-        multiscales_entry[multiscale_transform_key] = [
-            _wrap_transform_sequence(
-                intrinsic_coordinate_system_name,
-                coordinate_system_name,
-                global_coordinate_transformations,
-            )
-        ]
-    else:
-        multiscales_entry.pop(multiscale_transform_key, None)
+    metadata = Metadata(
+        coordinateSystems=[
+            CoordinateSystem(
+                name=intrinsic_coordinate_system_name,
+                axes=[_axis_from_dict(a) for a in intrinsic_axes],
+            ),
+            CoordinateSystem(
+                name=world_coordinate_system_name,
+                axes=[_axis_from_dict(a) for a in world_axes],
+            ),
+        ],
+        datasets=datasets,
+        coordinateTransformations=(
+            [
+                _wrap_transform_sequence(
+                    CoordinateSystemIdentifier(name=intrinsic_coordinate_system_name),
+                    CoordinateSystemIdentifier(name=world_coordinate_system_name),
+                    shared_transforms,
+                )
+            ]
+            if shared_transforms
+            else None
+        ),
+        omero=omero,
+        name=name,
+    )
 
-    ome_block["version"] = "0.6.dev3"
-    ome_block["multiscales"] = [multiscales_entry]
+    # Metadata.extra is a read-side validation aid, never part of a written entry.
+    metadata_dict = _strip_none(asdict(metadata))
+    metadata_dict.pop("extra", None)
+
+    # omero is group-level metadata, a sibling of multiscales rather than part of the
+    # entry, so it is hoisted out of the dataclass's nesting.
+    ome_block = {"version": NGFF_VERSION}
+    omero_dict = metadata_dict.pop("omero", None)
+    if omero_dict is not None:
+        ome_block["omero"] = omero_dict
+    ome_block["multiscales"] = [metadata_dict]
+
+    attrs = dict(group.attrs)
     attrs["ome"] = ome_block
     group.attrs.put(attrs)
+    logging.info(
+        f"Wrote OME-Zarr {NGFF_VERSION} metadata: {len(datasets)} levels, "
+        f"{intrinsic_coordinate_system_name} -> {world_coordinate_system_name}"
+    )
